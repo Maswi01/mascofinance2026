@@ -1,0 +1,198 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 900px;
+        margin: 30px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .lp-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 28px 50px 40px;
+    }
+    .part-title {
+        font-size: 16px; font-weight: 700; color: #1a1a1a;
+        padding-bottom: 10px; border-bottom: 1.5px solid #999;
+        margin-bottom: 32px; text-transform: uppercase;
+    }
+    .filter-row { display: flex; align-items: center; gap: 24px; margin-bottom: 24px; }
+    .filter-field { display: flex; align-items: center; gap: 14px; }
+    .filter-field label { font-size: 14px; color: #333; white-space: nowrap; }
+
+    /* Month input */
+    .month-input-wrap { position: relative; display: inline-block; }
+    .month-display {
+        padding: 9px 14px; border: 1px solid #ccc; border-radius: 2px;
+        font-size: 13.5px; color: #555; background: #fff; cursor: pointer;
+        min-width: 200px; user-select: none;
+    }
+    .month-display:focus { border-color: #9b59b6; outline: none; }
+    .month-picker-popup {
+        display: none; position: absolute; top: 42px; left: 0; z-index: 9999;
+        background: #fff; border: 1px solid #ccc;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15); width: 230px;
+    }
+    .month-picker-popup.open { display: block; }
+    .mpp-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 10px; background: #f3f3f3; border-bottom: 1px solid #e0e0e0;
+    }
+    .mpp-header select {
+        border: 1px solid #ccc; padding: 3px 6px; font-size: 12px;
+        border-radius: 2px; background: #fff; cursor: pointer;
+    }
+    .mpp-grid { display: grid; grid-template-columns: repeat(7,1fr); padding: 6px 4px; }
+    .mpp-day-label { text-align: center; font-size: 11px; font-weight: 700; color: #666; padding: 4px 0; }
+    .mpp-day {
+        text-align: center; padding: 6px 2px; font-size: 12px;
+        cursor: pointer; border-radius: 2px; color: #333;
+    }
+    .mpp-day:hover { background: #e8d5f5; }
+    .mpp-day.today { background: #f0e6ff; font-weight: 700; color: #7d3c98; }
+    .mpp-day.selected { background: #9b59b6 !important; color: #fff !important; font-weight: 700; }
+    .mpp-day.empty { cursor: default; }
+    .mpp-footer {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 6px 10px; border-top: 1px solid #e0e0e0; background: #f9f9f9;
+    }
+    .mpp-btn { padding: 4px 14px; font-size: 12px; border-radius: 2px; cursor: pointer; border: 1px solid #ccc; background: #fff; color: #333; }
+    .mpp-btn-done { background: #9b59b6; color: #fff; border-color: #7d3c98; font-weight: 700; }
+    .mpp-btn-done:hover { background: #7d3c98; }
+
+    .filter-divider { border: none; border-top: 1px solid #e0e0e0; margin: 4px 0 24px; }
+    .filter-actions { text-align: center; }
+    .continue-btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 10px 28px; background: #9b59b6; color: #fff; border: none;
+        border-radius: 3px; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .continue-btn:hover { background: #7d3c98; }
+</style>
+
+<div class="lp-wrapper">
+    <div class="lp-card">
+        <div class="part-title">Monthly Paylroll</div>
+
+        <form method="POST" action="{% url 'payroll_report' %}">
+            {% csrf_token %}
+            <input type="hidden" name="payroll_month" id="payrollMonthVal">
+
+            <div class="filter-row">
+                <div class="filter-field">
+                    <label>Payroll Month</label>
+                    <div class="month-input-wrap">
+                        <div class="month-display" id="monthDisplay" tabindex="0"
+                             onclick="togglePicker()">
+                            <span id="monthText">Changua mwezi</span>
+                        </div>
+                        <div class="month-picker-popup" id="pickerPop">
+                            <div class="mpp-header">
+                                <select id="mSel"></select>
+                                <select id="ySel"></select>
+                            </div>
+                            <div class="mpp-grid" id="mGrid"></div>
+                            <div class="mpp-footer">
+                                <button type="button" class="mpp-btn" onclick="setToday()">Today</button>
+                                <button type="button" class="mpp-btn mpp-btn-done" onclick="donePicker()">Done</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="filter-divider">
+            <div class="filter-actions">
+                <button type="submit" class="continue-btn" onclick="return validate()">
+                    ✔ CONTINUE&gt;&gt;
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const state  = { year: null, month: null, day: null };
+let pickerOpen = false;
+
+function togglePicker() {
+    pickerOpen = !pickerOpen;
+    document.getElementById('pickerPop').classList.toggle('open', pickerOpen);
+    if (pickerOpen) initPicker();
+}
+document.addEventListener('click', function(e) {
+    const wrap = document.querySelector('.month-input-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('pickerPop').classList.remove('open');
+        pickerOpen = false;
+    }
+});
+function initPicker() {
+    const now = new Date();
+    const cy  = state.year  || now.getFullYear();
+    const cm  = state.month || (now.getMonth()+1);
+    const mSel = document.getElementById('mSel');
+    const ySel = document.getElementById('ySel');
+    mSel.innerHTML = MONTHS.map((m,i) => `<option value="${i+1}" ${i+1===cm?'selected':''}>${m}</option>`).join('');
+    ySel.innerHTML = '';
+    for (let y = now.getFullYear()-5; y <= now.getFullYear()+2; y++)
+        ySel.innerHTML += `<option value="${y}" ${y===cy?'selected':''}>${y}</option>`;
+    mSel.onchange = renderGrid;
+    ySel.onchange = renderGrid;
+    renderGrid();
+}
+function renderGrid() {
+    const mSel = document.getElementById('mSel');
+    const ySel = document.getElementById('ySel');
+    const grid = document.getElementById('mGrid');
+    const m = parseInt(mSel.value), y = parseInt(ySel.value);
+    const now = new Date();
+    const fd  = new Date(y, m-1, 1).getDay();
+    const dim = new Date(y, m, 0).getDate();
+    let html = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=>`<div class="mpp-day-label">${d}</div>`).join('');
+    for (let i=0;i<fd;i++) html += `<div class="mpp-day empty"></div>`;
+    for (let d=1;d<=dim;d++) {
+        const isToday = d===now.getDate() && m===now.getMonth()+1 && y===now.getFullYear();
+        const isSel   = state.month===m && state.year===y;
+        html += `<div class="mpp-day${isToday?' today':''}${isSel?' selected':''}"
+                      onclick="pickDay(${y},${m},${d})">${d}</div>`;
+    }
+    grid.innerHTML = html;
+}
+function pickDay(y, m, d) {
+    state.year=y; state.month=m; state.day=d;
+    updateDisplay();
+    renderGrid();
+}
+function setToday() {
+    const t = new Date();
+    document.getElementById('mSel').value = t.getMonth()+1;
+    document.getElementById('ySel').value = t.getFullYear();
+    pickDay(t.getFullYear(), t.getMonth()+1, t.getDate());
+    renderGrid();
+}
+function donePicker() {
+    document.getElementById('pickerPop').classList.remove('open');
+    pickerOpen = false;
+}
+function pad2(n){ return String(n).padStart(2,'0'); }
+function updateDisplay() {
+    if (!state.month || !state.year) return;
+    const label = `${pad2(state.month)}-${state.year}`;
+    document.getElementById('monthText').textContent = label;
+    document.getElementById('payrollMonthVal').value = label;
+}
+function validate() {
+    if (!document.getElementById('payrollMonthVal').value) {
+        alert('Please select a payroll month.'); return false;
+    }
+    return true;
+}
+</script>
+{% endblock %}

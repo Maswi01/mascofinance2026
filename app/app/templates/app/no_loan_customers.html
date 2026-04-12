@@ -1,0 +1,165 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1000px;
+        margin: 20px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .report-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 24px 36px 28px;
+    }
+
+    /* ── Letterhead ── */
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 20px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 80px; height: auto; }
+    .company-name {
+        font-size: 26px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub  { font-size: 13px; font-weight: 600; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 3px; }
+    .company-contact { font-size: 12px; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 2px; }
+
+    /* ── Headings ── */
+    .branch-heading {
+        font-size: 14px; font-weight: 700; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin: 14px 0 8px;
+        text-transform: uppercase;
+    }
+    .report-heading {
+        font-size: 14px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin-bottom: 18px;
+        text-transform: uppercase;
+    }
+
+    /* ── Table ── */
+    .no-loan-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 13px;
+    }
+    .no-loan-table thead tr th {
+        padding: 9px 12px; text-align: center; font-weight: 700;
+        color: #1a1a1a; font-size: 12.5px;
+        border: 1px solid #1a1a1a;
+        background: #fff; white-space: nowrap;
+    }
+    .no-loan-table tbody tr { border-bottom: 1px solid #ddd; }
+    .no-loan-table tbody tr:hover { background: #f8f8f8; }
+    .no-loan-table td {
+        padding: 8px 12px; color: #1a1a1a;
+        border: 1px solid #ddd; font-size: 13px;
+        vertical-align: middle;
+    }
+    .no-loan-table td.center { text-align: center; }
+
+    /* Total count row */
+    .total-row td {
+        background: #f0f0f0 !important;
+        font-weight: 700; font-size: 13px;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+    }
+
+    /* Gold divider line (matching screenshot bottom line) */
+    .gold-divider {
+        border: none; border-top: 2px solid #c8a84b;
+        margin: 20px 0 10px;
+    }
+
+    /* Action row */
+    .action-row {
+        display: flex; justify-content: flex-end;
+        margin-top: 8px;
+    }
+    .print-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; color: #333;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row { display: none !important; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="report-card">
+
+        <div class="printable">
+
+            <!-- Letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="branch-heading">{{ branch_name }} BRANCH</div>
+            <div class="report-heading">CUSTOMERS WITH NO EXISTING LOAN</div>
+
+            <table class="no-loan-table">
+                <thead>
+                    <tr>
+                        <th style="width:60px;">S/N</th>
+                        <th>Name</th>
+                        <th>Check no</th>
+                        <th>Contact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr>
+                        <td class="center">{{ forloop.counter }}</td>
+                        <td>{{ client.firstname }} {{ client.middlename|default:'' }} {{ client.lastname }}</td>
+                        <td>{{ client.checkno|default:client.employmentcardno|default:'—' }}</td>
+                        <td>{{ client.phonenumber|default:'—' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr class="total-row">
+                        <td colspan="4">TOTAL CUSTOMERS WITH NO LOAN: 0</td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if clients %}
+                    <tr class="total-row">
+                        <td colspan="4">TOTAL CUSTOMERS WITH NO LOAN: {{ clients|length }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <hr class="gold-divider">
+
+        </div><!-- end printable -->
+
+        <div class="action-row">
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

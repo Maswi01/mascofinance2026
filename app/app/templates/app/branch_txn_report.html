@@ -1,0 +1,429 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1200px;
+        margin: 20px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+
+    .report-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 28px 36px 28px;
+    }
+
+    /* ── Company header ── */
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 22px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 80px; height: auto; }
+    .company-name {
+        font-size: 26px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub   { font-size: 13px; font-weight: 600; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 3px; }
+    .company-contact { font-size: 12px; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 2px; }
+
+    .report-heading {
+        font-size: 14px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin-bottom: 4px;
+        letter-spacing: 0.3px; text-transform: uppercase;
+    }
+
+    .office-title {
+        font-size: 13px; font-weight: 700; color: #1a4fa0;
+        text-align: center; font-family: Arial, sans-serif;
+        margin-bottom: 18px; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+
+    /* ── Transaction table ── */
+    .txn-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 12.5px;
+    }
+    .txn-table thead tr th {
+        padding: 8px 10px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 12px;
+        border-bottom: 2px solid #1a1a1a;
+        white-space: nowrap; background: #fff;
+    }
+    .txn-table th.num, .txn-table td.num { text-align: right; }
+
+    .txn-table tbody tr { border-bottom: 1px solid #e8e8e8; }
+    .txn-table tbody tr:hover { background: #f8fffe; }
+    .txn-table tbody tr.deleting { opacity: 0.4; pointer-events: none; transition: opacity 0.3s; }
+
+    .txn-table td {
+        padding: 7px 10px; color: #1a1a1a;
+        vertical-align: middle; font-size: 12.5px;
+    }
+    .txn-table td.date-cell { white-space: nowrap; }
+    .txn-table td.date-hidden { color: transparent; user-select: none; }
+
+    .receipt-link { color: #2980b9; font-weight: 500; }
+    .desc-bold { font-weight: 700; }
+
+    .grand-total-row td {
+        border-top: 2px solid #1a1a1a;
+        font-weight: 700; font-size: 13px;
+        padding: 9px 10px; background: #fff;
+    }
+
+    .alert-info {
+        background: #e8f4fd; border: 1px solid #b8d9f5; color: #1a5276;
+        padding: 14px 18px; border-radius: 3px; font-size: 13px;
+        font-family: Arial, sans-serif; text-align: center; margin-top: 10px;
+    }
+
+    /* ── Delete button ── */
+    .btn-del {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #c0392b;
+        font-size: 14px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        line-height: 1;
+        opacity: 0.55;
+        transition: opacity 0.15s, background 0.15s;
+    }
+    .btn-del:hover { opacity: 1; background: #fff0f0; }
+    /* hide delete button on print */
+    @media print { .btn-del, .th-del { display: none !important; } }
+
+    /* ── Confirm modal ── */
+    .modal-overlay {
+        display: none;
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal-box {
+        background: #fff;
+        border-radius: 5px;
+        padding: 28px 32px 24px;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        font-family: Arial, sans-serif;
+    }
+    .modal-icon {
+        font-size: 32px;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    .modal-title {
+        font-size: 15px; font-weight: 700; color: #1a1a1a;
+        text-align: center; margin-bottom: 8px;
+    }
+    .modal-body {
+        font-size: 13px; color: #555;
+        text-align: center; margin-bottom: 22px; line-height: 1.5;
+    }
+    .modal-body strong { color: #c0392b; }
+    .modal-actions {
+        display: flex; gap: 10px; justify-content: center;
+    }
+    .modal-btn-cancel {
+        padding: 8px 24px; background: #fff;
+        border: 1px solid #bbb; border-radius: 3px;
+        font-size: 13px; cursor: pointer; color: #555;
+    }
+    .modal-btn-cancel:hover { background: #f5f5f5; }
+    .modal-btn-confirm {
+        padding: 8px 24px; background: #c0392b;
+        border: none; border-radius: 3px;
+        font-size: 13px; font-weight: 700;
+        cursor: pointer; color: #fff;
+    }
+    .modal-btn-confirm:hover { background: #a93226; }
+    .modal-btn-confirm:disabled { background: #e08070; cursor: not-allowed; }
+
+    /* ── Toast notification ── */
+    .toast {
+        position: fixed; bottom: 24px; right: 24px;
+        padding: 12px 20px; border-radius: 4px;
+        font-size: 13px; font-family: Arial, sans-serif;
+        font-weight: 600; z-index: 99999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transform: translateY(60px); opacity: 0;
+        transition: transform 0.25s, opacity 0.25s;
+        pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { background: #f0fff4; color: #1a6b3a; border: 1px solid #b0e8c0; }
+    .toast.error   { background: #fff0f0; color: #7a0000; border: 1px solid #f5c0c0; }
+
+    /* ── Action bar ── */
+    .action-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding-top: 14px; border-top: 1px solid #ddd; margin-top: 8px;
+    }
+    .back-link { font-size: 13px; color: #2980b9; font-family: Arial, sans-serif; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .print-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; color: #333;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row { display: none !important; }
+    }
+
+    @media (max-width: 900px) {
+        .txn-table { font-size: 11px; }
+        .report-card { padding: 16px; }
+    }
+</style>
+
+<!-- ── Confirm Delete Modal ──────────────────────────────────────── -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-box">
+        <div class="modal-icon">⚠️</div>
+        <div class="modal-title">Confirm Delete</div>
+        <div class="modal-body" id="modalBody">
+            Are you sure you want to delete this transaction?<br>
+            <strong>This action cannot be undone.</strong><br>
+            The amount will be returned to the original account.
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="modal-btn-confirm" id="modalConfirmBtn" onclick="confirmDelete()">
+                Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Toast ─────────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<div class="lp-wrapper">
+    <div class="report-card">
+
+        <div class="printable">
+
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="report-heading">
+                Transaction Statement From {{ date_from_display }} To {{ date_to_display }}
+            </div>
+            <div class="office-title">Branch: {{ branch_name }}</div>
+
+            {% if rows %}
+            <table class="txn-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Receipt #</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th class="num">Credit</th>
+                        <th class="num">Debit</th>
+                        <th>Processed By</th>
+                        <th class="th-del no-print"></th>
+                    </tr>
+                </thead>
+                <tbody id="txnTableBody">
+                    {% for row in rows %}
+                    <tr id="row-{{ row.record_type }}-{{ row.record_id }}-{{ forloop.counter }}">
+                        <td class="date-cell {% if row.hide_date %}date-hidden{% endif %}">
+                            {{ row.date|date:"d/m/Y" }}
+                        </td>
+                        <td>
+                            {% if row.is_expense and row.attachment %}
+                                <a href="{{ row.attachment }}" target="_blank"
+                                   title="View Attachment" style="text-decoration:none;">
+                                    <span class="receipt-link">{{ row.receipt_no }}</span> &#128196;
+                                </a>
+                            {% else %}
+                                {{ row.receipt_no }}
+                            {% endif %}
+                        </td>
+                        <td>{{ row.name }}</td>
+                        <td>
+                            {% if row.description_bold %}
+                                <strong class="desc-bold">{{ row.description }}</strong>
+                            {% else %}
+                                {{ row.description }}
+                            {% endif %}
+                        </td>
+                        <td class="num">
+                            {% if row.credit %}{{ row.credit|floatformat:0|intcomma }}{% endif %}
+                        </td>
+                        <td class="num">
+                            {% if row.debit %}{{ row.debit|floatformat:0|intcomma }}{% endif %}
+                        </td>
+                        <td>{{ row.processed_by }}</td>
+
+                        {# ── Delete button cell ── #}
+                        <td class="no-print" style="text-align:center; white-space:nowrap;">
+                            {% if row.deletable %}
+                            <button
+                                class="btn-del"
+                                title="Delete this transaction"
+                                onclick="openModal(
+                                    '{{ row.record_type }}',
+                                    {{ row.record_id }},
+                                    '{{ row.description|escapejs }}',
+                                    '{{ row.receipt_no }}',
+                                    'row-{{ row.record_type }}-{{ row.record_id }}-{{ forloop.counter }}'
+                                )"
+                            >&#128465;</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <tr class="grand-total-row">
+                        <td colspan="4" style="text-align:right;"><strong>Grand Total</strong></td>
+                        <td class="num"><strong>{{ grand_credit|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ grand_debit|floatformat:0|intcomma }}</strong></td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {% else %}
+            <div class="alert-info">
+                No transactions found for <strong>{{ branch_name }}</strong>
+                between {{ date_from_display }} and {{ date_to_display }}.
+            </div>
+            {% endif %}
+
+        </div><!-- end printable -->
+
+        <div class="action-row">
+            <a class="back-link" href="{% url 'branch_transaction_statement' %}">
+                ← Change date range
+            </a>
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+// ── State ─────────────────────────────────────────────────────────────
+let _pendingType   = null;
+let _pendingId     = null;
+let _pendingRowId  = null;
+
+// ── Open modal ────────────────────────────────────────────────────────
+function openModal(recordType, recordId, description, receiptNo, rowId) {
+    _pendingType  = recordType;
+    _pendingId    = recordId;
+    _pendingRowId = rowId;
+
+    document.getElementById('modalBody').innerHTML =
+        `Delete transaction <strong>#${receiptNo}</strong>?<br>
+         <em style="color:#555;">${description}</em><br><br>
+         <strong style="color:#c0392b;">This cannot be undone.</strong><br>
+         The amount will be returned to the original account.`;
+
+    const btn = document.getElementById('modalConfirmBtn');
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+
+    document.getElementById('deleteModal').classList.add('active');
+}
+
+// ── Close modal ───────────────────────────────────────────────────────
+function closeModal() {
+    document.getElementById('deleteModal').classList.remove('active');
+    _pendingType  = null;
+    _pendingId    = null;
+    _pendingRowId = null;
+}
+
+// Close modal on overlay click
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+
+// ── Confirm delete ────────────────────────────────────────────────────
+function confirmDelete() {
+    if (!_pendingType || !_pendingId) return;
+
+    const btn = document.getElementById('modalConfirmBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Deleting…';
+
+    // Grey out the row immediately for visual feedback
+    const row = document.getElementById(_pendingRowId);
+    if (row) row.classList.add('deleting');
+
+    const url = `/masco/transaction/delete/${_pendingType}/${_pendingId}/`;
+
+    fetch(url, {
+        method:  'POST',
+        headers: {
+            'X-CSRFToken': CSRF_TOKEN,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(res => res.json())
+    .then(data => {
+        closeModal();
+        if (data.success) {
+            // Remove the row from the DOM
+            if (row) row.remove();
+            showToast('Transaction deleted successfully.', 'success');
+        } else {
+            // Restore row if failed
+            if (row) row.classList.remove('deleting');
+            showToast(data.error || 'Failed to delete transaction.', 'error');
+        }
+    })
+    .catch(() => {
+        closeModal();
+        if (row) row.classList.remove('deleting');
+        showToast('Network error. Please try again.', 'error');
+    });
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className   = `toast ${type}`;
+    // Trigger reflow so transition fires
+    void t.offsetWidth;
+    t.classList.add('show');
+    setTimeout(() => { t.classList.remove('show'); }, 3500);
+}
+</script>
+
+{% endblock %}

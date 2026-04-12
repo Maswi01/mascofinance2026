@@ -1,0 +1,1228 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    /* ==================== Completed Loans Page Styles ==================== */
+    .completed-loans-container {
+        padding: var(--spacing-md);
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Page Header */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-xl);
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+    }
+
+    .page-header h1 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-2xl);
+        color: var(--gray-dark);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+
+    .page-header h1 i {
+        color: var(--accent-green);
+    }
+
+    .completed-count {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--accent-green);
+        padding: 8px 16px;
+        border-radius: var(--border-radius-md);
+        font-weight: 600;
+        font-size: var(--font-size-sm);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+
+    .completed-count i {
+        font-size: var(--font-size-base);
+    }
+
+    /* Summary Cards */
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .summary-card {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        box-shadow: var(--shadow-md);
+        transition: var(--transition-base);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .summary-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--accent-green), #34d399);
+    }
+
+    .summary-card.total::before {
+        background: linear-gradient(to bottom, var(--primary-blue), var(--dark-blue));
+    }
+
+    .summary-card.amount::before {
+        background: linear-gradient(to bottom, var(--accent-green), #34d399);
+    }
+
+    .summary-card.interest::before {
+        background: linear-gradient(to bottom, var(--accent-orange), #fbbf24);
+    }
+
+    .summary-card-content {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .summary-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: var(--border-radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--font-size-lg);
+        color: var(--white);
+        background: var(--accent-green);
+        flex-shrink: 0;
+    }
+
+    .summary-card.total .summary-icon {
+        background: var(--primary-blue);
+    }
+
+    .summary-card.interest .summary-icon {
+        background: var(--accent-orange);
+    }
+
+    .summary-text h3 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-2xl);
+        font-weight: 700;
+        color: var(--gray-dark);
+        margin-bottom: 4px;
+    }
+
+    .summary-text p {
+        color: var(--gray-medium);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    /* Info Note */
+    .info-note {
+        background: rgba(16, 185, 129, 0.05);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        border-radius: var(--border-radius-md);
+        padding: var(--spacing-md);
+        margin-bottom: var(--spacing-lg);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        color: var(--accent-green);
+        font-size: var(--font-size-sm);
+    }
+
+    .info-note i {
+        font-size: var(--font-size-base);
+    }
+
+    /* Search and Filter Bar */
+    .search-filter-bar {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 300px;
+        position: relative;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 20px 12px 45px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--accent-green);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--gray-medium);
+        font-size: var(--font-size-base);
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: var(--spacing-md);
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        padding: 10px 15px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        color: var(--gray-dark);
+        background: var(--white);
+        cursor: pointer;
+        min-width: 150px;
+        transition: var(--transition-base);
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--accent-green);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        border: none;
+        outline: none;
+    }
+
+    .btn-primary {
+        background: var(--accent-green);
+        color: var(--white);
+    }
+
+    .btn-primary:hover {
+        background: #0b9b6b;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1.5px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+        background: var(--white);
+        border-color: var(--accent-green);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Loans Table */
+    .table-container {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .loans-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .loans-table thead {
+        background: linear-gradient(135deg, var(--accent-green), #0b9b6b);
+    }
+
+    .loans-table th {
+        padding: var(--spacing-md) var(--spacing-lg);
+        text-align: left;
+        color: var(--white);
+        font-weight: 600;
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family-heading);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .loans-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: var(--transition-fast);
+    }
+
+    .loans-table tbody tr:hover {
+        background: rgba(16, 185, 129, 0.05);
+    }
+
+    .loans-table td {
+        padding: var(--spacing-md) var(--spacing-lg);
+        color: var(--gray-dark);
+        font-size: var(--font-size-sm);
+    }
+
+    .client-info {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .client-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #e2e8f0;
+    }
+
+    .client-name {
+        font-weight: 600;
+        color: var(--gray-dark);
+        margin-bottom: 2px;
+    }
+
+    .client-phone {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+    }
+
+    .loan-badge {
+        background: rgba(16, 185, 129, 0.1);
+        padding: 4px 8px;
+        border-radius: var(--border-radius-sm);
+        font-size: var(--font-size-xs);
+        color: var(--accent-green);
+        font-weight: 500;
+        display: inline-block;
+    }
+
+    .loan-badge i {
+        margin-right: 4px;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--accent-green);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .status-badge i {
+        margin-right: 4px;
+    }
+
+    .amount-positive {
+        color: var(--accent-green);
+        font-weight: 600;
+    }
+
+    .view-only-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        background: var(--gray-light);
+        color: var(--gray-medium);
+        border-radius: 20px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+    }
+
+    .view-only-badge i {
+        margin-right: 4px;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: var(--spacing-3xl) var(--spacing-xl);
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: var(--accent-green);
+        margin-bottom: var(--spacing-lg);
+        opacity: 0.5;
+    }
+
+    .empty-state h3 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        color: var(--gray-dark);
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .empty-state p {
+        color: var(--gray-medium);
+        margin-bottom: var(--spacing-lg);
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-lg);
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .pagination-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background: var(--accent-green);
+        color: var(--white);
+        border-color: var(--accent-green);
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-pages {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+
+    .page-number {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    .page-number.active {
+        background: var(--accent-green);
+        color: var(--white);
+        border-color: var(--accent-green);
+    }
+
+    .page-number:hover:not(.active) {
+        background: var(--gray-light);
+        border-color: var(--accent-green);
+    }
+
+    /* Loan Details Popup */
+    .popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .popup-overlay.active {
+        display: flex;
+    }
+
+    .loan-details-popup {
+        width: 600px;
+        max-width: 90vw;
+        max-height: 90vh;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .loan-details-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    .popup-header {
+        padding: var(--spacing-lg);
+        background: linear-gradient(135deg, var(--accent-green), #0b9b6b);
+        color: var(--white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .popup-title {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        font-weight: 600;
+    }
+
+    .close-popup {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        color: var(--white);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition-fast);
+    }
+
+    .close-popup:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+
+    .popup-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
+    }
+
+    .popup-footer {
+        padding: var(--spacing-lg);
+        background: var(--gray-light);
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--spacing-md);
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .client-profile-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+        padding-bottom: var(--spacing-lg);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .client-profile-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #e2e8f0;
+        box-shadow: var(--shadow-md);
+    }
+
+    .client-profile-info h2 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        color: var(--gray-dark);
+        margin-bottom: var(--spacing-xs);
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .detail-item {
+        margin-bottom: var(--spacing-md);
+    }
+
+    .detail-item h4 {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .detail-item p {
+        font-size: var(--font-size-base);
+        color: var(--gray-dark);
+        font-weight: 500;
+    }
+
+    .repayment-history {
+        margin-top: var(--spacing-xl);
+    }
+
+    .repayment-history h3 {
+        font-size: var(--font-size-md);
+        color: var(--gray-dark);
+        margin-bottom: var(--spacing-md);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+
+    .repayment-history h3 i {
+        color: var(--accent-green);
+    }
+
+    .repayment-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--gray-light);
+        border-radius: var(--border-radius-md);
+        overflow: hidden;
+    }
+
+    .repayment-table th {
+        background: rgba(16, 185, 129, 0.1);
+        padding: var(--spacing-sm) var(--spacing-md);
+        text-align: left;
+        font-size: var(--font-size-xs);
+        color: var(--gray-dark);
+        font-weight: 600;
+    }
+
+    .repayment-table td {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--font-size-sm);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .completed-stamp {
+        color: var(--accent-green);
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .search-filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-box {
+            min-width: 100%;
+        }
+
+        .filter-controls {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .loans-table {
+            display: block;
+            overflow-x: auto;
+        }
+
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .summary-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .client-profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+</style>
+
+<div class="completed-loans-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-check-circle"></i>
+            Completed Loans
+        </h1>
+        <div class="completed-count">
+            <i class="fas fa-check-double"></i>
+            Total Completed: {{ total_completed }}
+        </div>
+    </div>
+
+    <!-- Info Note - Read Only -->
+    <div class="info-note">
+        <i class="fas fa-info-circle"></i>
+        This is a view-only list of fully repaid and completed loans. No actions can be performed on this page.
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card total">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <div class="summary-text">
+                    <h3>{{ total_completed }}</h3>
+                    <p>Completed Loans</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card amount">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="summary-text">
+                    <h3>{{ total_amount_repaid|floatformat:2|default:"0.00" }}</h3>
+                    <p>Total Amount Repaid</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card interest">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <div class="summary-text">
+                    <h3>{{ total_interest_earned|floatformat:2|default:"0.00" }}</h3>
+                    <p>Total Interest Earned</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Bar (Filter Only, No Actions) -->
+    <div class="search-filter-bar">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" 
+                   class="search-input" 
+                   placeholder="Search by client name, phone, or loan type..."
+                   id="searchInput"
+                   onkeyup="filterTable()">
+        </div>
+
+        <div class="filter-controls">
+            <select class="filter-select" id="loanTypeFilter" onchange="filterTable()">
+                <option value="">All Loan Types</option>
+                {% for loan in completed_loans %}
+                    {% if loan.loan_type %}
+                        <option value="{{ loan.loan_type }}">{{ loan.loan_type }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+
+            <span class="view-only-badge">
+                <i class="fas fa-eye"></i>
+                View Only
+            </span>
+        </div>
+    </div>
+
+    <!-- Loans Table -->
+    <div class="table-container">
+        <table class="loans-table">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Loan Type</th>
+                    <th>Loan Amount</th>
+                    <th>Total Repaid</th>
+                    <th>Interest Earned</th>
+                    <th>Completion Date</th>
+                </tr>
+            </thead>
+            <tbody id="loansTableBody">
+                {% for loan in completed_loans %}
+                <tr class="clickable-row" data-id="{{ loan.id }}" 
+                    data-client="{{ loan.client.firstname }} {{ loan.client.lastname }}"
+                    data-phone="{{ loan.client.phonenumber }}"
+                    data-loan-type="{{ loan.loan_type }}"
+                    data-amount="{{ loan.loan_amount }}"
+                    data-total="{{ loan.total_repayment_amount }}"
+                    data-interest="{{ loan.total_interest_amount }}"
+                    onclick="viewLoanDetails({{ loan.id }})">
+                    <td>
+                        <div class="client-info">
+                            <img src="https://ui-avatars.com/api/?name={{ loan.client.firstname }}+{{ loan.client.lastname }}&background=10b981&color=fff&size=40" 
+                                 alt="{{ loan.client.firstname }} {{ loan.client.lastname }}" 
+                                 class="client-avatar">
+                            <div>
+                                <div class="client-name">{{ loan.client.firstname }} {{ loan.client.lastname }}</div>
+                                <div class="client-phone">{{ loan.client.phonenumber|default:"No phone" }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="loan-badge">
+                            <i class="fas fa-tag"></i>
+                            {{ loan.loan_type|default:"Standard" }}
+                        </span>
+                    </td>
+                    <td>{{ loan.loan_amount|floatformat:2 }}</td>
+                    <td class="amount-positive">{{ loan.total_repayment_amount|floatformat:2 }}</td>
+                    <td class="amount-positive">{{ loan.total_interest_amount|floatformat:2 }}</td>
+                    <td>
+                        <span class="status-badge">
+                            <i class="fas fa-check-circle"></i>
+                            {{ loan.updated_at|date:"d M Y" }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: var(--spacing-xl); color: var(--gray-medium);">
+                        <i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: var(--spacing-md); color: var(--accent-green);"></i>
+                        <p>No completed loans found.</p>
+                        <p style="font-size: var(--font-size-xs); margin-top: var(--spacing-sm);">All loans are either pending or active.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+        <button class="pagination-btn" onclick="changePage(-1)" id="prevPage">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        
+        <div class="pagination-pages" id="paginationPages">
+            <!-- Page numbers will be generated by JavaScript -->
+        </div>
+        
+        <button class="pagination-btn" onclick="changePage(1)" id="nextPage">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        
+        <div style="margin-left: var(--spacing-md); font-size: var(--font-size-sm); color: var(--gray-medium);">
+            Showing <span id="startIndex">1</span>-<span id="endIndex">0</span> of <span id="totalItems">0</span> completed loans
+        </div>
+    </div>
+
+    <!-- Back to Dashboard Link -->
+    <div style="text-align: center; margin-top: var(--spacing-lg);">
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Loan Details Popup -->
+<div class="popup-overlay" id="loanDetailsPopup">
+    <div class="loan-details-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Loan Completion Details</h2>
+            <button class="close-popup" onclick="closeLoanDetails()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content" id="loanDetailsContent">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" onclick="closeLoanDetails()">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== Loan Data from Django ====================
+    const loanData = [
+        {% for loan in completed_loans %}
+        {
+            id: {{ loan.id }},
+            client: {
+                firstName: "{{ loan.client.firstname|escapejs }}",
+                lastName: "{{ loan.client.lastname|escapejs }}",
+                phone: "{{ loan.client.phonenumber|default:'-'|escapejs }}",
+                email: "{{ loan.client.email|default:'-'|escapejs }}"
+            },
+            loanType: "{{ loan.loan_type|default:'Standard'|escapejs }}",
+            loanAmount: {{ loan.loan_amount }},
+            interestRate: {{ loan.interest_rate }},
+            paymentPeriod: {{ loan.payment_period_months }},
+            monthlyInstallment: {{ loan.monthly_installment|default:0 }},
+            interestAmount: {{ loan.interest_amount|default:0 }},
+            totalInterest: {{ loan.total_interest_amount|default:0 }},
+            totalRepayment: {{ loan.total_repayment_amount|default:0 }},
+            applicationDate: "{{ loan.application_date|date:'Y-m-d' }}",
+            completionDate: "{{ loan.updated_at|date:'Y-m-d' }}",
+            processedBy: "{{ loan.processed_by.get_full_name|escapejs }}",
+            repayments: [
+                {% for repayment in loan.repayments.all %}
+                {
+                    amount: {{ repayment.repayment_amount }},
+                    date: "{{ repayment.repayment_date|date:'Y-m-d' }}",
+                    processedBy: "{{ repayment.processed_by.get_full_name|escapejs }}"
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ]
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // ==================== Global Variables ====================
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let filteredData = [...loanData];
+
+    // ==================== Initialize Page ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        updateTable();
+        updatePagination();
+    });
+
+    // ==================== Filter Function ====================
+    function filterTable() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const loanTypeFilter = document.getElementById('loanTypeFilter').value;
+
+        filteredData = loanData.filter(item => {
+            const clientName = `${item.client.firstName} ${item.client.lastName}`.toLowerCase();
+            const matchesSearch = 
+                clientName.includes(searchTerm) ||
+                (item.client.phone && item.client.phone.toLowerCase().includes(searchTerm)) ||
+                (item.loanType && item.loanType.toLowerCase().includes(searchTerm));
+
+            const matchesLoanType = !loanTypeFilter || item.loanType === loanTypeFilter;
+
+            return matchesSearch && matchesLoanType;
+        });
+
+        currentPage = 1;
+        updateTable();
+        updatePagination();
+    }
+
+    // ==================== Table Update Function ====================
+    function updateTable() {
+        const tableBody = document.getElementById('loansTableBody');
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentItems = filteredData.slice(startIndex, endIndex);
+
+        const allRows = document.querySelectorAll('#loansTableBody tr[data-id]');
+        
+        if (allRows.length > 0) {
+            // Hide all rows
+            allRows.forEach(row => row.style.display = 'none');
+            
+            // Show only filtered rows for current page
+            currentItems.forEach(item => {
+                const row = document.querySelector(`#loansTableBody tr[data-id="${item.id}"]`);
+                if (row) {
+                    row.style.display = '';
+                }
+            });
+            
+            // Handle no results row
+            const noResultsRow = document.querySelector('#loansTableBody tr:not([data-id])');
+            if (noResultsRow) {
+                noResultsRow.style.display = filteredData.length === 0 ? '' : 'none';
+            }
+        }
+
+        // Update pagination info
+        document.getElementById('startIndex').textContent = filteredData.length > 0 ? startIndex + 1 : 0;
+        document.getElementById('endIndex').textContent = Math.min(endIndex, filteredData.length);
+        document.getElementById('totalItems').textContent = filteredData.length;
+    }
+
+    // ==================== Pagination Functions ====================
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+        const paginationPages = document.getElementById('paginationPages');
+        
+        paginationPages.innerHTML = '';
+
+        if (totalPages === 0) {
+            return;
+        }
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = `page-number ${i === currentPage ? 'active' : ''}`;
+            pageBtn.textContent = i;
+            pageBtn.onclick = () => goToPage(i);
+            paginationPages.appendChild(pageBtn);
+        }
+
+        // Update prev/next buttons
+        document.getElementById('prevPage').disabled = currentPage === 1;
+        document.getElementById('nextPage').disabled = currentPage === totalPages;
+    }
+
+    function changePage(direction) {
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+        const newPage = currentPage + direction;
+
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            updateTable();
+            updatePagination();
+        }
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        updateTable();
+        updatePagination();
+    }
+
+    // ==================== Loan Details Popup Functions ====================
+    function viewLoanDetails(loanId) {
+        const loan = loanData.find(l => l.id === loanId);
+        if (!loan) return;
+
+        const popup = document.getElementById('loanDetailsPopup');
+        const content = document.getElementById('loanDetailsContent');
+
+        // Format currency
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+        };
+
+        // Build repayments HTML
+        let repaymentsHtml = '';
+        if (loan.repayments && loan.repayments.length > 0) {
+            repaymentsHtml = `
+                <div class="repayment-history">
+                    <h3>
+                        <i class="fas fa-history"></i>
+                        Repayment History
+                    </h3>
+                    <table class="repayment-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Processed By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            loan.repayments.forEach(repayment => {
+                repaymentsHtml += `
+                    <tr>
+                        <td>${repayment.date}</td>
+                        <td class="amount-positive">${formatCurrency(repayment.amount)}</td>
+                        <td>${repayment.processedBy}</td>
+                    </tr>
+                `;
+            });
+            
+            repaymentsHtml += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        content.innerHTML = `
+            <div class="client-profile-header">
+                <img src="https://ui-avatars.com/api/?name=${loan.client.firstName}+${loan.client.lastName}&background=10b981&color=fff&size=100" 
+                     alt="${loan.client.firstName} ${loan.client.lastName}" 
+                     class="client-profile-avatar">
+                <div class="client-profile-info">
+                    <h2>${loan.client.firstName} ${loan.client.lastName}</h2>
+                    <div style="color: var(--gray-medium); margin-bottom: var(--spacing-sm);">
+                        <i class="fas fa-phone" style="margin-right: 4px;"></i> ${loan.client.phone}
+                    </div>
+                    <span class="status-badge">
+                        <i class="fas fa-check-circle"></i>
+                        Completed on ${loan.completionDate}
+                    </span>
+                </div>
+            </div>
+
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <h4>Loan Type</h4>
+                    <p>${loan.loanType}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Loan Amount</h4>
+                    <p>${formatCurrency(loan.loanAmount)}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Interest Rate</h4>
+                    <p>${loan.interestRate}% per year</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Payment Period</h4>
+                    <p>${loan.paymentPeriod} months</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Monthly Installment</h4>
+                    <p class="amount-positive">${formatCurrency(loan.monthlyInstallment)}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Total Interest</h4>
+                    <p class="amount-positive">${formatCurrency(loan.totalInterest)}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Total Repaid</h4>
+                    <p class="amount-positive">${formatCurrency(loan.totalRepayment)}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Application Date</h4>
+                    <p>${loan.applicationDate}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Processed By</h4>
+                    <p>${loan.processedBy}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Status</h4>
+                    <p>
+                        <span class="completed-stamp">
+                            <i class="fas fa-check-circle"></i>
+                            COMPLETED
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            ${repaymentsHtml}
+        `;
+
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLoanDetails() {
+        const popup = document.getElementById('loanDetailsPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    }
+
+    // ==================== Reset Filter ====================
+    function resetFilter() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('loanTypeFilter').value = '';
+        filteredData = [...loanData];
+        currentPage = 1;
+        updateTable();
+        updatePagination();
+    }
+
+    // ==================== Event Listeners ====================
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLoanDetails();
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        const loanDetailsPopup = document.getElementById('loanDetailsPopup');
+        
+        if (loanDetailsPopup.classList.contains('active')) {
+            if (e.target === loanDetailsPopup) {
+                closeLoanDetails();
+            }
+        }
+    });
+</script>
+{% endblock %}

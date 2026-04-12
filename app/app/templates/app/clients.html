@@ -1,0 +1,1101 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'clients-create' as can_add_client %}
+{% user_has_perm request.user 'clients-edit'   as can_edit_client %}
+{% user_has_perm request.user 'clients-delete' as can_del_client %}
+{% user_has_perm request.user 'clients-list' as can_view_client %}
+{% user_has_perm request.user 'loans-create' as can_create_loan %}
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+    :root {
+        --bg:        #f0f4f8;
+        --surface:   #ffffff;
+        --border:    #dde3ec;
+        --border-soft:#eaeff6;
+        --text-primary: #1a2335;
+        --text-secondary: #5a6a82;
+        --text-muted: #9aaabb;
+        --accent:    #2563eb;
+        --accent-light: #eff4ff;
+        --accent-dim: #bfcffe;
+        --success:   #16a34a;
+        --success-bg:#f0fdf4;
+        --danger:    #dc2626;
+        --danger-bg: #fef2f2;
+        --danger-dim:#fecaca;
+        --teal:      #0891b2;
+        --teal-bg:   #ecfeff;
+        --purple:    #7c3aed;
+        --row-alt:   #f7f9fc;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+        --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.05);
+        --shadow-lg: 0 12px 32px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.06);
+        --radius:    8px;
+        --radius-sm: 5px;
+        --ff: 'DM Sans', sans-serif;
+        --ff-mono: 'DM Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .pw {
+        padding: 88px 28px 52px;
+        max-width: 1380px;
+        margin: 0 auto;
+        font-family: var(--ff);
+    }
+
+    .page-hdr {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 22px;
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+    .page-hdr-left { display: flex; align-items: center; gap: 14px; }
+    .page-hdr-icon {
+        width: 44px; height: 44px; border-radius: var(--radius);
+        background: var(--accent); display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(37,99,235,.35);
+    }
+    .page-hdr-icon i { color: #fff; font-size: 18px; }
+    .page-hdr h1 {
+        font-size: 19px; font-weight: 700; color: var(--text-primary);
+        letter-spacing: -.3px; line-height: 1;
+    }
+    .page-hdr-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; font-weight: 400; }
+    .btn-new {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 9px 20px; background: var(--accent); color: #fff;
+        border: none; border-radius: var(--radius-sm); font-size: 13px;
+        font-family: var(--ff); font-weight: 600; cursor: pointer;
+        text-decoration: none; transition: background .15s, box-shadow .15s, transform .12s;
+        box-shadow: 0 2px 8px rgba(37,99,235,.3);
+    }
+    .btn-new:hover { background: #1d4ed8; color: #fff; text-decoration: none; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,.4); }
+    .btn-new:active { transform: translateY(0); }
+
+    .stats-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border-soft);
+        border-radius: var(--radius);
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow .15s;
+    }
+    .stat-card:hover { box-shadow: var(--shadow-md); }
+    .stat-icon {
+        width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+    .stat-icon.blue  { background: var(--accent-light); color: var(--accent); }
+    .stat-icon.green { background: var(--success-bg);   color: var(--success); }
+    .stat-icon.teal  { background: var(--teal-bg);      color: var(--teal); }
+    .stat-icon.purple{ background: #f5f3ff;              color: var(--purple); }
+    .stat-val { font-size: 22px; font-weight: 700; color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; }
+    .stat-lbl { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; font-weight: 500; }
+
+    .toolbar {
+        display: flex; align-items: center; justify-content: space-between;
+        background: var(--surface); border: 1px solid var(--border-soft);
+        border-radius: var(--radius); padding: 12px 16px;
+        margin-bottom: 10px; flex-wrap: wrap; gap: 10px;
+        box-shadow: var(--shadow-sm);
+    }
+    .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .label-sm { font-size: 12.5px; color: var(--text-secondary); font-weight: 500; white-space: nowrap; }
+    .select-sm {
+        padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+        font-size: 12.5px; font-family: var(--ff); color: var(--text-primary);
+        background: var(--bg); cursor: pointer; outline: none;
+        transition: border-color .15s;
+    }
+    .select-sm:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .search-wrap { position: relative; display: flex; align-items: center; }
+    .search-wrap i { position: absolute; left: 10px; color: var(--text-muted); font-size: 13px; pointer-events: none; }
+    .search-input {
+        padding: 7px 12px 7px 32px; border: 1px solid var(--border);
+        border-radius: var(--radius-sm); font-size: 12.5px; font-family: var(--ff);
+        color: var(--text-primary); width: 230px; outline: none;
+        background: var(--bg); transition: border-color .15s, width .2s;
+    }
+    .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1); background: #fff; width: 270px; }
+    .search-input::placeholder { color: var(--text-muted); }
+
+    .table-card {
+        background: var(--surface);
+        border: 1px solid var(--border-soft);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+    }
+    .table-scroll { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-family: var(--ff); font-size: 13px; }
+
+    .data-table thead tr { background: #f4f7fb; border-bottom: 2px solid var(--border); }
+    .data-table th {
+        padding: 11px 14px; text-align: left; font-weight: 600;
+        color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase;
+        letter-spacing: .5px; white-space: nowrap; border-right: 1px solid var(--border-soft);
+        user-select: none; cursor: pointer; transition: background .12s, color .12s;
+    }
+    .data-table th:last-child { border-right: none; cursor: default; }
+    .data-table th:hover:not(:last-child) { background: #e8eef7; color: var(--accent); }
+    .th-inner { display: flex; align-items: center; gap: 5px; }
+    .sort-arrow { font-size: 9px; opacity: .45; }
+
+    .data-table tbody tr { border-bottom: 1px solid var(--border-soft); transition: background .1s; }
+    .data-table tbody tr:last-child { border-bottom: none; }
+    .data-table tbody tr:nth-child(even) { background: var(--row-alt); }
+    .data-table tbody tr:hover { background: var(--accent-light) !important; }
+    .data-table td {
+        padding: 11px 14px; color: var(--text-primary);
+        border-right: 1px solid var(--border-soft); vertical-align: middle;
+    }
+    .data-table td:last-child { border-right: none; }
+
+    .td-sn { width: 50px; text-align: center; }
+    .sn-badge {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 26px; height: 26px; border-radius: 6px;
+        background: var(--bg); border: 1px solid var(--border);
+        font-size: 11.5px; font-weight: 600; color: var(--text-secondary);
+        font-family: var(--ff-mono);
+    }
+    .td-img { width: 52px; text-align: center; }
+    .avatar {
+        width: 34px; height: 34px; border-radius: 50%; object-fit: cover;
+        border: 2px solid var(--accent-dim); display: block; margin: 0 auto;
+    }
+    .client-link {
+        color: var(--accent); font-weight: 500; cursor: pointer;
+        text-decoration: none; transition: color .12s;
+    }
+    .client-link:hover { color: #1d4ed8; text-decoration: underline; }
+    .mono-cell { font-family: var(--ff-mono); font-size: 12px; color: var(--text-secondary); }
+
+    .actions-cell { text-align: center; white-space: nowrap; }
+    .btn-process {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 5px 12px; background: var(--teal); color: #fff;
+        border: none; border-radius: var(--radius-sm); font-size: 12px;
+        font-family: var(--ff); font-weight: 600; cursor: pointer;
+        transition: background .15s, transform .1s;
+        text-decoration: none;
+    }
+    .btn-process:hover { background: #0e7490; color: #fff; transform: translateY(-1px); text-decoration: none; }
+    .btn-process:active { transform: translateY(0); }
+
+    .btn-delete {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 30px; height: 30px; background: var(--danger-bg);
+        color: var(--danger); border: 1px solid var(--danger-dim);
+        border-radius: var(--radius-sm); font-size: 12px;
+        cursor: pointer; transition: background .15s, transform .1s, border-color .15s;
+        margin-left: 5px;
+    }
+    .btn-delete:hover { background: var(--danger); color: #fff; border-color: var(--danger); transform: translateY(-1px); }
+    .btn-delete:active { transform: translateY(0); }
+
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-icon {
+        width: 60px; height: 60px; border-radius: 50%;
+        background: var(--bg); border: 2px solid var(--border);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 14px; font-size: 22px; color: var(--text-muted);
+    }
+    .empty-state h3 { font-size: 15px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px; }
+    .empty-state p { font-size: 13px; color: var(--text-muted); }
+
+    .pagination-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 16px; background: var(--surface);
+        border: 1px solid var(--border-soft); border-top: none;
+        border-radius: 0 0 var(--radius) var(--radius);
+        flex-wrap: wrap; gap: 10px;
+    }
+    .page-info { font-size: 12.5px; color: var(--text-muted); }
+    .page-controls { display: flex; align-items: center; gap: 4px; }
+    .page-btn {
+        min-width: 32px; height: 30px; padding: 0 9px;
+        border: 1px solid var(--border); background: var(--surface);
+        color: var(--text-secondary); font-size: 12.5px; font-family: var(--ff);
+        border-radius: var(--radius-sm); cursor: pointer;
+        transition: background .12s, color .12s, border-color .12s;
+        display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .page-btn:hover:not(:disabled):not(.active) { background: var(--accent-light); border-color: var(--accent-dim); color: var(--accent); }
+    .page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; cursor: default; }
+    .page-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .page-btn.dots { cursor: default; border-color: transparent; color: var(--text-muted); }
+
+    .modal-overlay {
+        position: fixed; inset: 0; background: rgba(15,23,42,.55);
+        backdrop-filter: blur(4px); display: none;
+        align-items: flex-start; justify-content: center;
+        z-index: 6000; padding: 24px 16px; overflow-y: auto;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+        background: var(--surface); border-radius: 10px;
+        width: 100%; margin: auto;
+        box-shadow: var(--shadow-lg);
+        animation: modalIn .22s cubic-bezier(.34,1.4,.64,1);
+        overflow: hidden;
+    }
+    @keyframes modalIn {
+        from { opacity:0; transform: translateY(-18px) scale(.97); }
+        to   { opacity:1; transform: translateY(0) scale(1); }
+    }
+    .modal-hdr {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 22px; border-bottom: 1px solid var(--border-soft);
+    }
+    .modal-hdr-info { display: flex; align-items: center; gap: 12px; }
+    .modal-avatar { width: 42px; height: 42px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); flex-shrink:0; }
+    .modal-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -.2px; line-height: 1.1; }
+    .modal-subtitle { font-size: 11px; color: rgba(255,255,255,.7); margin-top: 2px; font-weight: 400; }
+    .modal-close-btn {
+        width: 30px; height: 30px; border-radius: 50%;
+        background: rgba(255,255,255,.18); border: none;
+        color: #fff; font-size: 14px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: background .15s;
+    }
+    .modal-close-btn:hover { background: rgba(255,255,255,.32); }
+
+    .edit-tabs { display: flex; background: #f8fafc; border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .etab {
+        padding: 11px 18px; border: none; border-bottom: 2px solid transparent;
+        background: transparent; font-size: 12.5px; font-family: var(--ff);
+        font-weight: 600; color: var(--text-secondary); cursor: pointer;
+        white-space: nowrap; transition: color .15s, border-color .15s, background .15s;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .etab:hover { color: var(--accent); background: var(--accent-light); }
+    .etab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-light); }
+
+    .modal-body { padding: 22px 24px; max-height: 68vh; overflow-y: auto; }
+    .etab-content { display: none; }
+    .etab-content.active { display: block; animation: fadeIn .18s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+    .form-section {
+        font-size: 11px; font-weight: 700; color: var(--accent);
+        text-transform: uppercase; letter-spacing: .7px;
+        padding-bottom: 8px; border-bottom: 2px solid var(--accent-light);
+        margin-bottom: 16px; margin-top: 20px;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .form-section:first-child { margin-top: 0; }
+    .form-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px 18px; }
+    .fg { display: flex; flex-direction: column; gap: 5px; }
+    .fg label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .fg label .req { color: var(--danger); margin-left: 2px; }
+    .fg input, .fg select, .fg textarea {
+        padding: 8px 11px; border: 1px solid var(--border);
+        border-radius: var(--radius-sm); font-size: 13px; font-family: var(--ff);
+        color: var(--text-primary); background: var(--surface); outline: none;
+        transition: border-color .15s, box-shadow .15s; width: 100%;
+    }
+    .fg input:focus, .fg select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .fg input[readonly] {
+        background: var(--accent-light); color: var(--accent); font-weight: 600;
+        cursor: not-allowed; border-style: dashed; border-color: var(--accent-dim);
+    }
+    .auto-hint { font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+    .modal-footer {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 14px 22px; border-top: 1px solid var(--border-soft); background: #f8fafc;
+    }
+    .modal-footer-meta { font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .modal-footer-actions { display: flex; gap: 9px; }
+    .btn-cancel-modal {
+        padding: 8px 18px; background: var(--surface); color: var(--text-secondary);
+        border: 1px solid var(--border); border-radius: var(--radius-sm);
+        font-size: 13px; font-family: var(--ff); cursor: pointer; transition: background .15s;
+    }
+    .btn-cancel-modal:hover { background: var(--bg); }
+    .btn-save-modal {
+        padding: 8px 22px; background: var(--accent); color: #fff;
+        border: none; border-radius: var(--radius-sm);
+        font-size: 13px; font-family: var(--ff); font-weight: 600;
+        cursor: pointer; transition: background .15s;
+        display: flex; align-items: center; gap: 7px;
+    }
+    .btn-save-modal:hover { background: #1d4ed8; }
+
+    .del-modal-box {
+        background: var(--surface); border-radius: 10px;
+        width: 100%; max-width: 400px; margin: auto;
+        box-shadow: var(--shadow-lg);
+        animation: modalIn .22s cubic-bezier(.34,1.4,.64,1);
+        overflow: hidden;
+    }
+    .del-modal-hdr {
+        padding: 16px 20px; background: var(--danger);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .del-modal-hdr h3 {
+        font-size: 14px; font-weight: 700; color: #fff;
+        font-family: var(--ff); text-transform: uppercase; letter-spacing: .3px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .del-modal-body { padding: 30px 24px; text-align: center; }
+    .del-icon-ring {
+        width: 62px; height: 62px; border-radius: 50%;
+        background: var(--danger-bg); border: 2px solid var(--danger-dim);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 16px; font-size: 22px; color: var(--danger);
+    }
+    .del-modal-body h4 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+    .del-client-name { font-size: 16px; font-weight: 700; color: var(--danger); margin-bottom: 10px; }
+    .del-warning { font-size: 12.5px; color: var(--text-muted); }
+    .del-modal-footer {
+        display: flex; gap: 10px; padding: 14px 22px;
+        border-top: 1px solid var(--border-soft); justify-content: flex-end; background: #f8fafc;
+    }
+    .btn-del-confirm {
+        padding: 8px 22px; background: var(--danger); color: #fff;
+        border: none; border-radius: var(--radius-sm); font-size: 13px;
+        font-family: var(--ff); font-weight: 600; cursor: pointer;
+        transition: background .15s; display: flex; align-items: center; gap: 7px;
+    }
+    .btn-del-confirm:hover { background: #b91c1c; }
+
+    @media (max-width:960px) { .form-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width:640px) {
+        .form-grid { grid-template-columns: 1fr; }
+        .modal-body { padding: 16px; }
+        .pw { padding: 80px 14px 40px; }
+        .page-hdr { flex-direction: column; align-items: flex-start; }
+    }
+</style>
+
+<div class="pw">
+
+    <!-- ── Header ── -->
+    <div class="page-hdr">
+        <div class="page-hdr-left">
+            <div class="page-hdr-icon"><i class="fas fa-users"></i></div>
+            <div>
+                <h1>Customer List</h1>
+                <div class="page-hdr-sub">Manage and view all registered customers</div>
+            </div>
+        </div>
+        {% if can_add_client %}
+        <a href="{% url 'client_add' %}" class="btn-new">
+            <i class="fas fa-user-plus"></i> New Customer
+        </a>
+        <a href="{% url 'client_import_excel' %}" class="btn-new" style="background:linear-gradient(135deg,#217a3c 0%,#185e2d 100%);margin-left:8px;">
+            <i class="fas fa-file-excel"></i> Import Excel
+        </a>
+        <a href="{% url 'client_export_excel' %}" class="btn-new" style="background:linear-gradient(135deg,#b45309 0%,#92400e 100%);margin-left:8px;" title="Download all clients of the current branch as Excel">
+            <i class="fas fa-file-download"></i> Export Excel
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- ── Stats strip ── -->
+    <div class="stats-strip">
+        <div class="stat-card">
+            <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+            <div>
+                <div class="stat-val" id="statTotal">0</div>
+                <div class="stat-lbl">Total Customers</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div>
+                <div class="stat-val" id="statWithLoans">0</div>
+                <div class="stat-lbl">Have Loans</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon teal"><i class="fas fa-user-check"></i></div>
+            <div>
+                <div class="stat-val" id="statNoLoans">0</div>
+                <div class="stat-lbl">No Loans</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple"><i class="fas fa-filter"></i></div>
+            <div>
+                <div class="stat-val" id="statFiltered">0</div>
+                <div class="stat-lbl">Showing</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Toolbar ── -->
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <span class="label-sm">Show</span>
+            <select class="select-sm" id="perPageSelect" onchange="changePerPage()">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <span class="label-sm">entries</span>
+        </div>
+        <div class="toolbar-right">
+            <div class="search-wrap">
+                <i class="fas fa-search"></i>
+                <input type="text" class="search-input" id="searchInput"
+                    placeholder="Search name, check no, mobile…" oninput="onSearch()">
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Table ── -->
+     {% if can_view_client %}
+    <div class="table-card">
+        <div class="table-scroll">
+            <table class="data-table" id="clientsTable">
+                <thead>
+                    <tr>
+                        <th class="td-sn" onclick="sortTable('sn')">
+                            <div class="th-inner">#<span class="sort-arrow">↕</span></div>
+                        </th>
+                        <th style="width:52px;">Pic</th>
+                        <th onclick="sortTable('name')">
+                            <div class="th-inner">Customer Name <span class="sort-arrow">↕</span></div>
+                        </th>
+                        <th onclick="sortTable('checkno')">
+                            <div class="th-inner">Check No. <span class="sort-arrow">↕</span></div>
+                        </th>
+                        <th onclick="sortTable('station')">
+                            <div class="th-inner">Working Station <span class="sort-arrow">↕</span></div>
+                        </th>
+                        <th onclick="sortTable('address')">
+                            <div class="th-inner">Address <span class="sort-arrow">↕</span></div>
+                        </th>
+                        <th onclick="sortTable('mobile')">
+                            <div class="th-inner">Mobile <span class="sort-arrow">↕</span></div>
+                        </th>
+                        <th style="text-align:center; cursor:default;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <div class="page-info" id="pageInfo">Showing 0 to 0 of 0 entries</div>
+            <div class="page-controls" id="pageControls"></div>
+        </div>
+    </div>
+    {% endif %}
+
+</div><!-- /.pw -->
+
+
+<!-- ══════════════════════════════════════════════
+     EDIT CUSTOMER MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal-box" style="max-width:960px;">
+
+        <div class="modal-hdr" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);">
+            <div class="modal-hdr-info">
+                <img id="editAvatar" src="" class="modal-avatar" alt="">
+                <div>
+                    <div class="modal-title" id="editModalTitle">Edit Customer</div>
+                    <div class="modal-subtitle" id="editModalSub"></div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:700;
+                    font-family:var(--ff);background:rgba(255,255,255,.2);color:#fff;letter-spacing:.5px;">EDITING</span>
+                <button class="modal-close-btn" onclick="closeEditModal()"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+
+        <div class="edit-tabs" id="editTabs">
+            <button class="etab active" onclick="switchTab(0)"><i class="fas fa-user"></i>Personal</button>
+            <button class="etab" onclick="switchTab(1)"><i class="fas fa-briefcase"></i>Employment</button>
+            <button class="etab" onclick="switchTab(2)"><i class="fas fa-home"></i>Residence</button>
+            <button class="etab" onclick="switchTab(3)"><i class="fas fa-university"></i>Bank</button>
+        </div>
+
+        <form id="editClientForm" method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="client_id" id="editClientId">
+
+            <div class="modal-body">
+
+                <!-- Tab 0: Personal -->
+                <div class="etab-content active" id="etab0">
+                    <div class="form-section"><i class="fas fa-user"></i> Personal Information</div>
+                    <div class="form-grid">
+                        <div class="fg"><label>First Name <span class="req">*</span></label><input type="text" name="firstname" id="ef_firstname" required></div>
+                        <div class="fg"><label>Middle Name</label><input type="text" name="middlename" id="ef_middlename"></div>
+                        <div class="fg"><label>Last Name <span class="req">*</span></label><input type="text" name="lastname" id="ef_lastname" required></div>
+                        <div class="fg"><label>Mobile No. <span class="req">*</span></label><input type="text" name="phonenumber" id="ef_phonenumber" required></div>
+                        <div class="fg"><label>Date of Birth</label><input type="date" name="date_of_birth" id="ef_date_of_birth"></div>
+                        <div class="fg"><label>Marital Status</label>
+                            <select name="marital_status" id="ef_marital_status">
+                                <option value="">— Select —</option>
+                                <option value="single">Single</option>
+                                <option value="married">Married</option>
+                                <option value="divorced">Divorced</option>
+                                <option value="widowed">Widowed</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 1: Employment -->
+                <div class="etab-content" id="etab1">
+                    <div class="form-section"><i class="fas fa-briefcase"></i> Employment Details</div>
+                    <div class="form-grid">
+                        <div class="fg"><label>Employer Name <span class="req">*</span></label><input type="text" name="employername" id="ef_employername" required></div>
+                        <div class="fg"><label>Idara</label><input type="text" name="idara" id="ef_idara"></div>
+                        <div class="fg"><label>Kaziyako</label><input type="text" name="kaziyako" id="ef_kaziyako"></div>
+                        <div class="fg"><label>Check No.</label><input type="text" name="checkno" id="ef_checkno"></div>
+                        <div class="fg"><label>Employment Card No.</label><input type="text" name="employmentcardno" id="ef_employmentcardno"></div>
+                        <div class="fg"><label>Date Employed</label><input type="date" name="tareheya_kuajiriwa" id="ef_tareheya_kuajiriwa"></div>
+                        <div class="fg">
+                            <label>Years of Service</label>
+                            <input type="number" name="umri_kazini" id="ef_umri_kazini" min="0" readonly tabindex="-1">
+                            <span class="auto-hint"><i class="fas fa-magic" style="font-size:9px;"></i> Auto-calculated from Date Employed</span>
+                        </div>
+                        <div class="fg"><label>Retirement Date</label><input type="date" name="tarehe_ya_kustaafu" id="ef_tarehe_ya_kustaafu"></div>
+                        <div class="fg"><label>Working Region</label><input type="text" name="region" id="ef_region"></div>
+                        <div class="fg"><label>District</label><input type="text" name="district" id="ef_district"></div>
+                        <div class="fg"><label>Street</label><input type="text" name="street" id="ef_street"></div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Residence -->
+                <div class="etab-content" id="etab2">
+                    <div class="form-section"><i class="fas fa-home"></i> Residential Address</div>
+                    <div class="form-grid">
+                        <div class="fg"><label>Mkoa <span class="req">*</span></label><input type="text" name="mkoa" id="ef_mkoa" required></div>
+                        <div class="fg"><label>Wilaya <span class="req">*</span></label><input type="text" name="wilaya" id="ef_wilaya" required></div>
+                        <div class="fg"><label>Tarafa</label><input type="text" name="tarafa" id="ef_tarafa"></div>
+                        <div class="fg"><label>Kata</label><input type="text" name="kata" id="ef_kata"></div>
+                        <div class="fg"><label>Mtaa</label><input type="text" name="mtaa" id="ef_mtaa"></div>
+                        <div class="fg"><label>Wategemezi</label><input type="text" name="wategemezi_wako" id="ef_wategemezi_wako"></div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Bank -->
+                <div class="etab-content" id="etab3">
+                    <div class="form-section"><i class="fas fa-university"></i> Bank Details</div>
+                    <div class="form-grid">
+                        <div class="fg"><label>Bank Name <span class="req">*</span></label>
+                            <select name="bank_name" id="ef_bank_name" required>
+                                <option value="">— Select Bank —</option>
+                                <option value="CRDB">CRDB</option>
+                                <option value="NMB">NMB</option>
+                                <option value="NBC">NBC</option>
+                                <option value="Standard Chartered">Standard Chartered</option>
+                                <option value="Exim Bank">Exim Bank</option>
+                                <option value="DCB">DCB</option>
+                                <option value="Amana Bank">Amana Bank</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="fg"><label>Bank Branch</label><input type="text" name="bank_branch" id="ef_bank_branch"></div>
+                        <div class="fg"><label>Account Number <span class="req">*</span></label><input type="text" name="bank_account_number" id="ef_bank_account_number" required></div>
+                        <div class="fg"><label>Account Name <span class="req">*</span></label><input type="text" name="account_name" id="ef_account_name" required></div>
+                        <div class="fg"><label>Account Type</label>
+                            <select name="account_type" id="ef_account_type">
+                                <option value="savings">Savings</option>
+                                <option value="current">Current</option>
+                                <option value="fixed">Fixed Deposit</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /.modal-body -->
+
+            <div class="modal-footer">
+                <div class="modal-footer-meta">
+                    <i class="fas fa-clock"></i>
+                    <span id="editLastUpdated"></span>
+                </div>
+                <div class="modal-footer-actions">
+                    <button type="button" class="btn-cancel-modal" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-save-modal">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     DELETE CONFIRM MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="del-modal-box">
+        <div class="del-modal-hdr">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h3>
+            <button class="modal-close-btn" onclick="closeDeleteModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="del-modal-body">
+            <div class="del-icon-ring"><i class="fas fa-user-times"></i></div>
+            <h4>Delete this customer?</h4>
+            <div class="del-client-name" id="deleteClientName"></div>
+            <p class="del-warning">This action is permanent and cannot be undone.</p>
+        </div>
+        <div class="del-modal-footer">
+            <button class="btn-cancel-modal" onclick="closeDeleteModal()">
+                <i class="fas fa-times" style="margin-right:4px;"></i> Cancel
+            </button>
+            <button class="btn-del-confirm" id="confirmDeleteBtn">
+                <i class="fas fa-trash"></i> Yes, Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════ -->
+<script>
+/* ─────────────────────────────────────────────────────────────────────────────
+   PERMISSION FLAGS — passed from Django template into JS
+   These control whether action buttons are rendered in the JS-built table rows.
+   ───────────────────────────────────────────────────────────────────────────── */
+const CAN_ADD_CLIENT    = {{ can_add_client|yesno:"true,false" }};
+const CAN_EDIT_CLIENT   = {{ can_edit_client|yesno:"true,false" }};
+const CAN_DELETE_CLIENT = {{ can_del_client|yesno:"true,false" }};
+const CAN_CREATE_LOAN = {{ can_create_loan|yesno:"true,false" }};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DATA FROM DJANGO
+   ───────────────────────────────────────────────────────────────────────────── */
+const allClients = [
+    {% for c in clients %}
+    {
+        id: {{ c.id }},
+        firstname:             "{{ c.firstname|escapejs }}",
+        middlename:            "{{ c.middlename|default:''|escapejs }}",
+        lastname:              "{{ c.lastname|escapejs }}",
+        phonenumber:           "{{ c.phonenumber|default:''|escapejs }}",
+        date_of_birth:         "{{ c.date_of_birth|date:'Y-m-d'|default:'' }}",
+        marital_status:        "{{ c.marital_status|default:''|escapejs }}",
+        employername:          "{{ c.employername|default:''|escapejs }}",
+        idara:                 "{{ c.idara|default:''|escapejs }}",
+        kaziyako:              "{{ c.kaziyako|default:''|escapejs }}",
+        employmentcardno:      "{{ c.employmentcardno|default:''|escapejs }}",
+        checkno:               "{{ c.checkno|default:''|escapejs }}",
+        tareheya_kuajiriwa:    "{{ c.tareheya_kuajiriwa|date:'Y-m-d'|default:'' }}",
+        umri_kazini:           "{{ c.umri_kazini|default:''|escapejs }}",
+        tarehe_ya_kustaafu:    "{{ c.tarehe_ya_kustaafu|date:'Y-m-d'|default:'' }}",
+        region:                "{{ c.region|default:''|escapejs }}",
+        district:              "{{ c.district|default:''|escapejs }}",
+        street:                "{{ c.street|default:''|escapejs }}",
+        mkoa:                  "{{ c.mkoa|default:''|escapejs }}",
+        wilaya:                "{{ c.wilaya|default:''|escapejs }}",
+        tarafa:                "{{ c.tarafa|default:''|escapejs }}",
+        kata:                  "{{ c.kata|default:''|escapejs }}",
+        mtaa:                  "{{ c.mtaa|default:''|escapejs }}",
+        wategemezi_wako:       "{{ c.wategemezi_wako|default:''|escapejs }}",
+        bank_name:             "{{ c.bank_name|default:''|escapejs }}",
+        bank_branch:           "{{ c.bank_branch|default:''|escapejs }}",
+        bank_account_number:   "{{ c.bank_account_number|default:''|escapejs }}",
+        account_name:          "{{ c.account_name|default:''|escapejs }}",
+        account_type:          "{{ c.account_type|default:''|escapejs }}",
+        registered_date:       "{{ c.registered_date|date:'Y-m-d'|default:'' }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+/* IDs of clients who have at least one loan */
+const clientsWithLoans = new Set({{ clients_with_loans|safe }});
+
+/* URL bases — Django fills the real prefix, JS swaps the 0 for the real ID */
+const editBase        = "{% url 'client_edit' 0 %}";
+const processLoanBase = "{% url 'process_loan' 0 %}";
+const deleteBase      = "{% url 'client_delete' 0 %}";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TABLE STATE
+   ───────────────────────────────────────────────────────────────────────────── */
+let filteredClients = [...allClients];
+let currentPage = 1;
+let perPage     = 10;
+let sortKey     = '';
+let sortAsc     = true;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HELPERS
+   ───────────────────────────────────────────────────────────────────────────── */
+function fullName(c) {
+    return [c.firstname, c.middlename, c.lastname].filter(Boolean).join(' ');
+}
+function avatarUrl(c) {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName(c))}&background=2563eb&color=fff&size=36&bold=true`;
+}
+function url(base, id) {
+    return base.replace('/0/', '/' + id + '/');
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SEARCH
+   ───────────────────────────────────────────────────────────────────────────── */
+function onSearch() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    filteredClients = allClients.filter(c =>
+        fullName(c).toLowerCase().includes(q) ||
+        (c.checkno       || '').toLowerCase().includes(q) ||
+        (c.phonenumber   || '').toLowerCase().includes(q) ||
+        (c.employername  || '').toLowerCase().includes(q) ||
+        (c.region        || '').toLowerCase().includes(q) ||
+        (c.mkoa          || '').toLowerCase().includes(q)
+    );
+    currentPage = 1;
+    render();
+}
+
+function changePerPage() {
+    perPage = parseInt(document.getElementById('perPageSelect').value);
+    currentPage = 1;
+    render();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SORT
+   ───────────────────────────────────────────────────────────────────────────── */
+function sortTable(key) {
+    sortAsc = sortKey === key ? !sortAsc : true;
+    sortKey = key;
+    filteredClients.sort((a, b) => {
+        if (key === 'sn') return sortAsc ? a.id - b.id : b.id - a.id;
+        let va = '', vb = '';
+        if (key === 'name')    { va = fullName(a);                         vb = fullName(b); }
+        if (key === 'checkno') { va = a.checkno      || '';                vb = b.checkno || ''; }
+        if (key === 'station') { va = a.employername || a.region || '';    vb = b.employername || b.region || ''; }
+        if (key === 'address') { va = a.mkoa         || a.district || '';  vb = b.mkoa || b.district || ''; }
+        if (key === 'mobile')  { va = a.phonenumber  || '';                vb = b.phonenumber || ''; }
+        return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+    render();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   RENDER TABLE ROWS
+   Each action button is only rendered when the matching CAN_* flag is true.
+   ───────────────────────────────────────────────────────────────────────────── */
+function buildActionCell(c, name) {
+    const hasLoan = clientsWithLoans.has(c.id);
+    let html = '';
+
+    if (CAN_CREATE_LOAN) {
+        html += `<button class="btn-process process-btn" data-id="${c.id}">
+                     <i class="fas fa-hand-holding-usd"></i> Loan
+                 </button>`;
+    }
+
+    if (CAN_DELETE_CLIENT) {
+        if (hasLoan) {
+            html += `<button class="btn-delete" disabled
+                         title="Cannot delete — has loan history"
+                         style="opacity:.3; cursor:not-allowed; margin-left:5px;">
+                         <i class="fas fa-lock"></i>
+                     </button>`;
+        } else {
+            html += `<button class="btn-delete delete-client-btn"
+                         data-id="${c.id}" data-name="${name}"
+                         title="Delete customer"
+                         style="margin-left:5px;">
+                         <i class="fas fa-trash"></i>
+                     </button>`;
+        }
+    }
+
+    return html;
+}
+
+function render() {
+    const total      = filteredClients.length;
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * perPage;
+    const end   = Math.min(start + perPage, total);
+    const page  = filteredClients.slice(start, end);
+    const tbody = document.getElementById('tableBody');
+
+    if (page.length === 0) {
+        tbody.innerHTML = `
+            <tr><td colspan="8">
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-users-slash"></i></div>
+                    <h3>No customers found</h3>
+                    <p>Try adjusting your search or add a new customer.</p>
+                </div>
+            </td></tr>`;
+    } else {
+        tbody.innerHTML = page.map((c, idx) => {
+            const sn      = start + idx + 1;
+            const name    = fullName(c);
+            const checkno = c.checkno || c.employmentcardno || '—';
+            const station = c.employername || c.region || '—';
+            const address = c.mkoa || c.district || c.wilaya || '—';
+            const mobile  = c.phonenumber || '—';
+
+            /* Name cell: link only if user can edit, plain text otherwise */
+            const nameCell = CAN_EDIT_CLIENT
+                ? `<a class="client-link" href="${url(editBase, c.id)}">${name}</a>`
+                : `<span>${name}</span>`;
+
+            return `<tr>
+                <td class="td-sn"><span class="sn-badge">${sn}</span></td>
+                <td class="td-img"><img src="${avatarUrl(c)}" alt="${name}" class="avatar"></td>
+                <td>${nameCell}</td>
+                <td class="mono-cell">${checkno}</td>
+                <td>${station}</td>
+                <td>${address}</td>
+                <td class="mono-cell">${mobile}</td>
+                <td class="actions-cell">${buildActionCell(c, name)}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    /* Update pagination info */
+    document.getElementById('pageInfo').textContent =
+        total === 0
+            ? 'Showing 0 to 0 of 0 entries'
+            : `Showing ${start + 1} to ${end} of ${total} entries`;
+
+    /* Update stats */
+    document.getElementById('statTotal').textContent     = allClients.length;
+    document.getElementById('statWithLoans').textContent = clientsWithLoans.size;
+    document.getElementById('statNoLoans').textContent   = allClients.length - clientsWithLoans.size;
+    document.getElementById('statFiltered').textContent  = total;
+
+    renderPagination(totalPages);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PAGINATION
+   ───────────────────────────────────────────────────────────────────────────── */
+function renderPagination(totalPages) {
+    const container = document.getElementById('pageControls');
+    const btns = [];
+    const btn = (label, page, cls = '') => {
+        const dis   = page === null ? 'disabled' : '';
+        const click = page !== null ? `onclick="goPage(${page})"` : '';
+        btns.push(`<button class="page-btn ${cls}" ${dis} ${click}>${label}</button>`);
+    };
+
+    btn('<i class="fas fa-angle-double-left"></i>',  currentPage > 1 ? 1 : null,                currentPage === 1 ? 'disabled' : '');
+    btn('<i class="fas fa-angle-left"></i>',         currentPage > 1 ? currentPage - 1 : null,  currentPage === 1 ? 'disabled' : '');
+
+    let s = Math.max(1, currentPage - 2);
+    let e = Math.min(totalPages, s + 4);
+    if (e - s < 4) s = Math.max(1, e - 4);
+
+    if (s > 1) { btn('1', 1); if (s > 2) btns.push('<button class="page-btn dots" disabled>…</button>'); }
+    for (let i = s; i <= e; i++) btn(i, i, i === currentPage ? 'active' : '');
+    if (e < totalPages) { if (e < totalPages - 1) btns.push('<button class="page-btn dots" disabled>…</button>'); btn(totalPages, totalPages); }
+
+    btn('<i class="fas fa-angle-right"></i>',        currentPage < totalPages ? currentPage + 1 : null, currentPage === totalPages ? 'disabled' : '');
+    btn('<i class="fas fa-angle-double-right"></i>', currentPage < totalPages ? totalPages : null,      currentPage === totalPages ? 'disabled' : '');
+
+    container.innerHTML = btns.join('');
+}
+
+function goPage(p) { currentPage = p; render(); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   YEARS OF SERVICE (auto-calc)
+   ───────────────────────────────────────────────────────────────────────────── */
+function calcYearsOfService(dateVal) {
+    if (!dateVal) return '';
+    const start = new Date(dateVal);
+    const today = new Date();
+    if (start > today) return 0;
+    let years = today.getFullYear() - start.getFullYear();
+    const m = today.getMonth() - start.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < start.getDate())) years--;
+    return years >= 0 ? years : 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   EDIT MODAL
+   ───────────────────────────────────────────────────────────────────────────── */
+function viewClient(id) {
+    const c = allClients.find(x => x.id === id);
+    if (!c) return;
+    const name = fullName(c);
+
+    document.getElementById('editAvatar').src              = avatarUrl(c);
+    document.getElementById('editModalTitle').textContent  = name;
+    document.getElementById('editModalSub').textContent    = `ID: ${c.id}  ·  Registered: ${c.registered_date || '—'}`;
+    document.getElementById('editLastUpdated').textContent = `Registered: ${c.registered_date || '—'}`;
+    document.getElementById('editClientForm').action       = url(editBase, c.id);
+    document.getElementById('editClientId').value          = c.id;
+
+    const fields = [
+        ['ef_firstname',          c.firstname],
+        ['ef_middlename',         c.middlename],
+        ['ef_lastname',           c.lastname],
+        ['ef_phonenumber',        c.phonenumber],
+        ['ef_date_of_birth',      c.date_of_birth],
+        ['ef_marital_status',     c.marital_status],
+        ['ef_employername',       c.employername],
+        ['ef_idara',              c.idara],
+        ['ef_kaziyako',           c.kaziyako],
+        ['ef_checkno',            c.checkno],
+        ['ef_employmentcardno',   c.employmentcardno],
+        ['ef_tareheya_kuajiriwa', c.tareheya_kuajiriwa],
+        ['ef_tarehe_ya_kustaafu', c.tarehe_ya_kustaafu],
+        ['ef_region',             c.region],
+        ['ef_district',           c.district],
+        ['ef_street',             c.street],
+        ['ef_mkoa',               c.mkoa],
+        ['ef_wilaya',             c.wilaya],
+        ['ef_tarafa',             c.tarafa],
+        ['ef_kata',               c.kata],
+        ['ef_mtaa',               c.mtaa],
+        ['ef_wategemezi_wako',    c.wategemezi_wako],
+        ['ef_bank_name',          c.bank_name],
+        ['ef_bank_branch',        c.bank_branch],
+        ['ef_bank_account_number',c.bank_account_number],
+        ['ef_account_name',       c.account_name],
+        ['ef_account_type',       c.account_type],
+    ];
+    fields.forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || '';
+    });
+
+    /* Years of service */
+    const yrsEl = document.getElementById('ef_umri_kazini');
+    if (yrsEl) {
+        yrsEl.value = c.tareheya_kuajiriwa
+            ? calcYearsOfService(c.tareheya_kuajiriwa)
+            : (c.umri_kazini || '');
+    }
+
+    switchTab(0);
+    document.getElementById('editModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+document.getElementById('ef_tareheya_kuajiriwa').addEventListener('change', function () {
+    document.getElementById('ef_umri_kazini').value = calcYearsOfService(this.value);
+});
+
+function switchTab(idx) {
+    document.querySelectorAll('.etab').forEach((t, i)        => t.classList.toggle('active', i === idx));
+    document.querySelectorAll('.etab-content').forEach((c, i) => c.classList.toggle('active', i === idx));
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+document.getElementById('editModal').addEventListener('click', function (e) {
+    if (e.target === this) closeEditModal();
+});
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TABLE CLICK DELEGATION  (Process Loan + Delete)
+   ───────────────────────────────────────────────────────────────────────────── */
+document.getElementById('tableBody').addEventListener('click', function (e) {
+    /* Process / Loan button */
+    const processBtn = e.target.closest('.process-btn');
+    if (processBtn) {
+        const id = processBtn.getAttribute('data-id');
+        if (id) window.location.href = url(processLoanBase, id);
+        return;
+    }
+
+    /* Delete button — guard with CAN_DELETE_CLIENT just in case */
+    const deleteBtn = e.target.closest('.delete-client-btn');
+    if (deleteBtn && CAN_DELETE_CLIENT) {
+        const id   = deleteBtn.getAttribute('data-id');
+        const name = deleteBtn.getAttribute('data-name');
+        openDeleteModal(id, name);
+    }
+});
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DELETE MODAL
+   ───────────────────────────────────────────────────────────────────────────── */
+function openDeleteModal(id, name) {
+    document.getElementById('deleteClientName').textContent = name;
+    document.getElementById('deleteModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    document.getElementById('confirmDeleteBtn').onclick = function () {
+        fetch(url(deleteBase, id), {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        })
+        .then(r => r.json())
+        .then(data => {
+            closeDeleteModal();
+            if (data.success) {
+                /* Remove from local arrays and re-render without a page reload */
+                const idx = allClients.findIndex(c => c.id == id);
+                if (idx !== -1) allClients.splice(idx, 1);
+                filteredClients = filteredClients.filter(c => c.id != id);
+                clientsWithLoans.delete(parseInt(id));
+                render();
+            } else {
+                alert(data.error || 'Delete failed. Please try again.');
+            }
+        })
+        .catch(() => {
+            closeDeleteModal();
+            alert('Network error. Please try again.');
+        });
+    };
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+document.getElementById('deleteModal').addEventListener('click', function (e) {
+    if (e.target === this) closeDeleteModal();
+});
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GLOBAL ESC KEY
+   ───────────────────────────────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeEditModal();
+        closeDeleteModal();
+    }
+});
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   INIT
+   ───────────────────────────────────────────────────────────────────────────── */
+render();
+</script>
+
+{% endblock %}

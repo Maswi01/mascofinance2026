@@ -1,0 +1,292 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+    <style>
+        .calc-card {
+            background: #ffffff;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 36px 48px 0;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-top: 50px;
+        }
+        .calc-title {
+            font-size: 20px;
+            font-weight: 400;
+            color: #2c2c2c;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #cccccc;
+            margin-bottom: 32px;
+            letter-spacing: 0.2px;
+        }
+        .form-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 26px;
+        }
+        .form-row label {
+            width: 260px;
+            flex-shrink: 0;
+            font-size: 14.5px;
+            color: #3a3a3a;
+            text-align: right;
+            padding-right: 28px;
+        }
+        .form-row input,
+        .form-row select {
+            width: 280px;
+            padding: 8px 12px;
+            border: 1px solid #c0c0c0;
+            border-radius: 2px;
+            font-size: 14px;
+            color: #2c2c2c;
+            font-family: Georgia, serif;
+            background: #ffffff;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .form-row input:focus,
+        .form-row select:focus { border-color: #8a9bb5; }
+        .form-row select { cursor: pointer; appearance: auto; }
+
+        /* Comma-formatted input wrapper */
+        .amount-wrap { position: relative; width: 280px; }
+        .amount-wrap input {
+            width: 100%;
+            padding-right: 30px; /* space for /= suffix */
+        }
+        .amount-suffix {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 13px;
+            color: #888;
+            pointer-events: none;
+            font-family: Georgia, serif;
+        }
+
+        .results-section {
+            background: #c8d5c8;
+            margin: 8px -48px 0;
+            padding: 20px 48px 22px;
+        }
+        .result-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        .result-row:last-child { border-bottom: none; }
+        .result-label { font-size: 14.5px; color: #2a2a2a; }
+        .result-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            text-decoration: underline;
+            letter-spacing: 0.3px;
+            min-width: 160px;
+            text-align: right;
+        }
+        .result-value.empty {
+            color: #888;
+            font-weight: 400;
+            text-decoration: none;
+            font-style: italic;
+            font-size: 13px;
+        }
+        .accent-bar { background: #d4a0a8; height: 6px; margin: 0 -48px; }
+        .print-row {
+            display: flex;
+            justify-content: flex-end;
+            padding: 14px 0 18px;
+            margin: 0 -48px;
+            padding-right: 0;
+        }
+        .print-btn {
+            padding: 6px 18px;
+            background: #f4f4f4;
+            border: 1px solid #aaaaaa;
+            border-radius: 2px;
+            font-size: 13px;
+            font-family: Georgia, serif;
+            color: #2c2c2c;
+            cursor: pointer;
+            letter-spacing: 0.3px;
+            transition: background 0.15s;
+        }
+        .print-btn:hover { background: #e8e8e8; }
+
+        @media print {
+            body * { visibility: hidden; }
+            .calc-card, .calc-card * { visibility: visible; }
+            .calc-card {
+                position: absolute; top: 0; left: 0;
+                box-shadow: none; max-width: 100%;
+                padding: 20px 32px 0; margin: 0;
+            }
+            .print-row { display: none; }
+        }
+    </style>
+
+<div class="calc-card">
+
+    <div class="calc-title">Customer Plan Calculator</div>
+
+    <!-- Planned Monthly Repayment — comma-formatted text input -->
+    <div class="form-row">
+        <label for="monthlyRepayment">Planned Monthly Repayment</label>
+        <div class="amount-wrap">
+            <input type="text"
+                   id="monthlyRepayment"
+                   placeholder="0"
+                   inputmode="numeric"
+                   autocomplete="off"
+                   oninput="onAmountInput(this)">
+            <span class="amount-suffix">/=</span>
+        </div>
+    </div>
+
+    <!-- Interest per annum -->
+    <div class="form-row">
+        <label for="interestRate">Interest per annum (%)</label>
+        <input type="number" id="interestRate" placeholder="0" min="0" max="100" step="0.1" oninput="calculate()">
+    </div>
+
+    <!-- Period (Months) -->
+    <div class="form-row">
+        <label for="periodMonths">Period (Months)</label>
+        <select id="periodMonths" onchange="calculate()">
+            {% for m in period_choices %}
+            <option value="{{ m }}">{{ m }}</option>
+            {% empty %}
+            <option value="">— select —</option>
+            {% endfor %}
+        </select>
+    </div>
+
+
+
+    <!-- Results -->
+    <div class="results-section">
+        <div class="result-row">
+            <span class="result-label">Loan Amount :</span>
+            <span class="result-value" id="loanAmountResult"><span class="empty">—</span></span>
+        </div>
+        <div class="result-row">
+            <span class="result-label">Interest Amount:</span>
+            <span class="result-value" id="interestAmountResult"><span class="empty">—</span></span>
+        </div>
+        <div class="result-row">
+            <span class="result-label">Total return Amount:</span>
+            <span class="result-value" id="totalAmountResult"><span class="empty">—</span></span>
+        </div>
+    </div>
+
+    <div class="accent-bar"></div>
+
+    <div class="print-row">
+        <button class="print-btn" onclick="window.print()">PRINT</button>
+    </div>
+
+</div>
+
+<script>
+    /* ── Populate Period dropdown (1–36) if Django didn't render options ── */
+    (function() {
+        const sel = document.getElementById('periodMonths');
+        if (!sel.options.length || (sel.options.length === 1 && sel.options[0].value === '')) {
+            sel.innerHTML = '';
+            for (let i = 1; i <= 36; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = i;
+                sel.appendChild(opt);
+            }
+            sel.value = 3;
+        }
+    })();
+
+    /* ── Comma formatter ── */
+    function onAmountInput(el) {
+        // Preserve cursor position
+        const cursorPos = el.selectionStart;
+        const oldLen    = el.value.length;
+
+        // Strip everything except digits
+        const raw = el.value.replace(/[^0-9]/g, '');
+
+        if (!raw) {
+            el.value = '';
+            calculate();
+            return;
+        }
+
+        // Format with commas
+        const formatted = parseInt(raw, 10).toLocaleString('en');
+        el.value = formatted;
+
+        // Restore cursor (offset for added/removed commas)
+        const newLen   = el.value.length;
+        const newCursor = cursorPos + (newLen - oldLen);
+        el.setSelectionRange(newCursor, newCursor);
+
+        calculate();
+    }
+
+    /* ── Read raw numeric value from the formatted input ── */
+    function getRawMonthly() {
+        const val = document.getElementById('monthlyRepayment').value.replace(/,/g, '');
+        return parseFloat(val) || 0;
+    }
+
+    /* ── Format: 540,000 /= ── */
+    function fmt(n) {
+        if (isNaN(n) || n === null) return null;
+        return Math.round(n).toLocaleString('en') + ' /=';
+    }
+
+    function setResult(id, value) {
+        const el = document.getElementById(id);
+        if (value === null) {
+            el.innerHTML = '<span class="empty">—</span>';
+        } else {
+            el.textContent = value;
+        }
+    }
+
+    function calculate() {
+        const monthly    = getRawMonthly();
+        const I          = parseFloat(document.getElementById('interestRate').value);
+        const N          = parseInt(document.getElementById('periodMonths').value);
+
+        if (!monthly || monthly <= 0 || isNaN(I) || !N) {
+            setResult('loanAmountResult',    null);
+            setResult('interestAmountResult', null);
+            setResult('totalAmountResult',    null);
+            return;
+        }
+
+        /*
+         * Your formula (forward):  Monthly = (P + (I/100 * P)) / N
+         * Rearranged for P:        P = (Monthly * N) / (1 + I/100)
+         *
+         * Then:
+         *   Total Interest = (I/100) * P
+         *   Total Return   = Monthly * N   (= P + Total Interest)
+         */
+        const P             = (monthly * N) / (1 + I / 100);
+        const totalInterest = (I / 100) * P;
+        const totalReturn   = monthly * N;   // = P + totalInterest
+
+        setResult('loanAmountResult',    fmt(P));
+        setResult('interestAmountResult', fmt(totalInterest));
+        setResult('totalAmountResult',    fmt(totalReturn));
+    }
+
+    calculate();
+</script>
+{% endblock %}

@@ -1,0 +1,293 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 900px;
+        margin: 70px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+    }
+
+    .lp-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 32px 50px 40px;
+    }
+
+    .part-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1a1a1a;
+        letter-spacing: 0.5px;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #999;
+        margin-bottom: 36px;
+        font-family: Arial, sans-serif;
+        text-transform: uppercase;
+    }
+
+    .form-row {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 28px;
+    }
+
+    .form-row label {
+        width: 180px;
+        flex-shrink: 0;
+        font-size: 14px;
+        color: #333;
+        padding-top: 10px;
+        font-family: Arial, sans-serif;
+    }
+
+    .field-wrap {
+        flex: 1;
+        position: relative;
+        max-width: 430px;
+    }
+
+    /* ── Custom searchable dropdown ── */
+    .custom-select-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .custom-select-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 9px 12px;
+        border: 1px solid #ccc;
+        border-radius: 2px;
+        font-size: 13.5px;
+        font-family: Arial, sans-serif;
+        color: #555;
+        background: #fff;
+        cursor: pointer;
+        user-select: none;
+        transition: border-color 0.15s;
+    }
+
+    .custom-select-trigger:hover,
+    .custom-select-wrapper.open .custom-select-trigger {
+        border-color: #9b59b6;
+        box-shadow: 0 0 0 2px rgba(155,89,182,0.12);
+    }
+
+    .custom-select-trigger .arrow {
+        font-size: 12px;
+        color: #888;
+        transition: transform 0.2s;
+        margin-left: 8px;
+        flex-shrink: 0;
+    }
+
+    .custom-select-wrapper.open .custom-select-trigger .arrow {
+        transform: rotate(180deg);
+    }
+
+    .custom-select-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 999;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-top: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        max-height: 260px;
+        overflow: hidden;
+        flex-direction: column;
+    }
+
+    .custom-select-wrapper.open .custom-select-dropdown {
+        display: flex;
+    }
+
+    .dropdown-search {
+        padding: 6px 10px;
+        border: none;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+        color: #333;
+        outline: none;
+        background: #fafafa;
+        flex-shrink: 0;
+    }
+
+    .dropdown-search:focus {
+        background: #fff;
+        border-bottom-color: #9b59b6;
+    }
+
+    .dropdown-options {
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .dropdown-option {
+        padding: 10px 14px;
+        font-size: 13.5px;
+        font-family: Arial, sans-serif;
+        color: #222;
+        cursor: pointer;
+        transition: background 0.1s;
+        border-bottom: 1px solid #f2f2f2;
+    }
+
+    .dropdown-option:hover { background: #f0e8f8; }
+    .dropdown-option.selected { background: #9b59b6; color: #fff; }
+
+    .dropdown-option.no-results {
+        color: #aaa;
+        font-style: italic;
+        cursor: default;
+    }
+    .dropdown-option.no-results:hover { background: transparent; }
+
+    .alert-error {
+        background: #fde8e8; border: 1px solid #f5c6c6; color: #b00;
+        padding: 10px 16px; border-radius: 3px; font-size: 13px;
+        font-family: Arial, sans-serif; margin-bottom: 18px;
+    }
+
+    @media (max-width: 650px) {
+        .form-row { flex-direction: column; }
+        .form-row label { width: 100%; padding-top: 0; margin-bottom: 6px; }
+        .field-wrap { max-width: 100%; }
+        .lp-card { padding: 20px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="lp-card">
+
+        <div class="part-title">Customer Loan Payment Receipt</div>
+
+        {% if messages %}
+            {% for msg in messages %}
+            <div class="alert-error">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="{% url 'loan_receipt_list' %}">
+            {% csrf_token %}
+
+            <div class="form-row">
+                <label>Customer Name</label>
+                <div class="field-wrap">
+                    <div class="custom-select-wrapper" id="customerSelectWrapper">
+                        <div class="custom-select-trigger" id="customerTrigger">
+                            <span id="customerTriggerText">Select Customer Name</span>
+                            <span class="arrow">▼</span>
+                        </div>
+                        <div class="custom-select-dropdown" id="customerDropdown">
+                            <input type="text" class="dropdown-search" id="customerSearch"
+                                   placeholder="Search by name or check no..." autocomplete="off">
+                            <div class="dropdown-options" id="customerOptions">
+                                <div class="dropdown-option selected" data-value="">Select Customer Name</div>
+                                {% for client in clients %}
+                                <div class="dropdown-option"
+                                     data-value="{{ client.id }}"
+                                     data-label="{{ client.firstname }} {{ client.middlename|default:'' }} {{ client.lastname }} -[{{ client.checkno|default:client.employmentcardno|default:'' }}]">
+                                    {{ client.firstname }} {{ client.middlename|default:'' }} {{ client.lastname }} -[{{ client.checkno|default:client.employmentcardno|default:'' }}]
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <input type="hidden" name="client_id" id="clientIdInput" required>
+                    </div>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    const wrapper  = document.getElementById('customerSelectWrapper');
+    const trigger  = document.getElementById('customerTrigger');
+    const trigText = document.getElementById('customerTriggerText');
+    const search   = document.getElementById('customerSearch');
+    const options  = document.getElementById('customerOptions');
+    const hidden   = document.getElementById('clientIdInput');
+    const form     = document.querySelector('form');
+
+    trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        wrapper.classList.toggle('open');
+        if (wrapper.classList.contains('open')) {
+            search.value = '';
+            filterOptions('');
+            setTimeout(() => search.focus(), 50);
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!wrapper.contains(e.target)) wrapper.classList.remove('open');
+    });
+
+    search.addEventListener('input', function() {
+        filterOptions(this.value.toLowerCase().trim());
+    });
+
+    search.addEventListener('click', e => e.stopPropagation());
+    search.addEventListener('keydown', e => { if (e.key === 'Escape') wrapper.classList.remove('open'); });
+
+    function filterOptions(query) {
+        const opts = options.querySelectorAll('.dropdown-option');
+        let visible = 0;
+
+        opts.forEach(opt => {
+            if (!opt.dataset.value) {
+                opt.style.display = query ? 'none' : '';
+                return;
+            }
+            const label = (opt.dataset.label || opt.textContent).toLowerCase();
+            const show  = !query || label.includes(query);
+            opt.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+
+        const noRes = options.querySelector('.no-results');
+        if (noRes) noRes.remove();
+        if (visible === 0 && query) {
+            const div = document.createElement('div');
+            div.className = 'dropdown-option no-results';
+            div.textContent = 'No customers found';
+            options.appendChild(div);
+        }
+    }
+
+    options.addEventListener('click', function(e) {
+        const opt = e.target.closest('.dropdown-option');
+        if (!opt || opt.classList.contains('no-results')) return;
+
+        const val   = opt.dataset.value || '';
+        const label = opt.dataset.label || opt.textContent.trim();
+
+        options.querySelectorAll('.dropdown-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+
+        trigText.textContent = label || 'Select Customer Name';
+        trigText.style.color = val ? '#222' : '#555';
+        hidden.value = val;
+        wrapper.classList.remove('open');
+
+        /* Auto-submit when a real client is selected */
+        if (val) {
+            form.submit();
+        }
+    });
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,217 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1300px;
+        margin: 20px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+
+    .report-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 28px 36px 28px;
+    }
+
+    /* ── Company letterhead ── */
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 18px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 80px; height: auto; }
+    .company-name {
+        font-size: 26px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub  { font-size: 13px; font-weight: 600; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 3px; }
+    .company-contact { font-size: 12px; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 2px; }
+
+    /* ── Branch + report headings ── */
+    .branch-heading {
+        font-size: 14px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin: 16px 0 6px;
+        text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .report-heading {
+        font-size: 13.5px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin-bottom: 18px;
+        text-transform: uppercase; letter-spacing: 0.3px;
+    }
+
+    /* ── Collection table ── */
+    .collection-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 12.5px;
+    }
+
+    .collection-table thead tr th {
+        padding: 9px 10px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 12px;
+        border-bottom: 2px solid #1a1a1a;
+        border-right: 1px solid #ccc;
+        white-space: nowrap; background: #fff;
+    }
+    .collection-table th:last-child { border-right: none; }
+    .collection-table th.num, .collection-table td.num { text-align: right; }
+
+    .collection-table tbody tr { border-bottom: 1px solid #e0e0e0; }
+    .collection-table tbody tr:hover { background: #f8fffe; }
+
+    .collection-table td {
+        padding: 8px 10px; color: #1a1a1a;
+        border-right: 1px solid #e8e8e8;
+        vertical-align: top; font-size: 12.5px;
+    }
+    .collection-table td:last-child { border-right: none; }
+
+    /* Date: hidden on repeated rows */
+    .date-cell   { white-space: nowrap; }
+    .date-hidden { color: transparent; user-select: none; }
+
+    /* Grand total row */
+    .grand-total-row td {
+        background: #d4b97a !important;
+        font-weight: 700; font-size: 13px;
+        padding: 9px 10px;
+        border-top: 2px solid #b89650;
+        border-right: 1px solid #b89650;
+    }
+    .grand-total-row td:last-child { border-right: none; }
+
+    /* No results */
+    .alert-info {
+        background: #e8f4fd; border: 1px solid #b8d9f5; color: #1a5276;
+        padding: 14px 18px; border-radius: 3px; font-size: 13px;
+        font-family: Arial, sans-serif; text-align: center; margin-top: 10px;
+    }
+
+    /* Action row */
+    .action-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding-top: 14px; border-top: 1px solid #ddd; margin-top: 8px;
+    }
+    .back-link {
+        font-size: 13px; color: #2980b9; font-family: Arial, sans-serif;
+        text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .print-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; color: #333;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row { display: none !important; }
+    }
+
+    @media (max-width: 1000px) {
+        .collection-table { font-size: 11px; }
+        .report-card { padding: 16px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="report-card">
+
+        <div class="printable">
+
+            <!-- Masco Finance letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <!-- Branch name -->
+            <div class="branch-heading">{{ branch_name }} BRANCH</div>
+
+            <!-- Report title -->
+            <div class="report-heading">
+                Loan Collection Statement From {{ date_from_display }} To {{ date_to_display }}
+            </div>
+
+            {% if rows %}
+            <table class="collection-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>S/N #</th>
+                        <th>Receipt #</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th class="num">Rate (%)</th>
+                        <th class="num">Principal</th>
+                        <th class="num">Interest</th>
+                        <th class="num">Total</th>
+                        <th>Collected By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td class="date-cell {% if row.hide_date %}date-hidden{% endif %}">
+                            {{ row.date|date:"d/m/Y" }}
+                        </td>
+                        <td style="text-align:center;">{{ row.sn }}</td>
+                        <td>{{ row.receipt_no }}</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.description }}</td>
+                        <td class="num">{{ row.rate|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.principal|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.interest|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.total|floatformat:0|intcomma }}</td>
+                        <td>{{ row.collected_by }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Grand Total -->
+                    <tr class="grand-total-row">
+                        <td colspan="6"><strong>GRAND TOTAL</strong></td>
+                        <td class="num"><strong>{{ grand_principal|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ grand_interest|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ grand_total|floatformat:0|intcomma }}</strong></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {% else %}
+            <div class="alert-info">
+                No loan collections found for <strong>{{ branch_name }}</strong>
+                between {{ date_from_display }} and {{ date_to_display }}.
+            </div>
+            {% endif %}
+
+        </div><!-- end printable -->
+
+        <div class="action-row">
+            <a class="back-link" href="{% url 'loan_collection_statement' %}">
+                ← Change date range
+            </a>
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

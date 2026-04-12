@@ -1,0 +1,430 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .ot-wrapper {
+        max-width: 1200px;
+        margin: 20px auto 60px;
+        padding: 0 16px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+
+    /* Light-blue top bar */
+    .ot-topbar {
+        background: #7fc8d9;
+        color: #fff; font-size: 14px; font-weight: 700;
+        padding: 10px 20px; letter-spacing: 0.5px; text-transform: uppercase;
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 0;
+    }
+    .ot-topbar-right { width: 36px; height: 24px; background: #4aa8be; border-radius: 2px; }
+
+    /* Main card */
+    .ot-card {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        padding: 20px 24px 28px;
+    }
+
+    /* Top controls row */
+    .ot-controls {
+        display: flex; justify-content: space-between;
+        align-items: flex-start; flex-wrap: wrap; gap: 12px;
+        margin-bottom: 16px;
+    }
+    .ot-controls-left  { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .ot-controls-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    /* Show entries */
+    .show-entries {
+        display: flex; align-items: center; gap: 8px;
+        font-size: 13px; color: #444;
+    }
+    .show-entries select {
+        padding: 4px 8px; border: 1px solid #ccc; border-radius: 2px;
+        font-size: 13px; background: #fff; cursor: pointer;
+    }
+
+    /* Search */
+    .search-wrap { display: flex; align-items: center; gap: 8px; }
+    .search-wrap label { font-size: 13px; color: #444; }
+    .search-input {
+        padding: 6px 10px; border: 1px solid #ccc; border-radius: 2px;
+        font-size: 13px; width: 200px; outline: none;
+        transition: border-color 0.15s;
+    }
+    .search-input:focus { border-color: #3498db; }
+
+    /* Filter dropdowns */
+    .filter-select {
+        padding: 6px 10px; border: 1px solid #ccc; border-radius: 2px;
+        font-size: 13px; background: #fff; cursor: pointer; outline: none;
+        min-width: 140px; color: #444;
+        transition: border-color 0.15s;
+    }
+    .filter-select:focus { border-color: #3498db; }
+
+    /* Add Transaction button */
+    .add-btn {
+        padding: 7px 18px; background: #9b59b6; color: #fff;
+        border: none; border-radius: 2px; font-size: 13px;
+        font-family: Arial, sans-serif; font-weight: 600;
+        cursor: pointer; white-space: nowrap;
+        transition: background 0.15s;
+    }
+    .add-btn:hover { background: #7d3c98; }
+
+    /* Clear filter */
+    .clear-btn {
+        padding: 6px 12px; background: #fff; color: #666;
+        border: 1px solid #ccc; border-radius: 2px; font-size: 12.5px;
+        cursor: pointer; font-family: Arial, sans-serif;
+    }
+    .clear-btn:hover { background: #f5f5f5; border-color: #999; }
+
+    /* Table */
+    .ot-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 13px;
+    }
+    .ot-table th {
+        padding: 10px 12px; text-align: left; font-size: 12.5px;
+        font-weight: 700; color: #1a1a1a;
+        border-bottom: 2px solid #e0e0e0;
+        border-top: 1px solid #e0e0e0;
+        background: #fff; white-space: nowrap; cursor: pointer;
+        user-select: none;
+    }
+    .ot-table th:hover { background: #f5f5f5; }
+    .ot-table th .sort-icon { color: #bbb; margin-left: 4px; font-size: 10px; }
+    .ot-table th.sorted-asc  .sort-icon { color: #3498db; }
+    .ot-table th.sorted-desc .sort-icon { color: #3498db; }
+
+    .ot-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+    .ot-table tbody tr:hover { background: #f8fbff; }
+    .ot-table td {
+        padding: 10px 12px; color: #1a1a1a; font-size: 13px;
+        vertical-align: middle;
+    }
+    .ot-table td.num { text-align: right; white-space: nowrap; }
+
+    /* Receipt link */
+    .receipt-link {
+        color: #2980b9; text-decoration: none; font-weight: 500;
+    }
+    .receipt-link:hover { text-decoration: underline; }
+
+    /* Credit / Debit colouring */
+    .credit-val { color: #27ae60; font-weight: 600; }
+    .debit-val  { color: #c0392b; font-weight: 600; }
+
+    /* Delete icon */
+    .delete-btn {
+        background: none; border: none; cursor: pointer;
+        color: #3498db; font-size: 16px; padding: 2px 6px;
+        transition: color 0.15s;
+    }
+    .delete-btn:hover { color: #e74c3c; }
+
+    /* Pagination */
+    .ot-footer {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-top: 16px; flex-wrap: wrap; gap: 10px;
+    }
+    .ot-info { font-size: 13px; color: #555; }
+    .pager   { display: flex; gap: 4px; align-items: center; }
+    .pager-btn {
+        padding: 5px 12px; border: 1px solid #ddd; background: #fff;
+        color: #333; border-radius: 2px; font-size: 13px; cursor: pointer;
+        font-family: Arial, sans-serif; transition: background 0.15s;
+    }
+    .pager-btn:hover:not(:disabled) { background: #f0f0f0; }
+    .pager-btn:disabled { opacity: 0.45; cursor: default; }
+    .pager-btn.active {
+        background: #9b59b6; color: #fff; border-color: #9b59b6;
+        font-weight: 700;
+    }
+    .pager-ellipsis { padding: 5px 4px; font-size: 13px; color: #aaa; }
+
+    /* Empty state */
+    .empty-row td {
+        text-align: center; padding: 32px; color: #aaa;
+        font-style: italic; font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+        .ot-controls { flex-direction: column; }
+        .ot-table { font-size: 12px; }
+    }
+</style>
+
+<div class="ot-wrapper">
+
+    <!-- Light-blue header bar -->
+    <div class="ot-topbar">
+        <span>Office Transaction</span>
+        <div class="ot-topbar-right"></div>
+    </div>
+
+    <div class="ot-card">
+
+        <!-- Controls row -->
+        <div class="ot-controls">
+
+            <!-- Left: Show entries + from/to branch filters -->
+            <div class="ot-controls-left">
+                <div class="show-entries">
+                    Show
+                    <select id="pageSizeSelect" onchange="changePageSize(this.value)">
+                        <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
+                        <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
+                        <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+                    </select>
+                    entries
+                </div>
+
+                <!-- From Branch filter -->
+                <select class="filter-select" id="fromBranchFilter" onchange="applyFilters()">
+                    <option value="">From Branch (All)</option>
+                    {% for office in all_offices %}
+                    <option value="{{ office.id }}"
+                        {% if from_branch_id == office.id|stringformat:"s" %}selected{% endif %}>
+                        {{ office.name|upper }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <!-- To Branch filter -->
+                <select class="filter-select" id="toBranchFilter" onchange="applyFilters()">
+                    <option value="">To Branch (All)</option>
+                    {% for office in all_offices %}
+                    <option value="{{ office.id }}"
+                        {% if to_branch_id == office.id|stringformat:"s" %}selected{% endif %}>
+                        {{ office.name|upper }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                {% if from_branch_id or to_branch_id or search_query %}
+                <button class="clear-btn" onclick="clearFilters()">✕ Clear</button>
+                {% endif %}
+            </div>
+
+            <!-- Right: Search + Add button -->
+            <div class="ot-controls-right">
+                <div class="search-wrap">
+                    <label>Search:</label>
+                    <input type="text" class="search-input" id="searchInput"
+                           placeholder="" value="{{ search_query }}"
+                           oninput="liveSearch(this.value)">
+                </div>
+                <!-- Add Office Transaction — no URL, handle onclick yourself -->
+                <button class="add-btn" onclick="openAddTransactionModal()">
+                    Add Office Transaction
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Table -->
+        <table class="ot-table" id="otTable">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0)" data-col="0">
+                        Date <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortTable(1)" data-col="1">
+                        Name <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortTable(2)" data-col="2">
+                        Description <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortTable(3)" data-col="3" style="text-align:right;">
+                        Credit <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortTable(4)" data-col="4" style="text-align:right;">
+                        Debit <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortTable(5)" data-col="5">
+                        Receipt <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortTable(6)" data-col="6">
+                        Department <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortTable(7)" data-col="7">
+                        From Branch <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortTable(8)" data-col="8">
+                        To Branch <span class="sort-icon">⇅</span>
+                    </th>
+                    <th>Action <span class="sort-icon"></span></th>
+                </tr>
+            </thead>
+            <tbody id="otBody">
+                {% for txn in transactions %}
+                <tr>
+                    <td>{{ txn.transaction_date|date:"d/m/Y" }}</td>
+                    <td>{{ txn.processed_by.get_full_name|default:'—' }}</td>
+                    <td>{{ txn.description|default:'Money transfer' }}</td>
+                    <td class="num">
+                        {% if txn.credit_amount %}
+                            <span class="credit-val">{{ txn.credit_amount|floatformat:0|intcomma }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="num">
+                        {% if txn.amount %}
+                            <span class="debit-val">{{ txn.amount|floatformat:0|intcomma }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a class="receipt-link" href="#">
+                            {{ txn.id|stringformat:"06d" }}
+                        </a>
+                    </td>
+                    <td>{{ txn.department|default:'monthly' }}</td>
+                    <td>{{ txn.office_from.name|upper|default:'—' }}</td>
+                    <td>{{ txn.office_to.name|upper|default:'—' }}</td>
+                    <td>
+                        <form method="POST" action="{% url 'office_transaction_delete' txn.id %}"
+                              style="display:inline;"
+                              onsubmit="return confirm('Delete this transaction?')">
+                            {% csrf_token %}
+                            <button type="submit" class="delete-btn" title="Delete">🗑</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr class="empty-row">
+                    <td colspan="10">No transactions found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Footer: info + pagination -->
+        <div class="ot-footer">
+            <div class="ot-info">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }}
+                of {{ total_count }} entries
+                {% if from_branch_id or to_branch_id or search_query %}
+                    (filtered)
+                {% endif %}
+            </div>
+
+            <div class="pager">
+                <!-- Previous -->
+                <button class="pager-btn"
+                        onclick="goPage({{ page_obj.number|add:'-1' }})"
+                        {% if not page_obj.has_previous %}disabled{% endif %}>
+                    Previous
+                </button>
+
+                <!-- Page numbers -->
+                {% for p in page_range %}
+                    {% if p == '...' %}
+                    <span class="pager-ellipsis">…</span>
+                    {% elif p == page_obj.number %}
+                    <button class="pager-btn active">{{ p }}</button>
+                    {% else %}
+                    <button class="pager-btn" onclick="goPage({{ p }})">{{ p }}</button>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Next -->
+                <button class="pager-btn"
+                        onclick="goPage({{ page_obj.number|add:'1' }})"
+                        {% if not page_obj.has_next %}disabled{% endif %}>
+                    Next
+                </button>
+            </div>
+        </div>
+
+    </div><!-- end ot-card -->
+</div>
+
+<script>
+const BASE_URL = window.location.pathname;
+
+function getParams() {
+    const p = new URLSearchParams(window.location.search);
+    return p;
+}
+
+function goPage(page) {
+    const p = getParams();
+    p.set('page', page);
+    window.location.href = BASE_URL + '?' + p.toString();
+}
+
+function changePageSize(size) {
+    const p = getParams();
+    p.set('page_size', size);
+    p.set('page', 1);
+    window.location.href = BASE_URL + '?' + p.toString();
+}
+
+function applyFilters() {
+    const fromVal = document.getElementById('fromBranchFilter').value;
+    const toVal   = document.getElementById('toBranchFilter').value;
+    const p = getParams();
+    if (fromVal) p.set('from_branch', fromVal); else p.delete('from_branch');
+    if (toVal)   p.set('to_branch',   toVal);   else p.delete('to_branch');
+    p.set('page', 1);
+    window.location.href = BASE_URL + '?' + p.toString();
+}
+
+function clearFilters() {
+    const p = new URLSearchParams();
+    window.location.href = BASE_URL + '?' + p.toString();
+}
+
+/* Live search — debounced */
+let searchTimer;
+function liveSearch(val) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        const p = getParams();
+        if (val.trim()) p.set('search', val.trim()); else p.delete('search');
+        p.set('page', 1);
+        window.location.href = BASE_URL + '?' + p.toString();
+    }, 400);
+}
+
+/* Column sort */
+let sortCol = -1, sortAsc = true;
+function sortTable(col) {
+    const tbody = document.getElementById('otBody');
+    const rows  = Array.from(tbody.querySelectorAll('tr:not(.empty-row)'));
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = true; }
+
+    rows.sort((a, b) => {
+        const at = a.cells[col]?.innerText.trim() || '';
+        const bt = b.cells[col]?.innerText.trim() || '';
+        const an = parseFloat(at.replace(/,/g,''));
+        const bn = parseFloat(bt.replace(/,/g,''));
+        if (!isNaN(an) && !isNaN(bn)) return sortAsc ? an - bn : bn - an;
+        return sortAsc ? at.localeCompare(bt) : bt.localeCompare(at);
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+
+    /* Update header icons */
+    document.querySelectorAll('.ot-table th').forEach((th, i) => {
+        th.classList.remove('sorted-asc','sorted-desc');
+        if (i === col) th.classList.add(sortAsc ? 'sorted-asc' : 'sorted-desc');
+    });
+}
+
+/* Placeholder — wire this to your own modal or URL */
+function openAddTransactionModal() {
+       window.location.href = '{% url "office_transaction_page" %}';
+}
+</script>
+
+{% endblock %}

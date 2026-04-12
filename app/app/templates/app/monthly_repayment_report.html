@@ -1,0 +1,298 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'loans-edit' as can_edit_loan %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1300px;
+        margin: 20px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .report-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 24px 30px 20px;
+    }
+
+    /* ── Masco Finance letterhead ── */
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 22px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 80px; height: auto; }
+    .company-name {
+        font-size: 26px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub {
+        font-size: 13px; font-weight: 600; color: #1a1a1a;
+        font-family: Arial, sans-serif; margin-top: 3px;
+    }
+    .company-contact {
+        font-size: 12px; color: #1a1a1a;
+        font-family: Arial, sans-serif; margin-top: 2px;
+    }
+
+    /* ── Branch heading ── */
+    .branch-heading {
+        font-size: 14px; font-weight: 700; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin: 4px 0 20px;
+        text-transform: uppercase;
+    }
+
+    /* ── Per-month section ── */
+    .month-section { margin-bottom: 6px; }
+
+    .month-title {
+        font-size: 13.5px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+
+    /* ── Repayment table ── */
+    .rep-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 12.5px;
+    }
+    .rep-table thead tr { background: #7de8e0; }
+    .rep-table th {
+        padding: 8px 8px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 12px;
+        border: 1px solid #5dd4cc; white-space: nowrap;
+    }
+    .rep-table th.num { text-align: right; }
+
+    .rep-table tbody tr { border-bottom: 1px solid #e8e8e8; }
+    .rep-table tbody tr:hover { background: #f5fffe; }
+    .rep-table td {
+        padding: 6px 8px; color: #1a1a1a;
+        border-right: 1px solid #ececec;
+        vertical-align: middle; font-size: 12.5px;
+        white-space: nowrap;
+    }
+    .rep-table td:last-child { border-right: none; }
+    .rep-table td.num { text-align: right; }
+
+    /* Loan ID — plain text (no link needed per screenshot) */
+    .loan-id { color: #1a1a1a; }
+
+    /* Grand total row — tan/gold */
+    .grand-total-row td {
+        background: #d4b97a !important;
+        font-weight: 700; font-size: 13px;
+        padding: 8px 8px;
+        border-top: 2px solid #b89650;
+        border-right: 1px solid #b89650;
+    }
+    .grand-total-row td:last-child { border-right: none; }
+
+    /* Gold divider between months */
+    .gold-divider {
+        border: none; border-top: 2px solid #c8a84b;
+        margin: 18px 0 22px;
+    }
+
+    /* Action row */
+    .action-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding-top: 14px; border-top: 1px solid #ddd; margin-top: 10px;
+    }
+    .back-link {
+        font-size: 13px; color: #9b59b6; font-family: Arial, sans-serif;
+        text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .print-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; cursor: pointer; color: #333;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row { display: none !important; }
+        .rep-table  { font-size: 9pt; }
+        .rep-table th, .rep-table td { padding: 3px 5px; }
+        .month-section { page-break-inside: avoid; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="report-card">
+
+        <div class="printable">
+
+            <!-- Masco Finance letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="branch-heading">{{ branch_name }} BRANCH</div>
+
+            {% for section in months %}
+
+    {% if not forloop.first %}
+    <hr class="gold-divider">
+    {% endif %}
+
+    <div class="month-section">
+        <div class="month-title">
+            Monthly-Wise Loan Repayment For {{ section.label }}
+        </div>
+
+        <!-- Select All / Deselect All -->
+        <div style="display:flex; gap:10px; margin-bottom:12px;">
+            <button type="button" class="sel-btn select-all-btn"
+                    data-month="{{ forloop.counter }}"
+                    onclick="selectAll({{ forloop.counter }})">
+                Select All
+            </button>
+            <button type="button" class="sel-btn deselect-all-btn"
+                    data-month="{{ forloop.counter }}"
+                    onclick="deselectAll({{ forloop.counter }})">
+                Deselect All
+            </button>
+        </div>
+
+        <form method="POST" action="{% url 'bulk_update_payment_month' %}">
+            {% csrf_token %}
+
+            <table class="rep-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>S/N</th>
+                        <th>Transaction Date</th>
+                        <th>Receipt No</th>
+                        <th>Name</th>
+                        <th>Check No.</th>
+                        <th>Loan ID</th>
+                        <th>Description</th>
+                        <th class="num">Amount</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in section.rows %}
+                    <tr>
+                        <td>
+                            <input type="checkbox"
+                                   class="row-checkbox month-{{ forloop.parentloop.counter }}"
+                                   name="selected_items"
+                                   value="{{ row.row_key }}"
+                                   style="accent-color:#9b59b6; width:15px; height:15px; cursor:pointer;">
+                        </td>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ row.date|date:"d/m/Y" }}</td>
+                        <td>{{ row.receipt_no }}</td>
+                        <td style="text-transform:uppercase;">{{ row.name }}</td>
+                        <td>{{ row.check_no }}</td>
+                        <td class="loan-id">{{ row.loan_id_label }}</td>
+                        <td>{{ row.description }}</td>
+                        <td class="num">{{ row.amount|floatformat:0|intcomma }}</td>
+
+                        {% if can_edit_loan %}
+                        <td>
+                            <a href="{% url 'edit_repayment' row.record_type row.record_id %}"
+                               style="color:#9b59b6; font-size:12px; font-family:Arial,sans-serif;
+                                      text-decoration:none; font-weight:700;">
+                                edit
+                            </a>
+                        </td>
+                        {% endif %}
+
+                    </tr>
+                    {% empty %}
+                    {% endfor %}
+
+                    <!-- Grand Total -->
+                    <tr class="grand-total-row">
+                        <td colspan="8"><strong>GRAND TOTAL</strong></td>
+                        <td class="num"><strong>{{ section.grand_total|floatformat:0|intcomma }}</strong></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Bulk payment month update — bottom of each month table -->
+             {% if can_edit_loan %}
+            <div style="display:flex; align-items:center; gap:16px; margin-top:16px;
+                        padding:12px 16px; background:#fdf6e3; border:1px solid #e8d8a0;
+                        border-radius:3px; flex-wrap:wrap;">
+                <label style="font-size:13px; font-family:Arial,sans-serif;
+                            font-weight:600; color:#333; white-space:nowrap;">
+                    Payment Month
+                </label>
+                <input type="date" name="transaction_date"
+                    style="padding:6px 10px; border:1px solid #ccc; border-radius:2px;
+                            font-size:13px; font-family:Arial,sans-serif; outline:none;">
+                <button type="submit"
+                        style="padding:8px 22px; background:#c8a84b; color:#fff; border:none;
+                            border-radius:3px; font-size:13px; font-family:Arial,sans-serif;
+                            font-weight:700; cursor:pointer; letter-spacing:0.4px;
+                            text-transform:uppercase;">
+                    Update Payment Month For Selected
+                </button>
+            </div>
+            {% endif %}
+
+        </form>
+    </div>
+
+{% endfor %}
+
+        </div><!-- end printable -->
+
+        <div class="action-row">
+            <a class="back-link" href="{% url 'monthly_repayment_filter' %}">← Change months</a>
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .sel-btn {
+    padding: 6px 20px; border: none; border-radius: 3px;
+    font-size: 13px; font-family: Arial, sans-serif;
+    font-weight: 700; cursor: pointer; letter-spacing: 0.3px;
+}
+.select-all-btn   { background: #27ae60; color: #fff; }
+.select-all-btn:hover   { background: #1e8449; }
+.deselect-all-btn { background: #f5c6c6; color: #800; }
+.deselect-all-btn:hover { background: #f0a0a0; }
+</style>
+
+<script>
+function selectAll(monthIdx) {
+    document.querySelectorAll('.month-' + monthIdx).forEach(function(cb) {
+        cb.checked = true;
+    });
+}
+function deselectAll(monthIdx) {
+    document.querySelectorAll('.month-' + monthIdx).forEach(function(cb) {
+        cb.checked = false;
+    });
+}
+</script>
+
+{% endblock %}

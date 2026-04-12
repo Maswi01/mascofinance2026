@@ -1,0 +1,617 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masco Finance - Bank Transfer Expenses</title>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --teal: #2a9d8f;
+            --teal-light: #b2dfdb;
+            --teal-header: #80cbc4;
+            --navy: #0d1f3c;
+            --off-white: #f9fafb;
+            --border: #c8e6e4;
+            --text-dark: #1a1a2e;
+            --text-mid: #444;
+            --text-light: #777;
+            --total-bg: #e8f5e9;
+            --total-border: #a5d6a7;
+            --green: #16a34a;
+            --amber: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: #ffffff;
+            color: var(--text-dark);
+        }
+
+        /* ============================================================
+           FILTER BAR — hidden on print
+        ============================================================ */
+        .filter-bar {
+            background: var(--navy);
+            padding: 13px 28px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .filter-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--teal-light);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            white-space: nowrap;
+        }
+
+        .filter-input,
+        .filter-select {
+            padding: 6px 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            background: rgba(255,255,255,0.08);
+            color: white;
+            font-size: 12px;
+            font-family: 'IBM Plex Sans', sans-serif;
+            cursor: pointer;
+        }
+        .filter-input::placeholder { color: rgba(255,255,255,0.35); }
+        .filter-input:focus,
+        .filter-select:focus { outline: none; border-color: var(--teal); background: rgba(255,255,255,0.14); }
+        .filter-input option,
+        .filter-select option { background: var(--navy); color: white; }
+
+        .btn-filter {
+            padding: 7px 18px;
+            background: var(--teal);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'IBM Plex Sans', sans-serif;
+            letter-spacing: 0.4px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        .btn-filter:hover { background: #21867a; }
+
+        .btn-reset {
+            padding: 7px 14px;
+            background: transparent;
+            color: rgba(255,255,255,0.65);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: 'IBM Plex Sans', sans-serif;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-reset:hover { background: rgba(255,255,255,0.1); color: white; }
+
+        /* ============================================================
+           REPORT AREA
+        ============================================================ */
+        .report-page { width: 100%; background: white; }
+
+        /* Company Header */
+        .report-header {
+            padding: 22px 36px 16px;
+            text-align: center;
+            border-bottom: 3px double var(--teal);
+        }
+
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .company-info h1 {
+            font-family: 'EB Garamond', serif;
+            font-size: 2.1rem;
+            font-weight: 700;
+            color: #1e3d6e;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            line-height: 1.1;
+        }
+
+        .company-info .tagline {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dark);
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        .company-info .contacts {
+            font-size: 12px;
+            color: var(--text-mid);
+            margin-top: 3px;
+        }
+
+        /* Report Title */
+        .report-title-block {
+            text-align: center;
+            padding: 14px 36px 8px;
+        }
+
+        .branch-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-dark);
+            text-decoration: underline;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .report-period {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-dark);
+            text-decoration: underline;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        /* Summary Strip */
+        .summary-strip {
+            display: flex;
+            border-top: 1px solid var(--border);
+            border-bottom: 2px solid var(--teal-light);
+            background: var(--off-white);
+        }
+
+        .summary-item {
+            flex: 1;
+            text-align: center;
+            padding: 12px 8px;
+            border-right: 1px solid var(--border);
+        }
+        .summary-item:last-child { border-right: none; }
+
+        .s-label {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            margin-bottom: 4px;
+        }
+
+        .s-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--teal);
+            font-family: 'EB Garamond', serif;
+        }
+        .s-value.green { color: var(--green); }
+        .s-value.amber { color: var(--amber); }
+
+        .s-sub {
+            font-size: 9px;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        /* Table */
+        .table-wrap { width: 100%; overflow-x: auto; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+        thead tr th {
+            background: var(--teal-header);
+            color: var(--text-dark);
+            font-weight: 700;
+            font-size: 10.5px;
+            text-align: left;
+            padding: 9px 10px;
+            border: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        thead tr th.num { text-align: right; }
+
+        tbody tr td {
+            padding: 7px 10px;
+            border: 1px solid #e0f0ee;
+            vertical-align: middle;
+            color: var(--text-dark);
+            font-size: 11.5px;
+        }
+
+        tbody tr:nth-child(even) td { background: #f4fafa; }
+        tbody tr:hover td { background: #e0f7f5; }
+
+        td.num { text-align: right; font-weight: 600; }
+        td.ctr { text-align: center; }
+
+        .receipt-badge {
+            display: inline-block;
+            padding: 2px 9px;
+            background: rgba(42,157,143,0.1);
+            color: var(--teal);
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: 600;
+            font-family: monospace;
+            border: 1px solid rgba(42,157,143,0.2);
+        }
+
+        .office-badge {
+            display: inline-block;
+            padding: 2px 9px;
+            background: rgba(13,31,60,0.08);
+            color: var(--navy);
+            border-radius: 10px;
+            font-size: 10.5px;
+            font-weight: 500;
+            border: 1px solid rgba(13,31,60,0.15);
+        }
+
+        .user-info { display: flex; align-items: center; gap: 7px; }
+
+        .user-avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: var(--navy);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .user-name { font-weight: 500; font-size: 11.5px; color: var(--text-dark); }
+
+        /* Grand Total Row */
+        tfoot tr td {
+            background: var(--total-bg);
+            border: 1px solid var(--total-border);
+            font-weight: 700;
+            font-size: 12px;
+            padding: 9px 10px;
+        }
+
+        tfoot tr td.grand-label {
+            text-align: right;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-left: 3px solid var(--teal);
+            color: var(--text-dark);
+        }
+
+        tfoot td.grand-total {
+            text-align: right;
+            color: var(--green);
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        /* No data */
+        .no-data {
+            text-align: center;
+            padding: 56px 20px;
+            color: var(--text-light);
+        }
+        .no-data-icon { font-size: 40px; color: #ccc; margin-bottom: 14px; }
+
+        /* Screen-only footer */
+        .page-footer {
+            display: flex;
+            justify-content: flex-end;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--off-white);
+            gap: 10px;
+        }
+
+        .btn-pdf {
+            padding: 9px 22px;
+            background: var(--teal);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'IBM Plex Sans', sans-serif;
+            cursor: pointer;
+            letter-spacing: 0.4px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-pdf:hover { background: #21867a; }
+
+        .btn-export {
+            padding: 9px 18px;
+            background: white;
+            color: var(--navy);
+            border: 1.5px solid var(--navy);
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'IBM Plex Sans', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-export:hover { background: var(--navy); color: white; }
+
+        /* ============================================================
+           PRINT
+        ============================================================ */
+        @media print {
+            @page { size: A4 landscape; margin: 8mm 6mm; }
+
+            body { background: white; margin: 0; padding: 0; }
+
+            .filter-bar,
+            .page-footer { display: none !important; }
+
+            .report-page { width: 100%; }
+
+            .report-header { padding: 10px 12px 8px; }
+            .company-info h1 { font-size: 1.5rem; }
+            .company-info .tagline,
+            .company-info .contacts { font-size: 10px; }
+
+            .report-title-block { padding: 8px 12px 5px; }
+            .branch-name, .report-period { font-size: 11px; }
+
+            .summary-item { padding: 6px 4px; }
+            .s-value { font-size: 12px; }
+            .s-label { font-size: 7.5px; }
+
+            .table-wrap { overflow: visible; }
+            table { font-size: 8.5px; }
+            thead tr th { padding: 4px 5px; font-size: 8px; }
+            tbody tr td { padding: 3px 5px; font-size: 8.5px; }
+            tfoot tr td { padding: 4px 5px; font-size: 8.5px; }
+
+            thead tr th,
+            tbody tr:nth-child(even) td,
+            tfoot tr td {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            tbody tr:hover td { background: none !important; }
+            .receipt-badge, .office-badge { border: none; background: none; padding: 0; font-size: 8px; }
+            .user-avatar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== FILTER BAR ===== -->
+<form method="GET" action="{% url 'bank_transfer_expenses' %}" class="filter-bar">
+    <div class="filter-group">
+        <span class="filter-label">From</span>
+        <input type="date" name="date_from" class="filter-input" value="{{ date_from|default:'' }}">
+    </div>
+    <div class="filter-group">
+        <span class="filter-label">To</span>
+        <input type="date" name="date_to" class="filter-input" value="{{ date_to|default:'' }}">
+    </div>
+    <div class="filter-group">
+        <span class="filter-label">Office</span>
+        <select name="office" class="filter-select">
+            <option value="">All Offices</option>
+            {% for office in offices %}
+            <option value="{{ office.id }}" {% if selected_office == office.id|stringformat:"s" %}selected{% endif %}>
+                {{ office.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <a href="{% url 'bank_transfer_expenses' %}" class="btn-reset">&#8635; Clear</a>
+        <button type="submit" class="btn-filter">&#128269; Filter</button>
+    </div>
+</form>
+
+<!-- ===== FULL-PAGE REPORT ===== -->
+<div class="report-page">
+
+    <!-- Company Header -->
+    <div class="report-header">
+        <div class="header-inner">
+            <div>
+                <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo" height="85" width="auto">
+            </div>
+            <div class="company-info">
+                <h1>Masco Finance Co. Ltd</h1>
+                <div class="tagline">P.O.BOX 30474 — KIBAHA | TANZANIA</div>
+                <div class="contacts">Mobile: +255 718 544 515 &nbsp;|&nbsp; Email: mascofinance@gmail.com</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Title -->
+    <div class="report-title-block">
+        <div class="branch-name">
+            {% if selected_office %}
+                {% for office in offices %}{% if office.id|stringformat:"s" == selected_office %}{{ office.name }} — {% endif %}{% endfor %}
+            {% endif %}
+            Bank Transfer Expenses
+        </div>
+        <div class="report-period">
+            {% if date_from and date_to %}
+                From {{ date_from }} To {{ date_to }}
+            {% elif date_from %}
+                From {{ date_from }}
+            {% elif date_to %}
+                Up To {{ date_to }}
+            {% else %}
+                All Dates
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Summary Strip -->
+    <div class="summary-strip">
+        <div class="summary-item">
+            <div class="s-label">Total Records</div>
+            <div class="s-value">{{ total_count }}</div>
+            <div class="s-sub">bank transfer entries</div>
+        </div>
+        <div class="summary-item">
+            <div class="s-label">Payment Method</div>
+            <div class="s-value" style="font-size:13px;">Bank Transfer</div>
+            <div class="s-sub">all filtered records</div>
+        </div>
+        <div class="summary-item">
+            <div class="s-label">Grand Total</div>
+            <div class="s-value green">{{ grand_total|floatformat:0|intcomma }}</div>
+            <div class="s-sub">TZS</div>
+        </div>
+        <div class="summary-item">
+            <div class="s-label">Office</div>
+            <div class="s-value" style="font-size:13px;">
+                {% if selected_office %}
+                    {% for office in offices %}{% if office.id|stringformat:"s" == selected_office %}{{ office.name }}{% endif %}{% endfor %}
+                {% else %}All{% endif %}
+            </div>
+            <div class="s-sub">branch filter</div>
+        </div>
+        <div class="summary-item">
+            <div class="s-label">Period</div>
+            <div class="s-value" style="font-size:12px;">
+                {% if date_from %}{{ date_from }}{% else %}—{% endif %}
+            </div>
+            <div class="s-sub">to {{ date_to|default:"present" }}</div>
+        </div>
+    </div>
+
+    <!-- Expenses Table -->
+    <div class="table-wrap">
+        {% if expenses_with_receipt %}
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:36px;">#</th>
+                    <th>Date</th>
+                    <th>Receipt No.</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Office</th>
+                    <th>Processed By</th>
+                    <th class="num">Amount (TZS)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in expenses_with_receipt %}
+                <tr>
+                    <td class="ctr">{{ forloop.counter }}</td>
+                    <td style="white-space:nowrap;">{{ item.expense.transaction_date|date:"d/m/Y" }}</td>
+                    <td>
+                        <span class="receipt-badge">{{ item.receipt_number }}</span>
+                    </td>
+                    <td style="font-weight:600; font-size:11.5px;">{{ item.expense.recorded_by.get_full_name }}</td>
+                    <td style="color:var(--text-mid); font-size:11px; max-width:240px;">{{ item.expense.description }}</td>
+                    <td>
+                        {% if item.expense.office %}
+                        <span class="office-badge">{{ item.expense.office }}</span>
+                        {% else %}
+                        <span style="color:var(--text-light); font-style:italic; font-size:10.5px;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="user-info">
+                            <div class="user-avatar">{{ item.expense.recorded_by.get_full_name|first|upper }}</div>
+                            <span class="user-name">{{ item.expense.recorded_by.get_full_name }}</span>
+                        </div>
+                    </td>
+                    <td class="num">{{ item.expense.amount|floatformat:0|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="7" class="grand-label">Grand Total</td>
+                    <td class="grand-total">{{ grand_total|floatformat:0|intcomma }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        {% else %}
+        <div class="no-data">
+            <div class="no-data-icon">&#128184;</div>
+            <p style="font-size:14px; color:var(--text-mid); margin-top:8px;">
+                No bank transfer expenses found for the selected filters.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Screen-only footer -->
+    <div class="page-footer">
+        <button class="btn-export" onclick="exportCSV()">&#8659; Export CSV</button>
+        <button class="btn-pdf" onclick="window.print()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 9V2h12v7"/>
+                <rect x="6" y="17" width="12" height="5"/>
+                <path d="M6 13H4a2 2 0 0 0-2 2v4h4"/>
+                <path d="M18 13h2a2 2 0 0 1 2 2v4h-4"/>
+            </svg>
+            SAVE PDF
+        </button>
+    </div>
+
+</div><!-- end report-page -->
+
+<script>
+    function exportCSV() {
+        const headers = ['#','Date','Receipt No','Name','Description','Office','Processed By','Amount (TZS)'];
+        const rows = document.querySelectorAll('tbody tr');
+        let csv = headers.join(',') + '\n';
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 8) {
+                const data = Array.from(cells).map(c => `"${c.textContent.trim().replace(/"/g,'""')}"`);
+                csv += data.join(',') + '\n';
+            }
+        });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `masco_bank_transfer_expenses.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.ctrlKey && e.key === 'p') { e.preventDefault(); window.print(); }
+        if (e.ctrlKey && e.key === 'e') { e.preventDefault(); exportCSV(); }
+    });
+</script>
+</body>
+</html>

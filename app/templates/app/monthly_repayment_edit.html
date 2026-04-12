@@ -1,0 +1,164 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .edit-wrapper {
+        max-width: 700px;
+        margin: 80px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+    }
+    .edit-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        padding: 32px 40px 36px;
+        border-radius: 2px;
+    }
+
+    .edit-title {
+        font-size: 15px; font-weight: 900; color: #1a1a1a;
+        text-transform: uppercase; letter-spacing: 0.5px;
+        margin: 0 0 18px;
+        padding-bottom: 14px;
+        border-bottom: 1.5px solid #ddd;
+        font-family: Arial, sans-serif;
+    }
+
+    .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 18px;
+        gap: 0;
+    }
+    .form-label {
+        width: 180px;
+        min-width: 180px;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #333;
+        font-family: Arial, sans-serif;
+        text-align: right;
+        padding-right: 20px;
+    }
+    .form-control {
+        flex: 1;
+        padding: 9px 12px;
+        border: 1px solid #ccc;
+        border-radius: 2px;
+        font-size: 13.5px;
+        font-family: Arial, sans-serif;
+        color: #333;
+        background: #f0f4f7;  /* light blue-grey — readonly look */
+        outline: none;
+    }
+    .form-control:focus {
+        border-color: #9b59b6;
+        background: #fff;
+        box-shadow: 0 0 0 2px rgba(155,89,182,0.15);
+    }
+    .form-control[readonly] {
+        background: #f0f4f7;
+        color: #555;
+        cursor: default;
+    }
+    select.form-control {
+        background: #fff;
+        cursor: pointer;
+    }
+    select.form-control:focus {
+        border-color: #9b59b6;
+    }
+    input[type="date"].form-control {
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .btn-continue {
+        display: flex; align-items: center; justify-content: center;
+        gap: 6px;
+        padding: 10px 28px;
+        background: #7b52ab; color: #fff;
+        border: none; border-radius: 3px;
+        font-size: 13.5px; font-weight: 700;
+        font-family: Arial, sans-serif;
+        cursor: pointer; text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin: 6px auto 0;
+    }
+    .btn-continue:hover { background: #6340a0; }
+
+    .btn-row {
+        display: flex; justify-content: center;
+        margin-top: 24px;
+    }
+
+    .back-link {
+        display: inline-block; margin-top: 18px;
+        font-size: 13px; color: #9b59b6;
+        text-decoration: none; font-family: Arial, sans-serif;
+    }
+    .back-link:hover { text-decoration: underline; }
+</style>
+
+<div class="edit-wrapper">
+<div class="edit-card">
+
+    <div class="edit-title">Editing Monthly Repayment</div>
+
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div class="form-row">
+            <label class="form-label">Name</label>
+            <input class="form-control" type="text" value="{{ name }}" readonly>
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">Receipt No</label>
+            <input class="form-control" type="text" value="{{ receipt_no }}" readonly>
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">Amount</label>
+            <input class="form-control" type="text" value="{{ amount }}" readonly>
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">Repayment Mode</label>
+            <select class="form-control" name="repayment_mode">
+                <option value="CASH"  {% if current_mode == 'CASH'  %}selected{% endif %}>CASH</option>
+                <option value="BANK"  {% if current_mode == 'BANK'  %}selected{% endif %}>BANK</option>
+                <option value="MPESA" {% if current_mode == 'MPESA' %}selected{% endif %}>MPESA</option>
+            </select>
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">Payment Month</label>
+            <input class="form-control" type="date" name="payment_month"
+                   value="{{ current_pm }}">
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">Transaction Date</label>
+            <input class="form-control" type="date" name="transaction_date"
+                   value="{{ current_date }}">
+        </div>
+
+        <div class="btn-row">
+            <button type="submit" class="btn-continue">
+                &#10003; CONTINUE &gt;&gt;
+            </button>
+        </div>
+    </form>
+
+    <div style="text-align:center;">
+        <a class="back-link" href="{{ next|default:'javascript:history.back()' }}">← Back</a>
+    </div>
+
+</div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,607 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'loans-repay-delete' as can_delete_repay %}
+
+<style>
+    .lp-wrapper {
+        max-width: 960px;
+        margin: 100px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+    }
+
+    .lp-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 32px 50px 40px;
+    }
+
+    .part-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1a1a1a;
+        letter-spacing: 0.5px;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #999;
+        margin-bottom: 36px;
+        font-family: Arial, sans-serif;
+        text-transform: uppercase;
+    }
+
+    /* ── Customer selector row ── */
+    .form-row {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+
+    .form-row label {
+        width: 180px;
+        flex-shrink: 0;
+        font-size: 14px;
+        color: #333;
+        padding-top: 10px;
+        font-family: Arial, sans-serif;
+    }
+
+    .field-wrap { flex: 1; max-width: 500px; position: relative; }
+
+    /* ── Custom searchable dropdown ── */
+    .custom-select-wrapper { position: relative; width: 100%; }
+
+    .custom-select-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 9px 12px;
+        border: 1px solid #ccc;
+        border-radius: 2px;
+        font-size: 13.5px;
+        font-family: Arial, sans-serif;
+        color: #222;
+        background: #fff;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .custom-select-trigger:hover,
+    .custom-select-wrapper.open .custom-select-trigger {
+        border-color: #9b59b6;
+        box-shadow: 0 0 0 2px rgba(155,89,182,0.12);
+    }
+
+    .custom-select-trigger .arrow {
+        font-size: 12px; color: #888;
+        transition: transform 0.2s; margin-left: 8px; flex-shrink: 0;
+    }
+
+    .custom-select-wrapper.open .custom-select-trigger .arrow { transform: rotate(180deg); }
+
+    .custom-select-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%; left: 0; right: 0;
+        z-index: 999;
+        background: #fff;
+        border: 1px solid #ccc; border-top: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        max-height: 240px; overflow: hidden;
+        flex-direction: column;
+    }
+
+    .custom-select-wrapper.open .custom-select-dropdown { display: flex; }
+
+    .dropdown-search {
+        padding: 6px 10px; border: none;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 13px; font-family: Arial, sans-serif;
+        outline: none; background: #fafafa; flex-shrink: 0;
+    }
+
+    .dropdown-options { overflow-y: auto; flex: 1; }
+
+    .dropdown-option {
+        padding: 10px 14px;
+        font-size: 13.5px; font-family: Arial, sans-serif;
+        color: #222; cursor: pointer;
+        transition: background 0.1s;
+        border-bottom: 1px solid #f2f2f2;
+    }
+
+    .dropdown-option:hover { background: #f0e8f8; }
+    .dropdown-option.selected { background: #9b59b6; color: #fff; }
+
+    /* ── Client info line ── */
+    .client-info-line {
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        color: #222;
+        margin-bottom: 20px;
+    }
+
+    .client-info-line strong {
+        font-weight: 700;
+        text-decoration: underline;
+    }
+
+    /* ── Repayments table ── */
+    .receipt-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: Arial, sans-serif;
+        font-size: 13.5px;
+        margin-top: 10px;
+    }
+
+    .receipt-table thead tr {
+        background: #7de8e0;
+    }
+
+    .receipt-table th {
+        padding: 11px 16px;
+        text-align: left;
+        font-weight: 700;
+        color: #1a1a1a;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+        border-right: 1px solid #5dd4cc;
+    }
+
+    .receipt-table th:last-child { border-right: none; }
+    .receipt-table th.th-center { text-align: center; }
+
+    .receipt-table tbody tr {
+        border-bottom: 1px solid #e8f8f7;
+        transition: background .1s;
+    }
+
+    .receipt-table tbody tr:hover { background: #f0fdfb; }
+
+    .receipt-table td {
+        padding: 10px 16px;
+        color: #2c3e50;
+        border-right: 1px solid #edf2f7;
+        vertical-align: middle;
+    }
+
+    .receipt-table td:last-child { border-right: none; }
+
+    .receipt-table td.amount-cell {
+        text-align: right;
+        font-weight: 600;
+    }
+
+    .receipt-table td.center-cell {
+        text-align: center;
+    }
+
+    /* Row type badge */
+    .row-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .3px;
+        font-family: Arial, sans-serif;
+    }
+    .row-badge.payment { background: #e8f8f7; color: #0e7b75; }
+    .row-badge.topup   { background: #fef3e8; color: #b8620a; }
+
+    /* Receipt number link */
+    .receipt-link {
+        color: #2980b9;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        font-family: Arial, sans-serif;
+    }
+
+    .receipt-link:hover { text-decoration: underline; color: #1a5f8c; }
+
+    /* ── Delete button ── */
+    .btn-del-row {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px; height: 28px;
+        background: transparent;
+        color: #c0392b;
+        border: 1px solid transparent;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background .15s, border-color .15s, color .15s;
+    }
+    .btn-del-row:hover {
+        background: #fdf2f2;
+        border-color: #e2b4b4;
+        color: #a93226;
+    }
+
+    .empty-row td {
+        text-align: center;
+        padding: 30px;
+        color: #aaa;
+        font-style: italic;
+    }
+
+    /* ── Delete confirm modal ── */
+    .del-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,.45);
+        backdrop-filter: blur(3px);
+        display: none; align-items: center; justify-content: center;
+        z-index: 9000;
+        padding: 20px;
+    }
+    .del-overlay.active { display: flex; }
+
+    .del-box {
+        background: #fff;
+        border-radius: 4px;
+        width: 100%; max-width: 400px;
+        box-shadow: 0 8px 30px rgba(0,0,0,.18);
+        overflow: hidden;
+        animation: popIn .22s cubic-bezier(.34,1.4,.64,1);
+    }
+    @keyframes popIn {
+        from { opacity:0; transform: scale(.94) translateY(-10px); }
+        to   { opacity:1; transform: scale(1)  translateY(0); }
+    }
+
+    .del-box-hdr {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 18px;
+        background: #c0392b;
+        color: #fff;
+    }
+    .del-box-hdr h3 {
+        font-size: 14px; font-weight: 700;
+        font-family: Arial, sans-serif;
+        text-transform: uppercase; letter-spacing: .3px;
+        display: flex; align-items: center; gap: 8px; margin: 0;
+    }
+    .del-close-btn {
+        background: rgba(255,255,255,.2); border: none;
+        width: 28px; height: 28px; border-radius: 50%;
+        color: #fff; font-size: 14px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: background .15s;
+    }
+    .del-close-btn:hover { background: rgba(255,255,255,.35); }
+
+    .del-box-body {
+        padding: 28px 22px; text-align: center;
+    }
+    .del-icon-ring {
+        width: 56px; height: 56px; border-radius: 50%;
+        background: #fef2f2; border: 2px solid #f5c6c6;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 14px; font-size: 20px; color: #c0392b;
+    }
+    .del-box-body h4 {
+        font-size: 14.5px; font-weight: 700; color: #1a1a1a;
+        font-family: Arial, sans-serif; margin-bottom: 8px;
+    }
+    .del-amount-highlight {
+        font-size: 18px; font-weight: 700; color: #c0392b;
+        font-family: Arial, sans-serif; margin-bottom: 10px;
+    }
+    .del-box-body p {
+        font-size: 12.5px; color: #777;
+        font-family: Arial, sans-serif; margin: 0;
+        line-height: 1.5;
+    }
+    .del-box-body .del-notice {
+        margin-top: 12px; padding: 10px 14px;
+        background: #fffbeb; border: 1px solid #f0d070;
+        border-radius: 3px; font-size: 12px; color: #7a5c00;
+        font-family: Arial, sans-serif; text-align: left;
+        display: flex; align-items: flex-start; gap: 7px;
+    }
+    .del-notice i { flex-shrink:0; margin-top: 1px; }
+
+    .del-box-footer {
+        display: flex; gap: 10px; justify-content: flex-end;
+        padding: 14px 20px; border-top: 1px solid #f0f0f0; background: #fafafa;
+    }
+    .btn-del-cancel {
+        padding: 8px 18px; background: #fff; color: #444;
+        border: 1px solid #ccc; border-radius: 3px;
+        font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; transition: background .15s;
+    }
+    .btn-del-cancel:hover { background: #f0f0f0; }
+    .btn-del-go {
+        padding: 8px 20px; background: #c0392b; color: #fff;
+        border: none; border-radius: 3px;
+        font-size: 13px; font-family: Arial, sans-serif; font-weight: 700;
+        cursor: pointer; transition: background .15s;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .btn-del-go:hover { background: #a93226; }
+    .btn-del-go:disabled { opacity: .6; cursor: not-allowed; }
+
+    @media (max-width: 650px) {
+        .lp-card { padding: 20px; }
+        .form-row { flex-direction: column; }
+        .form-row label { width: 100%; padding-top: 0; margin-bottom: 6px; }
+        .field-wrap { max-width: 100%; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="lp-card">
+
+        <div class="part-title">Customer Loan Payment Receipt</div>
+
+        <!-- ── Customer filter ── -->
+        <form method="POST" action="{% url 'loan_receipt_list' %}" id="filterForm">
+            {% csrf_token %}
+            <div class="form-row">
+                <label>Customer Name</label>
+                <div class="field-wrap">
+                    <div class="custom-select-wrapper" id="customerSelectWrapper">
+                        <div class="custom-select-trigger" id="customerTrigger">
+                            <span id="customerTriggerText">
+                                {{ client.firstname }} {{ client.middlename|default:'' }} {{ client.lastname }} -[{{ client.checkno|default:client.employmentcardno|default:'' }}]
+                            </span>
+                            <span class="arrow">▼</span>
+                        </div>
+                        <div class="custom-select-dropdown" id="customerDropdown">
+                            <input type="text" class="dropdown-search" id="customerSearch"
+                                   placeholder="Search by name or check no..." autocomplete="off">
+                            <div class="dropdown-options" id="customerOptions">
+                                {% for c in all_clients %}
+                                <div class="dropdown-option {% if c.id == client.id %}selected{% endif %}"
+                                     data-value="{{ c.id }}"
+                                     data-label="{{ c.firstname }} {{ c.middlename|default:'' }} {{ c.lastname }} -[{{ c.checkno|default:c.employmentcardno|default:'' }}]">
+                                    {{ c.firstname }} {{ c.middlename|default:'' }} {{ c.lastname }} -[{{ c.checkno|default:c.employmentcardno|default:'' }}]
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <input type="hidden" name="client_id" id="clientIdInput" value="{{ client.id }}">
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- ── Client info line ── -->
+        <div class="client-info-line">
+            Check No : <strong>{{ client.checkno|default:client.employmentcardno|default:'—' }}</strong>
+            &nbsp;&nbsp;&nbsp;
+            Branch : <strong>{{ branch_name|default:'—' }}</strong>
+        </div>
+
+        <!-- ── Repayments table ── -->
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th>No.</th>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Receipt</th>
+                    {% if can_delete_repay %}
+                    <th class="th-center">Delete</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in repayment_rows %}
+                <tr id="row-{{ row.id }}">
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        {% if row.repayment_date %}
+                            {{ row.repayment_date|date:"d/m/Y" }}
+                        {% else %}
+                            {{ row.payment_month|date:"d/m/Y" }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.row_type == 'topup_clearance' %}
+                            Clearance loan balance for top-up
+                        {% else %}
+                            Loan payment
+                        {% endif %}
+                    </td>
+                    <td class="amount-cell">{{ row.repayment_amount|floatformat:0|intcomma }}</td>
+                    <td>
+                        <a class="receipt-link"
+                           href="{% url 'loan_repayment_receipt' row.id %}">
+                            {{ row.receipt_number }}
+                        </a>
+                    </td>
+                    {% if can_delete_repay %}
+                    <td class="center-cell">
+                        <button
+                            class="btn-del-row"
+                            data-id="{{ row.id }}"
+                            data-amount="{{ row.repayment_amount|floatformat:0|intcomma }}"
+                            data-date="{{ row.repayment_date|date:'d/m/Y' }}"
+                            data-receipt="{{ row.receipt_number }}"
+                            data-type="{% if row.row_type == 'topup_clearance' %}Clearance loan balance for top-up{% else %}Loan payment{% endif %}"
+                            onclick="openDelModal(this)"
+                            title="Delete this payment">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr class="empty-row">
+                    <td colspan="6">No repayment records found for this client.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     DELETE CONFIRM MODAL
+══════════════════════════════════════ -->
+<div class="del-overlay" id="delOverlay">
+    <div class="del-box">
+        <div class="del-box-hdr">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h3>
+            <button class="del-close-btn" onclick="closeDelModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="del-box-body">
+            <div class="del-icon-ring"><i class="fas fa-trash"></i></div>
+            <h4>Delete this payment record?</h4>
+            <div class="del-amount-highlight" id="delAmountText"></div>
+            <p id="delMetaText"></p>
+            <div class="del-notice">
+                <i class="fas fa-info-circle"></i>
+                <span>This amount will be <strong>restored to the office bank balance</strong>. This action cannot be undone.</span>
+            </div>
+        </div>
+        <div class="del-box-footer">
+            <button class="btn-del-cancel" onclick="closeDelModal()">
+                <i class="fas fa-times" style="margin-right:4px;"></i> Cancel
+            </button>
+            <button class="btn-del-go" id="delGoBtn">
+                <i class="fas fa-trash"></i> Yes, Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+/* ── Customer dropdown ── */
+(function() {
+    const wrapper = document.getElementById('customerSelectWrapper');
+    const trigger = document.getElementById('customerTrigger');
+    const search  = document.getElementById('customerSearch');
+    const options = document.getElementById('customerOptions');
+    const hidden  = document.getElementById('clientIdInput');
+    const form    = document.getElementById('filterForm');
+
+    trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        wrapper.classList.toggle('open');
+        if (wrapper.classList.contains('open')) {
+            search.value = '';
+            filterOptions('');
+            setTimeout(() => search.focus(), 50);
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!wrapper.contains(e.target)) wrapper.classList.remove('open');
+    });
+
+    search.addEventListener('input',   function() { filterOptions(this.value.toLowerCase().trim()); });
+    search.addEventListener('click',   e => e.stopPropagation());
+    search.addEventListener('keydown', e => { if (e.key === 'Escape') wrapper.classList.remove('open'); });
+
+    function filterOptions(query) {
+        const opts = options.querySelectorAll('.dropdown-option');
+        let visible = 0;
+        opts.forEach(opt => {
+            const label = (opt.dataset.label || opt.textContent).toLowerCase();
+            const show  = !query || label.includes(query);
+            opt.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        const noRes = options.querySelector('.no-results');
+        if (noRes) noRes.remove();
+        if (visible === 0 && query) {
+            const div = document.createElement('div');
+            div.className = 'dropdown-option no-results';
+            div.textContent = 'No customers found';
+            options.appendChild(div);
+        }
+    }
+
+    options.addEventListener('click', function(e) {
+        const opt = e.target.closest('.dropdown-option');
+        if (!opt || opt.classList.contains('no-results')) return;
+        const val = opt.dataset.value || '';
+        options.querySelectorAll('.dropdown-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        hidden.value = val;
+        wrapper.classList.remove('open');
+        if (val) form.submit();
+    });
+})();
+
+
+/* ── Delete modal ── */
+let _pendingDeleteId = null;
+
+function openDelModal(btn) {
+    _pendingDeleteId = btn.getAttribute('data-id');
+    const amount  = btn.getAttribute('data-amount');
+    const date    = btn.getAttribute('data-date');
+    const receipt = btn.getAttribute('data-receipt');
+    const type    = btn.getAttribute('data-type');
+
+    document.getElementById('delAmountText').textContent = 'TZS ' + amount;
+    document.getElementById('delMetaText').textContent   =
+        type + '  ·  ' + date + '  ·  Receipt #' + receipt;
+
+    document.getElementById('delOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDelModal() {
+    document.getElementById('delOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+    _pendingDeleteId = null;
+}
+
+/* Close on backdrop click */
+document.getElementById('delOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeDelModal();
+});
+
+/* Close on ESC */
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDelModal();
+});
+
+/* Confirm delete */
+document.getElementById('delGoBtn').addEventListener('click', function() {
+    if (!_pendingDeleteId) return;
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting…';
+
+    const deleteUrl = "{% url 'delete_repayment' 0 %}".replace('/0/', '/' + _pendingDeleteId + '/');
+    // WITH this — handles redirect response instead of JSON:
+fetch(deleteUrl, {
+    method: 'POST',
+    headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+    },
+    redirect: 'manual',   // <-- don't auto-follow the redirect
+})
+.then(r => {
+    // redirect response (302) or ok (200) both mean success
+    if (r.ok || r.type === 'opaqueredirect' || r.status === 0) {
+        closeDelModal();
+        window.location.reload();
+    }
+})
+.catch(err => {
+    closeDelModal();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-trash"></i> Yes, Delete';
+    console.error(err);
+    alert('Delete failed. Please try again.');
+});
+});
+</script>
+
+{% endblock %}

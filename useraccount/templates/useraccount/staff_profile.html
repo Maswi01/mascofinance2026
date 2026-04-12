@@ -1,0 +1,156 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .staff-container {
+        margin: 20px;
+        background: #f5f5f5;
+    }
+
+    .page-title {
+        text-align: center;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .profile-content {
+        background: white;
+        padding: 20px;
+        border-radius: 3px;
+    }
+
+    .profile-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .profile-table th {
+        background-color: #f9f9f9;
+        padding: 12px;
+        text-align: left;
+        font-weight: bold;
+        font-size: 13px;
+        color: #333;
+        border: 1px solid #ddd;
+        width: 40%;
+    }
+
+    .profile-table td {
+        padding: 12px;
+        border: 1px solid #ddd;
+        font-size: 13px;
+        color: #333;
+    }
+
+    .profile-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    .profile-table input,
+    .profile-table select,
+    .profile-table textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        box-sizing: border-box;
+        font-size: 13px;
+        font-family: inherit;
+    }
+
+    .profile-table input:focus,
+    .profile-table select:focus,
+    .profile-table textarea:focus {
+        outline: none;
+        border-color: #0099cc;
+        box-shadow: 0 0 5px rgba(0, 153, 204, 0.3);
+    }
+
+    .btn-save {
+        background-color: #4CAF50;
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 20px;
+    }
+
+    .btn-save:hover {
+        background-color: #45a049;
+    }
+</style>
+
+<div class="staff-container">
+    <div class="page-title">STAFF PROFILE</div>
+
+    <div class="profile-content">
+        <form method="POST" action="{% url 'update_staff' staff.id %}">
+            {% csrf_token %}
+            
+            <table class="profile-table">
+                <tr>
+                    <th>First Name</th>
+                    <td><input type="text" name="first_name" value="{{ staff.first_name }}" required></td>
+                </tr>
+                <tr>
+                    <th>Middle Name</th>
+                    <td><input type="text" name="middlename" value="{{ staff.middlename|default:'' }}"></td>
+                </tr>
+                <tr>
+                    <th>Last Name</th>
+                    <td><input type="text" name="last_name" value="{{ staff.last_name }}" required></td>
+                </tr>
+                <tr>
+                    <th>Mobile No.</th>
+                    <td><input type="text" name="phone" value="{{ staff.phone|default:'' }}"></td>
+                </tr>
+                <tr>
+                    <th>NSSF NO</th>
+                    <td><input type="text" name="nssf_no" value="{{ staff.nssf_no|default:'' }}"></td>
+                </tr>
+                <tr>
+                    <th>Superuser</th>
+                    <td>
+                        <input type="checkbox" name="is_superuser" value="1"
+                            {% if staff.is_superuser %}checked{% endif %}
+                            style="width:auto; transform:scale(1.4); margin-left:4px;">
+                    </td>
+                </tr>
+                <tr>
+                    <th>Role</th>
+                    <td>
+                        <select name="role" required>
+                            <option value="">Select Designation</option>
+                            
+                            {% for role in roles %}
+                                <option value="{{ role.id }}" 
+                                    {% if staff.role.id == role.id %}selected{% endif %}>
+                                    {{ role.title }}
+                                </option>
+                            {% endfor %}
+                            
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Account Name</th>
+                    <td><input type="text" name="bank_account_name" value="{{ staff.bank_account_name|default:'' }}"></td>
+                </tr>
+                <tr>
+                    <th>Account Number</th>
+                    <td><input type="text" name="bank_account_number" value="{{ staff.bank_account_number|default:'' }}"></td>
+                </tr>
+            </table>
+
+            <button type="submit" class="btn-save">SAVE CHANGES</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

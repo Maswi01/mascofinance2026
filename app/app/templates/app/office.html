@@ -1,0 +1,1080 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'branch-list' as can_view_branch %}
+{% user_has_perm request.user 'branch-create' as can_add_branch %}
+{% user_has_perm request.user 'branch-edit'   as can_edit_branch %}
+{% user_has_perm request.user 'branch-delete' as can_del_branch %}
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+    /* ==================== Office Page Styles ==================== */
+    * { box-sizing: border-box; }
+
+    .office-wrapper {
+        padding: 30px 40px;
+        margin-top: 120px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 120px);
+    }
+
+    /* Page Title Bar */
+    .page-title-bar {
+        display: flex;
+        align-items: center;
+        background: linear-gradient(90deg, #1a73c7 0%, #2196F3 60%, #64b5f6 100%);
+        border-radius: 6px 6px 0 0;
+        padding: 0 24px;
+        height: 48px;
+        margin-bottom: 0;
+        box-shadow: 0 2px 8px rgba(26,115,199,0.15);
+    }
+
+    .page-title-bar h2 {
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin: 0;
+    }
+
+    /* Main Card */
+    .office-card {
+        background: #fff;
+        border-radius: 0 0 8px 8px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 28px 28px 20px;
+    }
+
+    /* Top Controls */
+    .table-controls-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .entries-control {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13.5px;
+        color: #555;
+    }
+
+    .entries-select {
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        padding: 5px 10px;
+        font-size: 13px;
+        color: #333;
+        background: #fff;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .entries-select:focus { border-color: #1a73c7; }
+
+    .right-controls {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .search-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13.5px;
+        color: #555;
+    }
+
+    .search-input {
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 13px;
+        color: #333;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        width: 200px;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .search-input:focus {
+        border-color: #1a73c7;
+        box-shadow: 0 0 0 3px rgba(26,115,199,0.1);
+    }
+
+    /* Add Button */
+    .btn-add {
+        background: #7c4dff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        padding: 8px 22px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        box-shadow: 0 2px 8px rgba(124,77,255,0.25);
+    }
+
+    .btn-add:hover {
+        background: #651fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(124,77,255,0.35);
+    }
+
+    .btn-export {
+        background: #fff;
+        color: #444;
+        border: 1px solid #cdd4da;
+        border-radius: 5px;
+        padding: 7px 18px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .btn-export:hover {
+        border-color: #1a73c7;
+        color: #1a73c7;
+    }
+
+    /* Table */
+    .office-table-wrap {
+        overflow-x: auto;
+        border-radius: 6px;
+        border: 1px solid #e8ecf0;
+    }
+
+    .office-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+    }
+
+    .office-table thead tr {
+        background: #f5f7fa;
+    }
+
+    .office-table th {
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #444;
+        font-size: 12.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #dde3ea;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+    }
+
+    .office-table th .sort-icon {
+        display: inline-flex;
+        flex-direction: column;
+        margin-left: 6px;
+        vertical-align: middle;
+        opacity: 0.4;
+    }
+
+    .office-table th .sort-icon span {
+        font-size: 8px;
+        line-height: 1;
+    }
+
+    .office-table th:hover { background: #eef1f5; }
+
+    .office-table tbody tr {
+        border-bottom: 1px solid #eef1f5;
+        transition: background 0.15s;
+    }
+
+    .office-table tbody tr:last-child { border-bottom: none; }
+
+    .office-table tbody tr:hover { background: #f0f6ff; cursor: pointer; }
+
+    .office-table td {
+        padding: 11px 16px;
+        color: #333;
+        vertical-align: middle;
+    }
+
+    /* Name cell with link style */
+    .office-table td .name-link {
+        color: #1a73c7;
+        font-weight: 500;
+        text-decoration: none;
+        transition: color 0.15s;
+    }
+
+    .office-table td .name-link:hover { color: #0d47a1; text-decoration: underline; }
+
+    .no-wrap { white-space: nowrap; }
+
+    /* Number column */
+    .col-num {
+        color: #888;
+        font-size: 13px;
+        width: 50px;
+    }
+
+    /* Action Buttons Cell */
+    .action-cell {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .icon-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 4px;
+        border: 1px solid #dde3ea;
+        background: #fff;
+        color: #666;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        transition: all 0.15s;
+    }
+
+    .icon-btn:hover { transform: translateY(-1px); }
+    .icon-btn.view:hover { color: #1a73c7; border-color: #1a73c7; background: #e8f0fe; }
+    .icon-btn.edit:hover { color: #43a047; border-color: #43a047; background: #e8f5e9; }
+    .icon-btn.delete:hover { color: #e53935; border-color: #e53935; background: #fce4e4; }
+
+    /* Bottom Controls */
+    .table-controls-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 18px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .showing-info {
+        font-size: 13px;
+        color: #666;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .page-btn {
+        min-width: 34px;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 4px;
+        border: 1px solid #dde3ea;
+        background: #fff;
+        color: #555;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+    }
+
+    .page-btn:hover:not(:disabled):not(.active) {
+        background: #f0f6ff;
+        border-color: #1a73c7;
+        color: #1a73c7;
+    }
+
+    .page-btn.active {
+        background: #1a73c7;
+        border-color: #1a73c7;
+        color: #fff;
+        box-shadow: 0 2px 6px rgba(26,115,199,0.3);
+    }
+
+    .page-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    /* ==================== POPUPS ==================== */
+    .popup-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        backdrop-filter: blur(3px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 3000;
+    }
+
+    .popup-overlay.active { display: flex; }
+
+    /* Slide-in details panel */
+    .popup-overlay.side { justify-content: flex-end; align-items: stretch; }
+
+    .side-panel {
+        width: 420px;
+        height: 100vh;
+        background: #fff;
+        box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+        transform: translateX(100%);
+        transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .side-panel { transform: translateX(0); }
+
+    /* Center modal */
+    .center-modal {
+        width: 520px;
+        max-width: 95vw;
+        max-height: 92vh;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+        transform: scale(0.92);
+        opacity: 0;
+        transition: all 0.28s cubic-bezier(0.4,0,0.2,1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .center-modal { transform: scale(1); opacity: 1; }
+
+    .popup-header {
+        padding: 18px 22px;
+        background: linear-gradient(90deg, #1a73c7, #2196F3);
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .popup-header h3 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: 0.3px;
+    }
+
+    .close-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        color: #fff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        transition: background 0.2s, transform 0.2s;
+    }
+
+    .close-btn:hover { background: rgba(255,255,255,0.35); transform: rotate(90deg); }
+
+    .popup-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+    }
+
+    .popup-footer {
+        padding: 16px 24px;
+        background: #f7f9fb;
+        border-top: 1px solid #e8ecf0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    /* Details Grid */
+    .detail-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e8ecf0;
+        margin-bottom: 20px;
+    }
+
+    .detail-icon {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, #1a73c7, #42a5f5);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 22px;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(26,115,199,0.3);
+    }
+
+    .detail-header-info h2 {
+        font-size: 17px;
+        font-weight: 600;
+        color: #222;
+        margin: 0 0 5px;
+    }
+
+    .badge-region {
+        background: #e8f0fe;
+        color: #1a73c7;
+        border-radius: 20px;
+        padding: 3px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        display: inline-block;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .detail-item label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-bottom: 5px;
+    }
+
+    .detail-item p {
+        font-size: 14px;
+        color: #333;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    /* Form */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+
+    .form-group { margin-bottom: 0; }
+    .form-group.full { grid-column: 1/-1; }
+
+    .form-label {
+        display: block;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: #444;
+        margin-bottom: 6px;
+    }
+
+    .form-label span { color: #e53935; }
+
+    .form-control {
+        width: 100%;
+        padding: 9px 13px;
+        border: 1.5px solid #dde3ea;
+        border-radius: 5px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-control:focus {
+        border-color: #1a73c7;
+        box-shadow: 0 0 0 3px rgba(26,115,199,0.1);
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 8px 20px;
+        border-radius: 5px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        transition: all 0.2s;
+        border: none;
+    }
+
+    .btn-primary {
+        background: #1a73c7;
+        color: #fff;
+        box-shadow: 0 2px 6px rgba(26,115,199,0.25);
+    }
+
+    .btn-primary:hover { background: #1557a0; transform: translateY(-1px); }
+
+    .btn-secondary {
+        background: #fff;
+        color: #555;
+        border: 1.5px solid #cdd4da;
+    }
+
+    .btn-secondary:hover { border-color: #1a73c7; color: #1a73c7; }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+        color: #aaa;
+        font-size: 14px;
+    }
+
+    .empty-state i { font-size: 40px; margin-bottom: 12px; display: block; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .office-wrapper { padding: 20px 16px; margin-top: 100px; }
+        .form-grid { grid-template-columns: 1fr; }
+        .detail-grid { grid-template-columns: 1fr; }
+        .side-panel { width: 100%; }
+        .table-controls-top { flex-direction: column; align-items: flex-start; }
+        .right-controls { width: 100%; justify-content: space-between; }
+    }
+</style>
+
+<div class="office-wrapper">
+    <!-- Title Bar -->
+    <div class="page-title-bar">
+        <h2><i class="fas fa-building" style="margin-right:10px;"></i>Office Management</h2>
+    </div>
+
+    <!-- Card -->
+    <div class="office-card">
+        <!-- Top Controls -->
+        <div class="table-controls-top">
+            <div class="entries-control">
+                Show
+                <select class="entries-select" id="entriesSelect" onchange="changeEntries(this.value)">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                entries
+            </div>
+
+            <div class="right-controls">
+                <div class="search-control">
+                    Search:
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search offices..." onkeyup="searchOffice()">
+                </div>
+                <button class="btn-export" onclick="exportOfficeData()">
+                    <i class="fas fa-download"></i> Export
+                </button>
+                {% if can_add_branch %}
+                <button class="btn-add" onclick="openAddOfficePopup()">
+                    <i class="fas fa-plus"></i> Add Office
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Region Filter -->
+        <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <span style="font-size: 12.5px; color: #888; font-weight: 500;">Filter by Region:</span>
+            <select style="border:1px solid #dde3ea; border-radius:4px; padding:5px 12px; font-size:13px; font-family:Poppins,sans-serif; color:#333; background:#fff; cursor:pointer; outline:none;" id="regionFilter" onchange="filterByRegion()">
+                <option value="">All Regions</option>
+                {% for region in regions %}
+                <option value="{{ region }}">{{ region }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Table -->
+        <div class="office-table-wrap">
+            <table class="office-table">
+                <thead>
+                    <tr>
+                        <th class="col-num" onclick="sortTable('id')">No. <span class="sort-icon"><span>▲</span><span>▼</span></span></th>
+                        <th onclick="sortTable('name')">Office Name <span class="sort-icon"><span>▲</span><span>▼</span></span></th>
+                        <th onclick="sortTable('region')">Region <span class="sort-icon"><span>▲</span><span>▼</span></span></th>
+                        <th onclick="sortTable('district')">District <span class="sort-icon"><span>▲</span><span>▼</span></span></th>
+                        <th onclick="sortTable('ward')">Ward <span class="sort-icon"><span>▲</span><span>▼</span></span></th>
+                        <th onclick="sortTable('street')">Street <span class="sort-icon"><span>▲</span><span>▼</span></span></th>
+                        <th onclick="sortTable('foundedDate')">Founded Date <span class="sort-icon"><span>▲</span><span>▼</span></span></th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="officeTableBody">
+                    {% for office in offices %}
+                    <tr data-id="{{ office.id }}" data-region="{{ office.region }}">
+                        <td class="col-num">{{ forloop.counter }}</td>
+                        <td>{{ office.name }}</td>
+                        <td>{{ office.region }}</td>
+                        <td>{{ office.district }}</td>
+                        <td>{{ office.ward }}</td>
+                        <td>{{ office.street|default:"-" }}</td>
+                        <td class="no-wrap">{{ office.founded_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td>
+                            <div class="action-cell">
+                                {% if can_view_branch %}
+                                <button class="icon-btn view" onclick="viewOfficeDetails({{ office.id }})" title="View Details"><i class="fas fa-eye"></i></button>
+                                {% endif %}
+                                {% if can_edit_branch %}
+                                <button class="icon-btn edit" onclick="openUpdateOfficePopup({{ office.id }})" title="Edit"><i class="fas fa-edit"></i></button>
+                                {% endif %}
+                                {% if can_del_branch %}
+                                <button class="icon-btn delete" onclick="deleteOffice({{ office.id }})" title="Delete"><i class="fas fa-trash"></i></button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="emptyRow">
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <i class="fas fa-building"></i>
+                                No offices found.
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="table-controls-bottom">
+            <div class="showing-info">
+                Showing <strong id="startIndex">0</strong> to <strong id="endIndex">0</strong> of <strong id="totalItems">0</strong> entries
+            </div>
+            <div class="pagination" id="paginationContainer">
+                <!-- JS generated -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== OFFICE DETAILS SIDE PANEL ==================== -->
+<div class="popup-overlay side" id="officeDetailsPopup">
+    <div class="side-panel">
+        <div class="popup-header">
+            <h3><i class="fas fa-building" style="margin-right:8px;"></i>Office Details</h3>
+            <button class="close-btn" onclick="closeOfficeDetails()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="popup-body" id="officeDetailsContent"></div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" onclick="closeOfficeDetails()">Close</button>
+            {% if can_edit_branch %}
+            <button class="btn btn-primary" onclick="openUpdateOfficePopup()"><i class="fas fa-edit"></i> Edit Office</button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ==================== ADD OFFICE MODAL ==================== -->
+<div class="popup-overlay" id="addOfficePopup">
+    <div class="center-modal">
+        <div class="popup-header">
+            <h3><i class="fas fa-plus-circle" style="margin-right:8px;"></i>Add New Office</h3>
+            <button class="close-btn" onclick="closeAddOfficePopup()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="popup-body">
+            <form id="addOfficeForm" method="post" action="{% url 'office_add' %}">
+                {% csrf_token %}
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label class="form-label">Office Name <span>*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="Enter office name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Region <span>*</span></label>
+                        <input type="text" name="region" class="form-control" placeholder="Region" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">District <span>*</span></label>
+                        <input type="text" name="district" class="form-control" placeholder="District" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ward <span>*</span></label>
+                        <input type="text" name="ward" class="form-control" placeholder="Ward" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Street</label>
+                        <input type="text" name="street" class="form-control" placeholder="Street (optional)">
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Founded Date</label>
+                        <input type="date" name="founded_date" class="form-control">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" onclick="closeAddOfficePopup()">Cancel</button>
+            <button class="btn btn-primary" type="submit" form="addOfficeForm"><i class="fas fa-save"></i> Add Office</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== UPDATE OFFICE MODAL ==================== -->
+<div class="popup-overlay" id="updateOfficePopup">
+    <div class="center-modal">
+        <div class="popup-header">
+            <h3><i class="fas fa-edit" style="margin-right:8px;"></i>Update Office</h3>
+            <button class="close-btn" onclick="closeUpdateOfficePopup()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="popup-body">
+            <form id="updateOfficeForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="office_id" id="updateOfficeId">
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label class="form-label">Office Name <span>*</span></label>
+                        <input type="text" name="name" id="updateOfficeName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Region <span>*</span></label>
+                        <input type="text" name="region" id="updateOfficeRegion" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">District <span>*</span></label>
+                        <input type="text" name="district" id="updateOfficeDistrict" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ward <span>*</span></label>
+                        <input type="text" name="ward" id="updateOfficeWard" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Street</label>
+                        <input type="text" name="street" id="updateOfficeStreet" class="form-control">
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Founded Date</label>
+                        <input type="date" name="founded_date" id="updateOfficeFoundedDate" class="form-control">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" onclick="closeUpdateOfficePopup()">Cancel</button>
+            <button class="btn btn-primary" type="submit" form="updateOfficeForm"><i class="fas fa-save"></i> Update Office</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== Office Data ====================
+    const officeData = [
+        {% for office in offices %}
+        {
+            id: {{ office.id }},
+            name: "{{ office.name|default:''|escapejs }}",
+            region: "{{ office.region|default:''|escapejs }}",
+            district: "{{ office.district|default:''|escapejs }}",
+            ward: "{{ office.ward|default:''|escapejs }}",
+            street: "{{ office.street|default:''|escapejs }}",
+            foundedDate: "{{ office.founded_date|date:'Y-m-d'|default:'' }}",
+            createdAt: "{{ office.created_at|date:'Y-m-d'|default:'' }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    let currentPage = 1;
+    let itemsPerPage = 10;
+    let filteredOffices = [...officeData];
+    let sortField = null;
+    let sortAsc = true;
+    let currentSelectedOffice = null;
+
+    // ==================== Init ====================
+    document.addEventListener('DOMContentLoaded', function () {
+        updateRowNumbers();
+        applyFilters();
+    });
+
+    function updateRowNumbers() {
+        // Row numbers handled by JS pagination
+    }
+
+    // ==================== Search / Filter ====================
+    function searchOffice() { applyFilters(); }
+    function filterByRegion() { applyFilters(); }
+
+    function applyFilters() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const regionFilter = document.getElementById('regionFilter').value.toLowerCase();
+
+        filteredOffices = officeData.filter(office => {
+            const matchSearch = !searchTerm ||
+                office.name.toLowerCase().includes(searchTerm) ||
+                office.region.toLowerCase().includes(searchTerm) ||
+                office.district.toLowerCase().includes(searchTerm) ||
+                office.ward.toLowerCase().includes(searchTerm) ||
+                office.street.toLowerCase().includes(searchTerm);
+            const matchRegion = !regionFilter || office.region.toLowerCase() === regionFilter;
+            return matchSearch && matchRegion;
+        });
+
+        if (sortField) {
+            filteredOffices.sort((a, b) => {
+                const va = (a[sortField] || '').toString().toLowerCase();
+                const vb = (b[sortField] || '').toString().toLowerCase();
+                return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+            });
+        }
+
+        currentPage = 1;
+        renderTable();
+    }
+
+    function sortTable(field) {
+        if (sortField === field) { sortAsc = !sortAsc; }
+        else { sortField = field; sortAsc = true; }
+        applyFilters();
+    }
+
+    // ==================== Render Table ====================
+    function renderTable() {
+        const tbody = document.getElementById('officeTableBody');
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const pageItems = filteredOffices.slice(start, end);
+
+        // Hide all server-rendered rows
+        document.querySelectorAll('#officeTableBody tr[data-id]').forEach(r => r.style.display = 'none');
+        const emptyRow = document.getElementById('emptyRow');
+        if (emptyRow) emptyRow.style.display = 'none';
+
+        if (filteredOffices.length === 0) {
+            if (emptyRow) emptyRow.style.display = '';
+            document.getElementById('startIndex').textContent = '0';
+            document.getElementById('endIndex').textContent = '0';
+            document.getElementById('totalItems').textContent = '0';
+            renderPagination(0);
+            return;
+        }
+
+        pageItems.forEach((office, idx) => {
+            const row = document.querySelector(`#officeTableBody tr[data-id="${office.id}"]`);
+            if (row) {
+                row.style.display = '';
+                // Update row number
+                const numCell = row.querySelector('.col-num');
+                if (numCell) numCell.textContent = start + idx + 1;
+            }
+        });
+
+        document.getElementById('startIndex').textContent = start + 1;
+        document.getElementById('endIndex').textContent = Math.min(end, filteredOffices.length);
+        document.getElementById('totalItems').textContent = filteredOffices.length;
+        renderPagination(Math.ceil(filteredOffices.length / itemsPerPage));
+    }
+
+    // ==================== Pagination ====================
+    function renderPagination(totalPages) {
+        const container = document.getElementById('paginationContainer');
+        container.innerHTML = '';
+
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'page-btn';
+        prevBtn.textContent = 'Previous';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.onclick = () => { currentPage--; renderTable(); };
+        container.appendChild(prevBtn);
+
+        let startP = Math.max(1, currentPage - 2);
+        let endP = Math.min(totalPages, startP + 4);
+        if (endP - startP < 4) startP = Math.max(1, endP - 4);
+
+        for (let i = startP; i <= endP; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+            btn.textContent = i;
+            btn.onclick = (function(p) { return function() { currentPage = p; renderTable(); }; })(i);
+            container.appendChild(btn);
+        }
+
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'page-btn';
+        nextBtn.textContent = 'Next';
+        nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+        nextBtn.onclick = () => { currentPage++; renderTable(); };
+        container.appendChild(nextBtn);
+    }
+
+    function changeEntries(val) {
+        itemsPerPage = parseInt(val);
+        currentPage = 1;
+        renderTable();
+    }
+
+    // ==================== Office Details ====================
+    function viewOfficeDetails(officeId) {
+        const office = officeData.find(o => o.id === officeId);
+        if (!office) return;
+        currentSelectedOffice = office;
+
+        const formattedDate = office.foundedDate
+            ? new Date(office.foundedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+            : '-';
+
+        const fullAddress = [office.street, office.ward, office.district, office.region].filter(Boolean).join(', ');
+
+        document.getElementById('officeDetailsContent').innerHTML = `
+            <div class="detail-header">
+                <div class="detail-icon"><i class="fas fa-building"></i></div>
+                <div class="detail-header-info">
+                    <h2>${office.name}</h2>
+                    <span class="badge-region">${office.region}</span>
+                </div>
+            </div>
+            <div class="detail-grid">
+                <div class="detail-item"><label>Region</label><p>${office.region}</p></div>
+                <div class="detail-item"><label>District</label><p>${office.district}</p></div>
+                <div class="detail-item"><label>Ward</label><p>${office.ward}</p></div>
+                <div class="detail-item"><label>Street</label><p>${office.street || '-'}</p></div>
+                <div class="detail-item"><label>Founded Date</label><p>${formattedDate}</p></div>
+                <div class="detail-item"><label>Office ID</label><p>#${office.id}</p></div>
+            </div>
+            <div style="margin-top:20px; padding-top:16px; border-top:1px solid #e8ecf0;">
+                <div class="detail-item"><label>Full Address</label><p>${fullAddress}</p></div>
+            </div>
+        `;
+
+        document.getElementById('officeDetailsPopup').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeOfficeDetails() {
+        document.getElementById('officeDetailsPopup').classList.remove('active');
+        document.body.style.overflow = '';
+        currentSelectedOffice = null;
+    }
+
+    // ==================== Add Office ====================
+    function openAddOfficePopup() {
+        document.getElementById('addOfficeForm').reset();
+        document.getElementById('addOfficePopup').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAddOfficePopup() {
+        document.getElementById('addOfficePopup').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // ==================== Update Office ====================
+    function openUpdateOfficePopup(officeId) {
+        if (!officeId && currentSelectedOffice) officeId = currentSelectedOffice.id;
+
+        const office = officeData.find(o => o.id === officeId);
+        if (!office) return;
+
+        currentSelectedOffice = office;
+
+        // 🔥 SET FORM ACTION DYNAMICALLY
+        document.getElementById('updateOfficeForm').action = `/masco/office/update/${office.id}/`;
+
+        document.getElementById('updateOfficeId').value = office.id;
+        document.getElementById('updateOfficeName').value = office.name;
+        document.getElementById('updateOfficeRegion').value = office.region;
+        document.getElementById('updateOfficeDistrict').value = office.district;
+        document.getElementById('updateOfficeWard').value = office.ward;
+        document.getElementById('updateOfficeStreet').value = office.street || '';
+        document.getElementById('updateOfficeFoundedDate').value = office.foundedDate || '';
+
+        document.getElementById('updateOfficePopup').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeUpdateOfficePopup() {
+        document.getElementById('updateOfficePopup').classList.remove('active');
+        document.body.style.overflow = '';
+        currentSelectedOffice = null;
+    }
+
+    // ==================== Delete ====================
+    function deleteOffice(officeId) {
+        if (!confirm('Are you sure you want to delete this office? This action cannot be undone.')) return;
+        // Implement AJAX delete here
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('Delete functionality: Office ID ' + officeId, 'info');
+        }
+    }
+
+    // ==================== Export ====================
+    function exportOfficeData() {
+        let csv = 'No,Office Name,Region,District,Ward,Street,Founded Date\n';
+        filteredOffices.forEach((office, idx) => {
+            csv += `${idx + 1},"${office.name}","${office.region}","${office.district}","${office.ward}","${office.street || ''}","${office.foundedDate || ''}"\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `offices_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // ==================== Keyboard & Outside Click ====================
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            closeOfficeDetails();
+            closeAddOfficePopup();
+            closeUpdateOfficePopup();
+        }
+    });
+
+    document.addEventListener('click', e => {
+        ['addOfficePopup', 'updateOfficePopup'].forEach(id => {
+            const popup = document.getElementById(id);
+            if (popup.classList.contains('active') && e.target === popup) {
+                popup.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
+        const detailsPopup = document.getElementById('officeDetailsPopup');
+        if (detailsPopup.classList.contains('active') && e.target === detailsPopup) {
+            closeOfficeDetails();
+        }
+    });
+</script>
+{% endblock %}

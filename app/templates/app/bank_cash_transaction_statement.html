@@ -1,0 +1,532 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    /* Statement specific styles */
+    .statement-container {
+        padding: var(--spacing-md);
+    }
+    
+    .statement-header {
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+        color: var(--white);
+        padding: var(--spacing-lg);
+        border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+        margin-bottom: var(--spacing-lg);
+    }
+    
+    .filter-card {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .filter-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--spacing-md);
+        align-items: end;
+    }
+    
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-lg);
+    }
+    
+    .summary-card {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+        border-left: 4px solid var(--primary-blue);
+    }
+    
+    .summary-card.bank {
+        border-left-color: var(--primary-blue);
+    }
+    
+    .summary-card.cash {
+        border-left-color: var(--accent-green);
+    }
+    
+    .summary-card.total {
+        border-left-color: var(--accent-purple);
+    }
+    
+    .summary-card .label {
+        font-size: var(--font-size-sm);
+        color: var(--gray-medium);
+        margin-bottom: var(--spacing-xs);
+    }
+    
+    .summary-card .value {
+        font-size: var(--font-size-xl);
+        font-weight: 700;
+        color: var(--gray-dark);
+    }
+    
+    .summary-card .sub-value {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+    }
+    
+    .office-summary {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .office-summary h3 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-lg);
+        color: var(--gray-dark);
+        margin-bottom: var(--spacing-md);
+    }
+    
+    .office-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: var(--spacing-md);
+    }
+    
+    .office-card {
+        background: var(--gray-light);
+        border-radius: var(--border-radius-md);
+        padding: var(--spacing-md);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .office-card h4 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-base);
+        color: var(--primary-blue);
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .office-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-sm);
+        font-size: var(--font-size-sm);
+    }
+    
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+    }
+    
+    .stat-label {
+        color: var(--gray-medium);
+    }
+    
+    .stat-value {
+        font-weight: 600;
+        color: var(--gray-dark);
+    }
+    
+    .stat-value.positive {
+        color: #16a34a;
+    }
+    
+    .stat-value.negative {
+        color: #dc2626;
+    }
+    
+    .table-container {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+    
+    .statement-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .statement-table thead {
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+    }
+    
+    .statement-table th {
+        padding: var(--spacing-md) var(--spacing-sm);
+        text-align: left;
+        color: var(--white);
+        font-weight: 600;
+        font-size: var(--font-size-xs);
+        font-family: var(--font-family-heading);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+    
+    .statement-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: var(--transition-fast);
+    }
+    
+    .statement-table tbody tr:hover {
+        background: rgba(45, 106, 227, 0.05);
+    }
+    
+    .statement-table td {
+        padding: var(--spacing-sm);
+        color: var(--gray-dark);
+        font-size: var(--font-size-xs);
+        white-space: nowrap;
+    }
+    
+    .source-badge, .dest-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+    }
+    
+    .source-badge.bank {
+        background: rgba(45, 106, 227, 0.1);
+        color: var(--primary-blue);
+    }
+    
+    .source-badge.cash {
+        background: rgba(34, 197, 94, 0.1);
+        color: #16a34a;
+    }
+    
+    .dest-badge.bank {
+        background: rgba(139, 92, 246, 0.1);
+        color: #7c3aed;
+    }
+    
+    .dest-badge.cash {
+        background: rgba(249, 115, 22, 0.1);
+        color: #f97316;
+    }
+    
+    .amount {
+        font-weight: 600;
+    }
+    
+    .amount.bank-out {
+        color: #dc2626;
+    }
+    
+    .amount.bank-in {
+        color: #16a34a;
+    }
+    
+    .amount.cash-out {
+        color: #dc2626;
+    }
+    
+    .amount.cash-in {
+        color: #16a34a;
+    }
+    
+    .total-row {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        font-weight: 700;
+    }
+    
+    .total-row td {
+        border-top: 2px solid var(--primary-blue);
+    }
+    
+    .print-btn {
+        position: fixed;
+        bottom: var(--spacing-lg);
+        right: var(--spacing-lg);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--primary-blue);
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow-lg);
+        cursor: pointer;
+        transition: var(--transition-base);
+        border: none;
+        z-index: 100;
+    }
+    
+    .print-btn:hover {
+        transform: scale(1.1);
+        background: var(--dark-blue);
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        .statement-container {
+            padding: 0;
+        }
+        .print-only {
+            display: block !important;
+        }
+    }
+</style>
+
+<div class="statement-container">
+    <!-- Statement Header -->
+    <div class="statement-header no-print">
+        <h1>Bank/Cash Transaction Statement</h1>
+        <p>Generated on {% now "F j, Y H:i:s" %}</p>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-card no-print">
+        <form method="get" class="filter-form">
+            <div class="form-group">
+                <label class="form-label">Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">End Date</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Office</label>
+                <select name="office_id" class="form-control form-select">
+                    <option value="">All Offices</option>
+                    {% for office in offices %}
+                    <option value="{{ office.id }}" {% if office_id == office.id|stringformat:"s" %}selected{% endif %}>
+                        {{ office.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Source</label>
+                <select name="source" class="form-control form-select">
+                    <option value="">All Sources</option>
+                    <option value="bank" {% if source_filter == 'bank' %}selected{% endif %}>Bank</option>
+                    <option value="cash" {% if source_filter == 'cash' %}selected{% endif %}>Cash</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Destination</label>
+                <select name="destination" class="form-control form-select">
+                    <option value="">All Destinations</option>
+                    <option value="bank" {% if destination_filter == 'bank' %}selected{% endif %}>Bank</option>
+                    <option value="cash" {% if destination_filter == 'cash' %}selected{% endif %}>Cash</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-filter"></i> Apply Filters
+                </button>
+            </div>
+            
+            <div class="form-group">
+                <a href="{% url 'bank_cash_transaction_statement' %}" class="btn btn-secondary" style="width: 100%;">
+                    <i class="fas fa-redo"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards no-print">
+        <div class="summary-card bank">
+            <div class="label">Bank Balance</div>
+            <div class="value">{{ bank_balance|floatformat:2 }}</div>
+            <div class="sub-value">
+                In: {{ total_bank_in|floatformat:2 }} | Out: {{ total_bank_out|floatformat:2 }}
+            </div>
+        </div>
+        
+        <div class="summary-card cash">
+            <div class="label">Cash Balance</div>
+            <div class="value">{{ cash_balance|floatformat:2 }}</div>
+            <div class="sub-value">
+                In: {{ total_cash_in|floatformat:2 }} | Out: {{ total_cash_out|floatformat:2 }}
+            </div>
+        </div>
+        
+        <div class="summary-card total">
+            <div class="label">Total Balance</div>
+            <div class="value">{{ total_balance|floatformat:2 }}</div>
+            <div class="sub-value">
+                Net Bank: {{ net_bank_flow|floatformat:2 }} | Net Cash: {{ net_cash_flow|floatformat:2 }}
+            </div>
+        </div>
+        
+        <div class="summary-card">
+            <div class="label">Transactions</div>
+            <div class="value">{{ total_transactions }}</div>
+            <div class="sub-value">
+                Bank→Cash: {{ total_bank_to_cash|floatformat:2 }} | Cash→Bank: {{ total_cash_to_bank|floatformat:2 }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Office Summary (if multiple offices) -->
+    {% if office_summary|length > 1 %}
+    <div class="office-summary no-print">
+        <h3>Office-wise Summary</h3>
+        <div class="office-grid">
+            {% for office_name, data in office_summary.items %}
+            <div class="office-card">
+                <h4>{{ office_name }}</h4>
+                <div class="office-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Transactions:</span>
+                        <span class="stat-value">{{ data.total_transactions }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Amount:</span>
+                        <span class="stat-value">{{ data.total_amount|floatformat:2 }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Bank → Cash:</span>
+                        <span class="stat-value">{{ data.bank_to_cash|floatformat:2 }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Cash → Bank:</span>
+                        <span class="stat-value">{{ data.cash_to_bank|floatformat:2 }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Bank In:</span>
+                        <span class="stat-value positive">{{ data.bank_in|floatformat:2 }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Bank Out:</span>
+                        <span class="stat-value negative">{{ data.bank_out|floatformat:2 }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Cash In:</span>
+                        <span class="stat-value positive">{{ data.cash_in|floatformat:2 }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Cash Out:</span>
+                        <span class="stat-value negative">{{ data.cash_out|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Transaction Table -->
+    <div class="table-container">
+        <table class="statement-table">
+            <thead>
+                <tr>
+                    <th>S/N</th>
+                    <th>Date/Time</th>
+                    <th>Receipt No</th>
+                    <th>Office</th>
+                    <th>Transaction Type</th>
+                    <th>Source</th>
+                    <th>Destination</th>
+                    <th>Amount</th>
+                    <th>Bank Effect</th>
+                    <th>Cash Effect</th>
+                    <th>Running Balance</th>
+                    <th>Bank Balance</th>
+                    <th>Cash Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transaction_data %}
+                <tr>
+                    <td>{{ transaction.sn }}</td>
+                    <td>{{ transaction.date|date:"Y-m-d" }}<br><small>{{ transaction.time }}</small></td>
+                    <td>{{ transaction.receipt_no }}</td>
+                    <td>{{ transaction.office.name }}</td>
+                    <td>{{ transaction.transaction_type }}</td>
+                    <td>
+                        <span class="source-badge {{ transaction.source }}">
+                            {{ transaction.source_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="dest-badge {{ transaction.destination }}">
+                            {{ transaction.destination_display }}
+                        </span>
+                    </td>
+                    <td class="amount">{{ transaction.amount|floatformat:2 }}</td>
+                    <td class="amount {% if transaction.bank_effect > 0 %}bank-in{% elif transaction.bank_effect < 0 %}bank-out{% endif %}">
+                        {{ transaction.bank_effect|floatformat:2 }}
+                    </td>
+                    <td class="amount {% if transaction.cash_effect > 0 %}cash-in{% elif transaction.cash_effect < 0 %}cash-out{% endif %}">
+                        {{ transaction.cash_effect|floatformat:2 }}
+                    </td>
+                    <td class="amount">{{ transaction.running_balance|floatformat:2 }}</td>
+                    <td class="amount">{{ transaction.bank_balance|floatformat:2 }}</td>
+                    <td class="amount">{{ transaction.cash_balance|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="13" style="text-align: center; padding: var(--spacing-xl); color: var(--gray-medium);">
+                        No transactions found for the selected criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+                
+                <!-- Totals Row -->
+                {% if transaction_data %}
+                <tr class="total-row">
+                    <td colspan="7" style="text-align: right;"><strong>Totals:</strong></td>
+                    <td><strong>{{ total_transaction_amount|floatformat:2 }}</strong></td>
+                    <td><strong>{{ net_bank_flow|floatformat:2 }}</strong></td>
+                    <td><strong>{{ net_cash_flow|floatformat:2 }}</strong></td>
+                    <td colspan="3"></td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: var(--gray-light); border-radius: var(--border-radius-md); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <strong>Report Period:</strong> 
+            {% if start_date %}{{ start_date }}{% else %}{{ first_date|date:"Y-m-d" }}{% endif %} 
+            to 
+            {% if end_date %}{{ end_date }}{% else %}{{ last_date|date:"Y-m-d" }}{% endif %}
+        </div>
+        <div>
+            <strong>Generated By:</strong> {{ request.user.get_full_name|default:request.user.username }}
+        </div>
+        <div>
+            <strong>Total Records:</strong> {{ total_transactions }}
+        </div>
+    </div>
+</div>
+
+<!-- Print Button -->
+<button class="print-btn no-print" onclick="window.print()">
+    <i class="fas fa-print"></i>
+</button>
+
+<script>
+    // Optional: Add any JavaScript for interactive features
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-submit form when date filters change (optional)
+        const dateInputs = document.querySelectorAll('input[type="date"]');
+        dateInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                this.closest('form').submit();
+            });
+        });
+    });
+</script>
+{% endblock %}

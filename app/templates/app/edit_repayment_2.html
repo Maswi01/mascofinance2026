@@ -1,0 +1,213 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .er-page {
+        max-width: 720px;
+        margin: 80px auto 60px;
+        padding: 0 16px;
+        font-family: Arial, sans-serif;
+    }
+
+    .er-card {
+        background: #fff;
+        border: 1px solid #d0d8e0;
+        border-radius: 4px;
+        padding: 0 0 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .er-title-bar {
+        padding: 18px 30px 16px;
+        border-bottom: 1px solid #e0e8ec;
+    }
+    .er-title {
+        font-size: 16px;
+        font-weight: 900;
+        color: #1a2a4a;
+        letter-spacing: 0.3px;
+    }
+    .er-badge {
+        display: inline-block;
+        margin-top: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 10px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .er-badge.repayment { background: #e8f4fb; color: #1a5276; border: 1px solid #7fc8d9; }
+    .er-badge.topup     { background: #fff8f0; color: #7a3000; border: 1px solid #f5a623; }
+
+    .er-form { padding: 24px 30px 0; }
+
+    .er-field {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .er-label {
+        width: 160px;
+        flex-shrink: 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: #444;
+        text-align: right;
+        padding-right: 20px;
+    }
+
+    .er-input,
+    .er-select {
+        flex: 1;
+        font-size: 13px;
+        padding: 8px 12px;
+        border: 1px solid #c0ccd8;
+        border-radius: 3px;
+        background: #fff;
+        color: #1a1a1a;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+    .er-input:focus,
+    .er-select:focus { border-color: #7fc8d9; box-shadow: 0 0 0 2px rgba(127,200,217,0.2); }
+
+    .er-input.readonly {
+        background: #f5f7f9;
+        color: #666;
+        cursor: default;
+        border-color: #dde4ea;
+    }
+
+    .er-divider {
+        border: none;
+        border-top: 1px solid #e8edf2;
+        margin: 4px 30px 24px;
+    }
+
+    .er-actions {
+        display: flex;
+        justify-content: center;
+        padding: 0 30px;
+        gap: 12px;
+    }
+
+    .er-btn-save {
+        padding: 9px 36px;
+        background: #3ab58a;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: background 0.15s;
+    }
+    .er-btn-save:hover { background: #2e9872; }
+
+    .er-btn-cancel {
+        padding: 9px 24px;
+        background: #fff;
+        color: #666;
+        border: 1px solid #bbb;
+        border-radius: 3px;
+        font-size: 13px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+    .er-btn-cancel:hover { background: #f5f5f5; }
+
+    .er-messages { padding: 16px 30px 0; }
+    .er-msg {
+        font-size: 13px;
+        padding: 8px 14px;
+        border-radius: 3px;
+        margin-bottom: 8px;
+    }
+    .er-msg.error   { background: #fff0f0; color: #7a0000; border: 1px solid #f5c0c0; }
+    .er-msg.success { background: #f0fff4; color: #1a6b3a; border: 1px solid #b0e8c0; }
+</style>
+
+<div class="er-page">
+    <div class="er-card">
+
+        <div class="er-title-bar">
+            <div class="er-title">{{ title }}</div>
+            <span class="er-badge {{ record_type }}">
+                {% if record_type == 'topup' %}Clearance for Top-up{% else %}Loan Payment{% endif %}
+            </span>
+        </div>
+
+        {% if messages %}
+        <div class="er-messages">
+            {% for msg in messages %}
+            <div class="er-msg {% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+                {{ msg }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="POST" class="er-form">
+            {% csrf_token %}
+
+            <!-- Name — read-only -->
+            <div class="er-field">
+                <label class="er-label">Name</label>
+                <input class="er-input readonly" type="text"
+                       value="{{ client.firstname }} {{ client.middlename }} {{ client.lastname }}"
+                       readonly>
+            </div>
+
+            <!-- Loan ID — editable dropdown -->
+            <div class="er-field">
+                <label class="er-label">Loan ID</label>
+                <select class="er-select" name="loan_id" required>
+                    {% for loan in client_loans %}
+                    <option value="{{ loan.id }}"
+                        {% if loan.id == current_loan_id %}selected{% endif %}>
+                        {{ loan.office|lower }}-{{ loan.id }}
+                        &nbsp;({{ loan.loan_type }}, {{ loan.application_date|date:"d/m/Y" }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Amount — read-only -->
+            <div class="er-field">
+                <label class="er-label">Amount</label>
+                <input class="er-input readonly" type="text"
+                       value="{{ amount|floatformat:0|intcomma }}"
+                       readonly>
+            </div>
+
+            <!-- Date — editable -->
+            <div class="er-field">
+                <label class="er-label">Date</label>
+                <input class="er-input" type="date" name="date"
+                       value="{{ record_date|date:'Y-m-d' }}" required>
+            </div>
+
+            <hr class="er-divider">
+
+            <div class="er-actions">
+                <a class="er-btn-cancel"
+                   href="{% url 'customer_statement' %}?client_id={{ client.id }}">
+                    Cancel
+                </a>
+                <button type="submit" class="er-btn-save">Save Changes</button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}

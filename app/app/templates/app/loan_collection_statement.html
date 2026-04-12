@@ -1,0 +1,724 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masco Finance - Loan Collection Statement</title>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --teal: #2a9d8f;
+            --teal-light: #b2dfdb;
+            --teal-header: #80cbc4;
+            --navy: #0d1f3c;
+            --off-white: #f9fafb;
+            --border: #c8e6e4;
+            --text-dark: #1a1a2e;
+            --text-mid: #444;
+            --text-light: #777;
+            --total-bg: #e8f5e9;
+            --total-border: #a5d6a7;
+            --green: #059669;
+            --amber: #f59e0b;
+            --blue: #2d6ae3;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: #ffffff;
+            color: var(--text-dark);
+        }
+
+        /* ============================================================
+           FILTER BAR — hidden on print
+        ============================================================ */
+        .filter-bar {
+            background: var(--navy);
+            padding: 13px 28px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .filter-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--teal-light);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            white-space: nowrap;
+        }
+
+        .filter-input {
+            padding: 6px 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            background: rgba(255,255,255,0.08);
+            color: white;
+            font-size: 12px;
+            font-family: 'IBM Plex Sans', sans-serif;
+        }
+        .filter-input::placeholder { color: rgba(255,255,255,0.35); }
+        .filter-input:focus { outline: none; border-color: var(--teal); background: rgba(255,255,255,0.14); }
+
+        .btn-filter {
+            padding: 7px 18px;
+            background: var(--teal);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'IBM Plex Sans', sans-serif;
+            letter-spacing: 0.4px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        .btn-filter:hover { background: #21867a; }
+
+        .btn-reset {
+            padding: 7px 14px;
+            background: transparent;
+            color: rgba(255,255,255,0.65);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: 'IBM Plex Sans', sans-serif;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-reset:hover { background: rgba(255,255,255,0.1); color: white; }
+
+        /* ============================================================
+           REPORT AREA
+        ============================================================ */
+        .report-page { width: 100%; background: white; }
+
+        /* Company Header */
+        .report-header {
+            padding: 22px 36px 16px;
+            text-align: center;
+            border-bottom: 3px double var(--teal);
+        }
+
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .company-info h1 {
+            font-family: 'EB Garamond', serif;
+            font-size: 2.1rem;
+            font-weight: 700;
+            color: #1e3d6e;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            line-height: 1.1;
+        }
+
+        .company-info .tagline {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dark);
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        .company-info .contacts {
+            font-size: 12px;
+            color: var(--text-mid);
+            margin-top: 3px;
+        }
+
+        /* Report Title */
+        .report-title-block {
+            text-align: center;
+            padding: 14px 36px 8px;
+        }
+
+        .branch-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-dark);
+            text-decoration: underline;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .report-period {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-dark);
+            text-decoration: underline;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        /* Summary Strip */
+        .summary-strip {
+            display: flex;
+            border-top: 1px solid var(--border);
+            border-bottom: 2px solid var(--teal-light);
+            background: var(--off-white);
+        }
+
+        .summary-item {
+            flex: 1;
+            text-align: center;
+            padding: 12px 8px;
+            border-right: 1px solid var(--border);
+        }
+        .summary-item:last-child { border-right: none; }
+
+        .s-label {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            margin-bottom: 4px;
+        }
+
+        .s-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--teal);
+            font-family: 'EB Garamond', serif;
+        }
+        .s-value.green { color: var(--green); }
+        .s-value.amber { color: var(--amber); }
+        .s-value.blue  { color: var(--blue); }
+
+        .s-sub {
+            font-size: 9px;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        /* Table */
+        .table-wrap { width: 100%; overflow-x: auto; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+        thead tr th {
+            background: var(--teal-header);
+            color: var(--text-dark);
+            font-weight: 700;
+            font-size: 10.5px;
+            text-align: left;
+            padding: 9px 8px;
+            border: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        thead tr th.num { text-align: right; }
+
+        tbody tr td {
+            padding: 7px 8px;
+            border: 1px solid #e0f0ee;
+            vertical-align: middle;
+            color: var(--text-dark);
+            font-size: 11.5px;
+        }
+
+        tbody tr:nth-child(even) td { background: #f4fafa; }
+        tbody tr:hover td { background: #e0f7f5; }
+
+        /* Date group separator row */
+        tr.date-separator td {
+            background: #f0faf9 !important;
+            border-top: 2px solid var(--teal-light);
+            padding: 4px 8px;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: var(--teal);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td.num { text-align: right; }
+        td.ctr { text-align: center; }
+
+        .receipt-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(42,157,143,0.1);
+            color: var(--teal);
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: 600;
+            font-family: monospace;
+            border: 1px solid rgba(42,157,143,0.2);
+        }
+
+        .rate-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(245,158,11,0.1);
+            color: var(--amber);
+            border-radius: 20px;
+            font-size: 10.5px;
+            font-weight: 600;
+        }
+
+        .principal-amount { font-weight: 700; color: var(--green); }
+        .interest-amount  { font-weight: 700; color: var(--amber); }
+        .total-amount     { font-weight: 700; color: var(--blue); }
+        .amount-empty     { color: #ccc; font-size: 11px; }
+
+        .user-info { display: flex; align-items: center; gap: 7px; }
+
+        .user-avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: var(--navy);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .user-name { font-weight: 500; font-size: 11px; color: var(--text-dark); }
+
+        .client-ref { font-size: 10px; color: var(--text-light); font-family: monospace; margin-top: 2px; }
+
+        .loan-type-badge {
+            display: inline-block;
+            background: #f1f5f9;
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-size: 10px;
+            color: var(--text-mid);
+            margin-top: 3px;
+        }
+
+        /* Grand Total Row */
+        tfoot tr td {
+            background: var(--total-bg);
+            border: 1px solid var(--total-border);
+            font-weight: 700;
+            font-size: 12px;
+            padding: 9px 8px;
+        }
+
+        tfoot tr td.grand-label {
+            text-align: right;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-left: 3px solid var(--teal);
+            color: var(--text-dark);
+        }
+
+        tfoot td.num-green { text-align: right; color: var(--green); font-size: 13px; font-weight: 800; }
+        tfoot td.num-amber { text-align: right; color: var(--amber); font-size: 13px; font-weight: 800; }
+        tfoot td.num-blue  { text-align: right; color: var(--blue);  font-size: 13px; font-weight: 800; }
+
+        /* Statement footer */
+        .statement-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 16px 24px;
+            border-top: 1px dashed var(--border);
+            background: var(--off-white);
+            font-size: 11px;
+            color: var(--text-light);
+        }
+
+        .signature-block { text-align: right; }
+        .signature-line {
+            border-bottom: 2px solid var(--teal);
+            width: 180px;
+            margin: 8px 0 4px auto;
+        }
+
+        .footer-note {
+            text-align: center;
+            padding: 10px 24px;
+            font-size: 10px;
+            color: var(--text-light);
+            border-top: 1px dashed #e2e8f0;
+            background: white;
+        }
+
+        /* No data */
+        .no-data {
+            text-align: center;
+            padding: 56px 20px;
+            color: var(--text-light);
+        }
+        .no-data-icon { font-size: 40px; color: #ccc; margin-bottom: 14px; }
+
+        /* Screen-only footer */
+        .page-footer {
+            display: flex;
+            justify-content: flex-end;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--off-white);
+            gap: 10px;
+        }
+
+        .btn-pdf {
+            padding: 9px 22px;
+            background: var(--teal);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'IBM Plex Sans', sans-serif;
+            cursor: pointer;
+            letter-spacing: 0.4px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-pdf:hover { background: #21867a; }
+
+        .btn-export {
+            padding: 9px 18px;
+            background: white;
+            color: var(--navy);
+            border: 1.5px solid var(--navy);
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'IBM Plex Sans', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-export:hover { background: var(--navy); color: white; }
+
+        /* ============================================================
+           PRINT
+        ============================================================ */
+        @media print {
+            @page { size: A4 landscape; margin: 8mm 6mm; }
+
+            body { background: white; margin: 0; padding: 0; }
+
+            .filter-bar,
+            .page-footer { display: none !important; }
+
+            .report-page { width: 100%; }
+
+            .report-header { padding: 10px 12px 8px; }
+            .company-info h1 { font-size: 1.5rem; }
+            .company-info .tagline,
+            .company-info .contacts { font-size: 10px; }
+
+            .report-title-block { padding: 8px 12px 5px; }
+            .branch-name, .report-period { font-size: 11px; }
+
+            .summary-item { padding: 6px 4px; }
+            .s-value { font-size: 12px; }
+            .s-label { font-size: 7.5px; }
+
+            .table-wrap { overflow: visible; }
+            table { font-size: 8px; }
+            thead tr th { padding: 4px 4px; font-size: 7.5px; }
+            tbody tr td { padding: 3px 4px; font-size: 8px; }
+            tfoot tr td { padding: 4px 4px; font-size: 8px; }
+
+            thead tr th,
+            tbody tr:nth-child(even) td,
+            tr.date-separator td,
+            tfoot tr td {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            tbody tr:hover td { background: none !important; }
+            .user-avatar { display: none; }
+            .receipt-badge, .rate-badge, .loan-type-badge { border: none; background: none; padding: 0; font-size: 8px; }
+
+            .statement-footer { padding: 10px 12px; font-size: 9px; }
+            .footer-note { font-size: 8px; padding: 6px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== FILTER BAR ===== -->
+<form method="GET" action="{% url 'loan_collection_statement' %}" class="filter-bar">
+    <div class="filter-group">
+        <span class="filter-label">From</span>
+        <input type="date" name="start_date" class="filter-input" value="{{ start_date|default:'' }}">
+    </div>
+    <div class="filter-group">
+        <span class="filter-label">To</span>
+        <input type="date" name="end_date" class="filter-input" value="{{ end_date|default:'' }}">
+    </div>
+    <div class="filter-group">
+        <span class="filter-label">Office</span>
+        <select name="office" class="filter-input">
+            <option value="">All Offices</option>
+            {% for office in offices %}
+            <option value="{{ office }}" {% if office_filter == office %}selected{% endif %}>{{ office }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <a href="{% url 'loan_collection_statement' %}" class="btn-reset">&#8635; Reset</a>
+        <button type="submit" class="btn-filter">&#128269; Generate Statement</button>
+    </div>
+</form>
+
+<!-- ===== FULL-PAGE REPORT ===== -->
+<div class="report-page">
+
+    <!-- Company Header -->
+    <div class="report-header">
+        <div class="header-inner">
+            <div>
+                <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo" height="85" width="auto">
+            </div>
+            <div class="company-info">
+                <h1>Masco Finance Co. Ltd</h1>
+                <div class="tagline">P.O.BOX 30474 — KIBAHA | TANZANIA</div>
+                <div class="contacts">Mobile: +255 718 544 515 &nbsp;|&nbsp; Email: mascofinance@gmail.com</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Title -->
+    <div class="report-title-block">
+        <div class="branch-name">
+            {% if office_filter %}{{ office_filter }} — {% endif %}Loan Collection Statement
+        </div>
+        <div class="report-period">
+            {% if start_date and end_date %}
+                Period: {{ start_date }} To {{ end_date }}
+            {% elif start_date %}
+                From {{ start_date }}
+            {% elif end_date %}
+                Up To {{ end_date }}
+            {% else %}
+                All Collections
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Summary Strip -->
+    <div class="summary-strip">
+        <div class="summary-item">
+            <div class="s-label">Transactions</div>
+            <div class="s-value">{{ total_transactions|default:"0" }}</div>
+            <div class="s-sub">repayment records</div>
+        </div>
+        <div class="summary-item">
+            <div class="s-label">Total Principal</div>
+            <div class="s-value green">{{ total_principal|floatformat:0|default:"0" }}</div>
+            <div class="s-sub">TZS</div>
+        </div>
+        <div class="summary-item">
+            <div class="s-label">Total Interest</div>
+            <div class="s-value amber">{{ total_interest|floatformat:0|default:"0" }}</div>
+            <div class="s-sub">TZS</div>
+        </div>
+        <div class="summary-item">
+            <div class="s-label">Total Collected</div>
+            <div class="s-value blue">{{ total_collected|floatformat:0|default:"0" }}</div>
+            <div class="s-sub">TZS</div>
+        </div>
+        <div class="summary-item">
+            <div class="s-label">Generated By</div>
+            <div class="s-value" style="font-size:12px;">{{ request.user.get_full_name|default:request.user.username }}</div>
+            <div class="s-sub">{% now "d/m/Y H:i" %}</div>
+        </div>
+        <div class="summary-item">
+            <div class="s-label">Office</div>
+            <div class="s-value" style="font-size:12px;">{{ office_filter|default:"All" }}</div>
+            <div class="s-sub">{{ request.user.get_full_name|default:request.user.username }}</div>
+        </div>
+    </div>
+
+    <!-- Collection Table -->
+    <div class="table-wrap">
+        {% if collection_data %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th style="width:36px;">S/N</th>
+                    <th>Receipt No.</th>
+                    <th>Client Name</th>
+                    <th>Description</th>
+                    <th>Rate</th>
+                    <th class="num">Principal (TZS)</th>
+                    <th class="num">Interest (TZS)</th>
+                    <th class="num">Total (TZS)</th>
+                    <th>Processed By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% regroup collection_data by date as date_groups %}
+                {% for date_group in date_groups %}
+                <tr class="date-separator">
+                    <td colspan="10">
+                        &#128197; {{ date_group.grouper|date:"l, d F Y" }}
+                        &nbsp;&mdash;&nbsp; {{ date_group.list|length }} collection{{ date_group.list|length|pluralize }}
+                    </td>
+                </tr>
+                {% for item in date_group.list %}
+                <tr>
+                    <td style="white-space:nowrap; color:var(--text-light); font-size:10.5px;">
+                        {{ item.date|date:"d/m/Y" }}
+                    </td>
+                    <td class="ctr" style="font-weight:600; color:var(--teal);">{{ item.sn }}</td>
+                    <td>
+                        <span class="receipt-badge">{{ item.receipt_no }}</span>
+                    </td>
+                    <td>
+                        <div style="font-weight:600; font-size:11.5px; color:var(--text-dark);">{{ item.name }}</div>
+                        <div class="client-ref">CLT-{{ item.client_id|stringformat:"06d" }}</div>
+                    </td>
+                    <td>
+                        <div style="font-size:11px; color:var(--text-mid);">{{ item.description }}</div>
+                        <span class="loan-type-badge">{{ item.description|cut:"Loan Repayment - " }}</span>
+                    </td>
+                    <td class="ctr">
+                        <span class="rate-badge">{{ item.rate|floatformat:1 }}%</span>
+                    </td>
+                    <td class="num">
+                        {% if item.principal > 0 %}
+                        <span class="principal-amount">{{ item.principal|floatformat:0 }}</span>
+                        {% else %}<span class="amount-empty">—</span>{% endif %}
+                    </td>
+                    <td class="num">
+                        {% if item.interest > 0 %}
+                        <span class="interest-amount">{{ item.interest|floatformat:0 }}</span>
+                        {% else %}<span class="amount-empty">—</span>{% endif %}
+                    </td>
+                    <td class="num">
+                        <span class="total-amount">{{ item.total|floatformat:0 }}</span>
+                    </td>
+                    <td>
+                        <div class="user-info">
+                            <div class="user-avatar">{{ item.created_by|first|upper }}</div>
+                            <span class="user-name">{{ item.created_by }}</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="6" class="grand-label">Grand Total</td>
+                    <td class="num-green">{{ total_principal|floatformat:0 }}</td>
+                    <td class="num-amber">{{ total_interest|floatformat:0 }}</td>
+                    <td class="num-blue">{{ total_collected|floatformat:0 }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        {% else %}
+        <div class="no-data">
+            <div class="no-data-icon">&#128184;</div>
+            <p style="font-size:14px; color:var(--text-mid); margin-top:8px;">
+                No collections found for the selected period.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if collection_data %}
+    <!-- Statement Footer (visible in print) -->
+    <div class="statement-footer">
+        <div>
+            <strong>Generated by:</strong> {{ request.user.get_full_name|default:request.user.username }}<br>
+            <span>{{ request.user.email }}</span>
+        </div>
+        <div>
+            <strong>Generated on:</strong> {% now "d F Y H:i:s" %}<br>
+            <span>
+                Period:
+                {% if start_date %}{{ start_date }}{% else %}All time{% endif %}
+                to
+                {% if end_date %}{{ end_date }}{% else %}Present{% endif %}
+            </span>
+        </div>
+        <div class="signature-block">
+            <strong>Authorized Signature</strong>
+            <div class="signature-line"></div>
+            <span>Loan Collection Officer</span>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        &#10003; This is a computer generated loan collection statement and is valid without signature.
+        All amounts are in Tanzanian Shillings (TZS).
+    </div>
+    {% endif %}
+
+    <!-- Screen-only action footer -->
+    <div class="page-footer">
+        <button class="btn-export" onclick="exportCSV()">&#8659; Export CSV</button>
+        <button class="btn-pdf" onclick="window.print()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 9V2h12v7"/>
+                <rect x="6" y="17" width="12" height="5"/>
+                <path d="M6 13H4a2 2 0 0 0-2 2v4h4"/>
+                <path d="M18 13h2a2 2 0 0 1 2 2v4h-4"/>
+            </svg>
+            SAVE PDF
+        </button>
+    </div>
+
+</div><!-- end report-page -->
+
+<script>
+    function exportCSV() {
+        const headers = ['Date','S/N','Receipt No','Client Name','Description','Rate','Principal','Interest','Total','Processed By'];
+        const rows = document.querySelectorAll('tbody tr:not(.date-separator)');
+        let csv = headers.join(',') + '\n';
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 10) {
+                const data = Array.from(cells).map(c => `"${c.textContent.trim().replace(/"/g,'""')}"`);
+                csv += data.join(',') + '\n';
+            }
+        });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `masco_collection_statement.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.ctrlKey && e.key === 'p') { e.preventDefault(); window.print(); }
+        if (e.ctrlKey && e.key === 'e') { e.preventDefault(); exportCSV(); }
+    });
+</script>
+</body>
+</html>

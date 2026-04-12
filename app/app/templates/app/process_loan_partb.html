@@ -1,0 +1,691 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .pl-wrapper {
+        max-width: 860px;
+        margin: 30px auto 60px;
+        padding: 0 20px;
+        font-family: Georgia, 'Times New Roman', serif;
+        margin-top: 70px;
+    }
+
+    .pl-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 32px 40px 36px;
+    }
+
+    .part-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1a1a1a;
+        letter-spacing: 0.4px;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #999;
+        margin-bottom: 32px;
+        font-family: Arial, sans-serif;
+    }
+
+    .loan-form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .loan-form-row label {
+        width: 240px;
+        flex-shrink: 0;
+        font-size: 14px;
+        color: #333;
+        text-align: right;
+        padding-right: 24px;
+        font-family: Arial, sans-serif;
+    }
+
+    .loan-form-row input,
+    .loan-form-row select {
+        width: 280px;
+        padding: 9px 12px;
+        border: 1px solid #ccc;
+        border-radius: 2px;
+        font-size: 13.5px;
+        font-family: Arial, sans-serif;
+        color: #1a1a1a;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.15s;
+        box-sizing: border-box;
+    }
+
+    .loan-form-row input:focus,
+    .loan-form-row select:focus {
+        border-color: #5bc0de;
+        box-shadow: 0 0 0 2px rgba(91,192,222,0.15);
+    }
+
+    .loan-form-row input[readonly] {
+        background: #f0f0f0;
+        color: #555;
+        cursor: not-allowed;
+    }
+
+    .dharura-hint {
+        font-size: 11.5px;
+        color: #c0392b;
+        font-style: italic;
+        font-family: Arial, sans-serif;
+        margin-left: 8px;
+        display: none;
+    }
+
+    .loan-warning {
+        background: #f0a830;
+        border: none;
+        padding: 12px 20px;
+        margin: 0 0 20px;
+        border-radius: 2px;
+        font-family: Arial, sans-serif;
+        font-size: 13.5px;
+        color: #1a1a1a;
+        line-height: 1.8;
+        display: none;
+    }
+    .loan-warning strong { font-weight: 700; text-decoration: underline; }
+    .loan-warning .balance { font-weight: 700; text-decoration: underline; }
+
+    .repayment-summary {
+        background: #f4f8f4;
+        border: 1px solid #c3e6cb;
+        margin: 0 0 20px 0;
+        border-radius: 3px;
+        overflow: hidden;
+        display: none;
+    }
+    .repayment-summary-header {
+        background: #d4edda;
+        padding: 10px 20px;
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        color: #155724;
+        border-bottom: 1px solid #c3e6cb;
+    }
+    /* Formula note inside summary header */
+    .formula-note {
+        font-size: 11px;
+        font-weight: 400;
+        color: #1a6630;
+        margin-left: 10px;
+        font-style: italic;
+    }
+    .repayment-summary-rows { display: flex; gap: 0; }
+    .repayment-summary-item {
+        flex: 1;
+        padding: 12px 20px;
+        border-right: 1px solid #c3e6cb;
+        font-family: Arial, sans-serif;
+    }
+    .repayment-summary-item:last-child { border-right: none; }
+    .repayment-summary-item .label { font-size: 11.5px; color: #555; margin-bottom: 4px; }
+    .repayment-summary-item .value { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+
+    .repayment-table-wrap { display: none; margin: 0 0 20px 0; }
+    .repayment-table-title {
+        background: #c9d8e8;
+        color: #1a1a1a;
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 9px 16px;
+        border: 1px solid #b0c4d8;
+        border-bottom: none;
+        letter-spacing: 0.3px;
+    }
+    .repayment-table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; }
+    .repayment-table thead tr { background: #5bc0de; color: #fff; }
+    .repayment-table thead th { padding: 8px 12px; text-align: right; font-weight: 600; border: 1px solid #4aa8c4; }
+    .repayment-table thead th:first-child { text-align: center; }
+    .repayment-table tbody tr:nth-child(even) { background: #e8f4f8; }
+    .repayment-table tbody tr:nth-child(odd)  { background: #fff; }
+    .repayment-table tbody td { padding: 7px 12px; border: 1px solid #d0e8f0; text-align: right; }
+    .repayment-table tbody td:first-child { text-align: center; color: #555; }
+    .repayment-table tbody td:nth-child(2)  { text-align: center; }
+    .repayment-table tfoot tr { background: #c8a96e; color: #1a1a1a; font-weight: 700; }
+    .repayment-table tfoot td { padding: 8px 12px; border: 1px solid #b8945a; text-align: right; }
+    .repayment-table tfoot td:first-child,
+    .repayment-table tfoot td:nth-child(2) { text-align: center; }
+
+    .form-divider { border: none; border-top: 1px solid #e0e0e0; margin: 24px 0 20px; }
+    .form-bottom { display: flex; justify-content: flex-end; padding-top: 18px; border-top: 1px solid #e8e8e8; }
+    .submit-btn {
+        padding: 9px 30px;
+        background: #27ae60;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: 0.5px;
+        transition: background 0.15s;
+    }
+    .submit-btn:hover { background: #219150; }
+
+    .alert-error {
+        background: #fde8e8;
+        border: 1px solid #f5c6c6;
+        color: #b00;
+        padding: 10px 16px;
+        border-radius: 3px;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+        margin-bottom: 18px;
+    }
+
+    .radio-group { display: flex; gap: 20px; align-items: center; padding: 4px 0; }
+    .radio-group label {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 13.5px; font-family: Arial, sans-serif;
+        color: #333; cursor: pointer; font-weight: normal;
+        width: auto; text-align: left; padding-right: 0;
+    }
+    .radio-group input[type="radio"] { width: auto; cursor: pointer; accent-color: #5bc0de; }
+
+    @media (max-width: 700px) {
+        .loan-form-row { flex-direction: column; align-items: flex-start; }
+        .loan-form-row label { width: 100%; text-align: left; padding-right: 0; margin-bottom: 5px; }
+        .loan-form-row input, .loan-form-row select { width: 100%; }
+        .pl-card { padding: 20px; }
+        .repayment-summary-rows { flex-direction: column; }
+    }
+</style>
+
+<div class="pl-wrapper">
+    <div class="pl-card">
+
+        <div class="part-title">PART B: LOAN DETAILS</div>
+
+        {% if messages %}
+            {% for msg in messages %}
+            <div class="alert-{% if msg.tags %}{{ msg.tags }}{% else %}error{% endif %}">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="{% url 'loan_application' %}" id="loanForm">
+            {% csrf_token %}
+            <input type="hidden" name="client" value="{{ client.id }}">
+
+            {% if existing_maendeleo %}
+            <input type="hidden" name="original_maendeleo_id" value="{{ existing_maendeleo.id }}">
+            <input type="hidden" name="maendeleo_outstanding" value="{{ existing_maendeleo.repayment_amount_remaining }}">
+            {% endif %}
+            {% if existing_dharura %}
+            <input type="hidden" name="original_dharura_id" value="{{ existing_dharura.id }}">
+            <input type="hidden" name="dharura_outstanding" value="{{ existing_dharura.repayment_amount_remaining }}">
+            {% endif %}
+
+            <input type="hidden" name="is_topup"         id="isTopupField"      value="false">
+            <input type="hidden" name="original_loan_id" id="originalLoanIdField" value="">
+
+            <!-- Amount (P) -->
+            <div class="loan-form-row">
+                <label for="amount">Amount<span style="color:red;">*</span></label>
+                <div style="position:relative; width:280px;">
+                    <input type="text" id="amount" name="amount"
+                           placeholder="0" inputmode="numeric" autocomplete="off"
+                           style="width:100%; padding-right:30px; box-sizing:border-box;"
+                           oninput="onAmountInput(this)" required>
+                    <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;color:#888;pointer-events:none;font-family:Arial,sans-serif;">/=</span>
+                </div>
+            </div>
+            <div id="amountError" class="alert-error" style="display:none; margin-left:264px; margin-top:-10px; margin-bottom:10px;"></div>
+
+            <!-- Interest per annum (I) -->
+            <div class="loan-form-row">
+                <label for="interest_rate">Interest per annum %</label>
+                <input type="number" id="interest_rate" name="interest_rate"
+                       placeholder="" min="0" max="100" step="0.1"
+                       oninput="onFormChange()" required>
+            </div>
+
+            <!-- Loan type -->
+            <div class="loan-form-row">
+                <label for="loan_type">Loan type</label>
+                <select id="loan_type" name="loan_type" onchange="onLoanTypeChange()">
+                    <option value="">Select Loan Type</option>
+                    <option value="Maendeleo">Maendeleo</option>
+                    <option value="Dharura">Dharura</option>
+                </select>
+            </div>
+
+            <!-- Period (N) -->
+            <input type="hidden" id="term_months_hidden" name="term_months" value="">
+            <div class="loan-form-row">
+                <label for="term_months">Period</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <select id="term_months" onchange="syncPeriod(); onFormChange();" style="width:280px;">
+                        <option value="">Select period</option>
+                    </select>
+                    <span class="dharura-hint" id="dharuraHint">⚠ Dharura: 1 month only</span>
+                </div>
+            </div>
+
+            <!-- Starting Payment Month -->
+            <div class="loan-form-row">
+                <label for="application_date">Starting Payment Month</label>
+                <input type="date" id="application_date" name="application_date"
+                       onchange="onFormChange()" required>
+            </div>
+
+            <!-- End Payment Day (auto) -->
+            <div class="loan-form-row">
+                <label>End Payment Day</label>
+                <input type="text" id="endPaymentDay" readonly placeholder="—">
+            </div>
+
+            <!-- Disbursement -->
+            <div class="loan-form-row">
+                <label for="transaction_method">Disbursement via</label>
+                <select id="transaction_method" name="transaction_method" required>
+                    <option value="">Select Method</option>
+                    <option value="bank">Bank</option>
+                    <option value="cash">Cash</option>
+                </select>
+            </div>
+
+            <!-- Top-up Payment Month -->
+            <div class="loan-form-row" id="topupDateRow" style="display:none;">
+                <label for="topup_date">Top-up Payment Month</label>
+                <input type="date" id="topup_date" name="topup_date">
+            </div>
+
+            <!-- Warnings -->
+            <div class="loan-warning" id="warningMaendeleo" style="display:none;">
+                <strong>{{ client.firstname }} {{ client.lastname }}</strong> has a current <strong>Maendeleo</strong> loan with balance TZS
+                <span class="balance">{% if existing_maendeleo %}{{ existing_maendeleo.repayment_amount_remaining|floatformat:0 }}{% endif %} /=</span><br>
+                He/she must do a <strong>TOP-UP</strong>. New loan amount must be greater than TZS
+                <span class="balance">{% if existing_maendeleo %}{{ existing_maendeleo.repayment_amount_remaining|floatformat:0 }}{% endif %} /=</span>
+            </div>
+            <div class="loan-warning" id="warningDharuraBlocked" style="display:none; background:#e74c3c; color:#fff;">
+                ⛔ <strong>{{ client.firstname }} {{ client.lastname }}</strong> already has an active <strong>Dharura</strong> loan with balance TZS
+                <span class="balance">{% if existing_dharura %}{{ existing_dharura.repayment_amount_remaining|floatformat:0 }}{% endif %} /=</span>.<br>
+                A second Dharura loan is <strong>not allowed</strong> until the existing one is fully repaid.
+            </div>
+
+            <!-- Repayment Summary -->
+            <div class="repayment-summary" id="repaymentSummary">
+                <div class="repayment-summary-header">
+                    LOAN REPAYMENT SUMMARY
+                </div>
+                <div class="repayment-summary-rows">
+                    <div class="repayment-summary-item">
+                        <div class="label">Monthly Repayment</div>
+                        <div class="value" id="summaryMonthly">—</div>
+                    </div>
+                    <div class="repayment-summary-item">
+                        <div class="label">Total Return Amount</div>
+                        <div class="value" id="summaryTotal">—</div>
+                    </div>
+                    <div class="repayment-summary-item">
+                        <div class="label">Total Interest Amount</div>
+                        <div class="value" id="summaryInterest">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Repayment Schedule Table -->
+            <div class="repayment-table-wrap" id="repaymentTableWrap">
+                <div class="repayment-table-title">MONTHLY INSTALLMENT SCHEDULES</div>
+                <table class="repayment-table">
+                    <thead>
+                        <tr>
+                            <th>Phase</th>
+                            <th>Date</th>
+                            <th>Principal Repayment</th>
+                            <th>Interest Repayment</th>
+                            <th>Total Repayment</th>
+                            <th>Loan Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleBody"></tbody>
+                    <tfoot id="scheduleFoot"></tfoot>
+                </table>
+            </div>
+
+            <hr class="form-divider">
+
+            <div class="form-bottom">
+                <button type="submit" class="submit-btn" id="submitBtn">SUBMIT</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// ── Loan state from Django ──────────────────────────────────────────
+const existingMaendeleo = {% if existing_maendeleo %}{
+    id: {{ existing_maendeleo.id }},
+    outstanding: {{ existing_maendeleo.repayment_amount_remaining }},
+    interest: {{ existing_maendeleo.interest_rate }},
+    period: {{ existing_maendeleo.payment_period_months }}
+}{% else %}null{% endif %};
+
+const existingDharura = {% if existing_dharura %}{
+    id: {{ existing_dharura.id }},
+    outstanding: {{ existing_dharura.repayment_amount_remaining }},
+    interest: {{ existing_dharura.interest_rate }},
+    period: {{ existing_dharura.payment_period_months }}
+}{% else %}null{% endif %};
+
+// ── Comma-formatted amount input ────────────────────────────────────
+function onAmountInput(el) {
+    const cursorPos = el.selectionStart;
+    const oldLen    = el.value.length;
+    const raw = el.value.replace(/[^0-9]/g, '');
+    if (!raw) { el.value = ''; onFormChange(); return; }
+    const formatted = parseInt(raw, 10).toLocaleString('en');
+    el.value = formatted;
+    const newLen    = el.value.length;
+    const newCursor = cursorPos + (newLen - oldLen);
+    el.setSelectionRange(newCursor, newCursor);
+    onFormChange();
+}
+
+function getRawAmount() {
+    return parseFloat(document.getElementById('amount').value.replace(/,/g, '')) || 0;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function fmt(n) {
+    return Number(n).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' /=';
+}
+
+function ceil1000(val) {
+    return Math.ceil(val / 1000) * 1000;
+}
+
+function syncPeriod() {
+    document.getElementById('term_months_hidden').value =
+        document.getElementById('term_months').value;
+}
+
+// ── Period dropdown ─────────────────────────────────────────────────
+function populatePeriod(loanType) {
+    const sel  = document.getElementById('term_months');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Select period</option>';
+    const max = (loanType === 'Dharura') ? 1 : 36;
+    for (let i = 1; i <= max; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i + (i === 1 ? ' Month' : ' Months');
+        sel.appendChild(opt);
+    }
+    if (loanType === 'Dharura') {
+        sel.value    = 1;
+        sel.disabled = true;
+        document.getElementById('dharuraHint').style.display = 'inline';
+    } else {
+        sel.disabled = false;
+        document.getElementById('dharuraHint').style.display = 'none';
+        if (prev && parseInt(prev) <= max) sel.value = prev;
+    }
+    syncPeriod();
+    onFormChange();
+}
+
+function onLoanTypeChange() {
+    populatePeriod(document.getElementById('loan_type').value);
+    updateLoanState();
+}
+
+// ── Warning / topup state ───────────────────────────────────────────
+function updateLoanState() {
+    const selectedType = document.getElementById('loan_type').value;
+    const amount       = getRawAmount();
+
+    const warnMae     = document.getElementById('warningMaendeleo');
+    const warnDharBlk = document.getElementById('warningDharuraBlocked');
+    const topupRow    = document.getElementById('topupDateRow');
+    const errEl       = document.getElementById('amountError');
+    const submitBtn   = document.getElementById('submitBtn');
+    const isTopupFld  = document.getElementById('isTopupField');
+    const origIdFld   = document.getElementById('originalLoanIdField');
+
+    warnMae.style.display     = 'none';
+    warnDharBlk.style.display = 'none';
+    topupRow.style.display    = 'none';
+    errEl.style.display       = 'none';
+    isTopupFld.value          = 'false';
+    origIdFld.value           = '';
+    submitBtn.disabled        = false;
+    submitBtn.textContent     = 'SUBMIT';
+
+    if (!selectedType) return;
+
+    if (selectedType === 'Maendeleo' && existingMaendeleo) {
+        isTopupFld.value       = 'true';
+        origIdFld.value        = existingMaendeleo.id;
+        topupRow.style.display = 'flex';
+        if (amount > 0) {
+            warnMae.style.display = 'block';
+            if (amount <= existingMaendeleo.outstanding) {
+                errEl.style.display = 'block';
+                errEl.textContent   = `❌ Amount must be greater than outstanding balance (${Number(existingMaendeleo.outstanding).toLocaleString('en-US')} /=)`;
+                submitBtn.disabled  = true;
+            }
+        }
+        submitBtn.textContent = (amount > 0 && amount > existingMaendeleo.outstanding)
+            ? 'PROCESS TOP-UP' : 'SUBMIT';
+
+    } else if (selectedType === 'Dharura' && existingDharura) {
+        warnDharBlk.style.display = 'block';
+        submitBtn.disabled        = true;
+        submitBtn.textContent     = 'BLOCKED';
+
+    } else if (selectedType === 'Dharura' && existingMaendeleo) {
+        isTopupFld.value = 'false';
+        origIdFld.value  = '';
+    }
+}
+
+// ── First installment date logic ────────────────────────────────────
+function getFirstInstallmentDate(startVal) {
+    // day <= 18 → first installment same month 28th
+    // day >  18 → first installment next month 28th
+    const d = new Date(startVal + 'T00:00:00');
+    if (d.getDate() > 18) d.setMonth(d.getMonth() + 1);
+    d.setDate(28);
+    return d;
+}
+
+// ── End date ────────────────────────────────────────────────────────
+function updateEndDate() {
+    const startVal = document.getElementById('application_date').value;
+    const period   = parseInt(document.getElementById('term_months').value) || 0;
+    const endEl    = document.getElementById('endPaymentDay');
+    if (!startVal || !period) { endEl.value = ''; return; }
+    const first = getFirstInstallmentDate(startVal);
+    const end   = new Date(first);
+    end.setMonth(end.getMonth() + period - 1);
+    const dd = String(end.getDate()).padStart(2,'0');
+    const mm = String(end.getMonth()+1).padStart(2,'0');
+    endEl.value = `${dd}/${mm}/${end.getFullYear()}`;
+}
+
+// ── Build repayment schedule ─────────────────────────────────────────
+function buildSchedule() {
+    const P         = getRawAmount();
+    const I         = parseFloat(document.getElementById('interest_rate').value) || 0;
+    const N         = parseInt(document.getElementById('term_months').value)     || 0;
+    const startDate = document.getElementById('application_date').value;
+
+    const summaryEl = document.getElementById('repaymentSummary');
+    const tableWrap = document.getElementById('repaymentTableWrap');
+
+    if (!P || !N || !startDate) {
+        summaryEl.style.display = 'none';
+        tableWrap.style.display = 'none';
+        return;
+    }
+
+    /* ── Core formula ── */
+    const totalInterest = (I / 100) * P;
+    const totalReturn   = P + totalInterest;
+
+    /*
+     * ── Rounding strategy ──────────────────────────────────────────
+     * Standard months (1 to N-1): ceil total monthly to nearest 1,000
+     *   stdMonthly   = ceil(totalReturn / N, 1000)  ← round UP total first
+     *   stdPrincipal = ceil(P / N, 1000)
+     *   stdInterest  = stdMonthly - stdPrincipal     ← derived, always adds up
+     *
+     * Last month absorbs remainder (always smallest):
+     *   lastPrincipal = P             - stdPrincipal × (N-1)
+     *   lastInterest  = totalInterest - stdInterest  × (N-1)
+     *   lastMonthly   = lastPrincipal + lastInterest
+     *
+     * Example: P=500,000 | I=40% | N=6
+     *   stdMonthly=117,000 (×5) | lastMonthly=115,000 | total=700,000 ✓
+     * Example: P=350,000 | I=40% | N=3
+     *   stdMonthly=164,000 (×2) | lastMonthly=162,000 | total=490,000 ✓
+     */
+    const stdMonthly   = ceil1000(totalReturn / N);
+    const stdPrincipal = ceil1000(P / N);
+    const stdInterest  = stdMonthly - stdPrincipal;
+
+    const lastPrincipal = P             - (stdPrincipal * (N - 1));
+    const lastInterest  = totalInterest - (stdInterest  * (N - 1));
+    const lastMonthly   = lastPrincipal + lastInterest;
+
+    /* ── Summary strip ── */
+    document.getElementById('summaryMonthly').textContent  = fmt(stdMonthly);
+    document.getElementById('summaryTotal').textContent    = fmt(totalReturn);
+    document.getElementById('summaryInterest').textContent = fmt(totalInterest);
+    summaryEl.style.display = 'block';
+
+    /* ── Schedule rows ── */
+    const tbody = document.getElementById('scheduleBody');
+    const tfoot = document.getElementById('scheduleFoot');
+    tbody.innerHTML = '';
+    tfoot.innerHTML = '';
+
+    const firstDate = getFirstInstallmentDate(startDate);
+
+    /* Opening balance row */
+    const openRow = document.createElement('tr');
+    openRow.innerHTML = `<td></td><td></td><td></td><td></td><td></td><td>${Math.round(totalReturn).toLocaleString('en-US')}</td>`;
+    tbody.appendChild(openRow);
+
+    let balance      = totalReturn;
+    let totPrincipal = 0;
+    let totInterest  = 0;
+    let totRepayment = 0;
+
+    for (let i = 1; i <= N; i++) {
+        const isLast = (i === N);
+
+        /* Standard for months 1 to N-1, last month gets remainder */
+        const pmt      = isLast ? lastPrincipal : stdPrincipal;
+        const imt      = isLast ? lastInterest  : stdInterest;
+        const rowTotal = isLast ? lastMonthly   : stdMonthly;
+
+        balance -= rowTotal;
+        if (Math.abs(balance) < 0.5) balance = 0;
+
+        totPrincipal += pmt;
+        totInterest  += imt;
+        totRepayment += rowTotal;
+
+        const rowDate = new Date(firstDate);
+        rowDate.setMonth(rowDate.getMonth() + (i - 1));
+        const rowLabel = MONTH_NAMES[rowDate.getMonth()] + '/' + rowDate.getFullYear();
+
+        const tr = document.createElement('tr');
+        if (isLast) tr.style.background = '#fdf6e3'; // subtle highlight for last row
+        tr.innerHTML = `
+            <td>${i}</td>
+            <td>${rowLabel}</td>
+            <td>${Math.round(pmt).toLocaleString('en-US')}</td>
+            <td>${Math.round(imt).toLocaleString('en-US')}</td>
+            <td>${Math.round(rowTotal).toLocaleString('en-US')}</td>
+            <td>${Math.round(balance).toLocaleString('en-US')}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    /* Footer totals */
+    const footRow = document.createElement('tr');
+    footRow.innerHTML = `
+        <td>Total</td><td></td>
+        <td>${Math.round(totPrincipal).toLocaleString('en-US')}</td>
+        <td>${Math.round(totInterest).toLocaleString('en-US')}</td>
+        <td>${Math.round(totRepayment).toLocaleString('en-US')}</td>
+        <td></td>
+    `;
+    tfoot.appendChild(footRow);
+    tableWrap.style.display = 'block';
+}
+
+// ── Master change handler ───────────────────────────────────────────
+function onFormChange() {
+    updateEndDate();
+    updateLoanState();
+    buildSchedule();
+}
+
+// ── Form submit ─────────────────────────────────────────────────────
+document.getElementById('loanForm').addEventListener('submit', function(e) {
+    const isTopup = document.getElementById('isTopupField').value === 'true';
+    if (!isTopup) return;
+
+    e.preventDefault();
+
+    const amount      = String(getRawAmount());
+    const loanId      = document.getElementById('originalLoanIdField').value;
+    const outstanding = existingMaendeleo ? existingMaendeleo.outstanding : 0;
+
+    if (parseFloat(amount) <= outstanding) {
+        alert('Amount must be greater than the outstanding balance.');
+        return;
+    }
+
+    const interest          = document.getElementById('interest_rate').value;
+    const transactionMethod = document.getElementById('transaction_method').value;
+    const topupDateEl       = document.getElementById('topup_date');
+    const topupDate         = topupDateEl ? topupDateEl.value : '';
+    const termVal           = document.getElementById('term_months_hidden').value;
+    const startDateVal      = document.getElementById('application_date').value;
+
+    const topupForm = document.createElement('form');
+    topupForm.method = 'POST';
+    topupForm.action = "{% url 'loan_topup' 0 %}".replace('0', loanId);
+
+    const fields = {
+        csrfmiddlewaretoken: '{{ csrf_token }}',
+        topup_amount:        amount,
+        interest_rate:       interest,
+        transaction_method:  transactionMethod,
+        term_months:         termVal,
+        application_date:    startDateVal,
+    };
+    if (topupDate) fields.topup_date = topupDate;
+
+    Object.entries(fields).forEach(([name, value]) => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = name; inp.value = value;
+        topupForm.appendChild(inp);
+    });
+
+    document.body.appendChild(topupForm);
+    topupForm.submit();
+});
+</script>
+
+{% endblock %}

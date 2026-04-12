@@ -1,0 +1,760 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="shortcut icon" type="x-icon" href="{% static 'useraccount/masco.png' %}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Masco Finance</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        /* ===== CSS VARIABLES — Match screenshot palette ===== */
+        :root {
+            --white:          #ffffff;
+            --header-bg:      #ffffff;
+            --nav-bg:         #0d4a7a;        /* deep navy-blue nav bar */
+            --nav-hover-bg:   #0a3d66;
+            --nav-gold:       #d4950a;        /* amber/gold text & icons */
+            --nav-gold-light: #f0b429;
+            --nav-text:       #f5c842;        /* bright gold nav labels */
+            --submenu-bg:     #0d4a7a;
+            --submenu-hover:  #0a3a5e;
+            --card-teal-a:    #0fc0c0;        /* teal gradient start */
+            --card-teal-b:    #2dd4d4;        /* teal gradient end */
+            --card-border:    #e2e8f0;
+            --body-bg:        #f0f4f8;
+            --text-dark:      #1e2d3d;
+            --text-mid:       #475569;
+            --footer-bg:      #0d4a7a;
+            --footer-text:    #cbd5e1;
+            --gold-accent:    #d4950a;
+
+            --top-nav-height: 72px;
+            --main-nav-height: 52px;
+            --total-header:   124px;
+
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 14px rgba(0,0,0,0.12);
+            --shadow-lg: 0 10px 32px rgba(0,0,0,0.16);
+            --trans: all 0.22s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+        html { -webkit-font-smoothing: antialiased; }
+
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 14px;
+            background: var(--body-bg);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===========================
+           TOP HEADER
+        =========================== */
+        .top-nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: var(--top-nav-height);
+            background: var(--header-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 1000;
+            border-bottom: 2px solid #e8edf2;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        /* Logo */
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon-wrap {
+            width: 52px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Inline SVG logo matching Masco style */
+        .logo-svg { width: 52px; height: 52px; }
+
+        .logo-text-block {
+            display: flex;
+            flex-direction: column;
+            line-height: 1;
+        }
+
+        .logo-brand {
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            font-weight: 400;
+            color: #0d4a7a;
+            letter-spacing: 1px;
+        }
+
+        .logo-title {
+            font-family: 'Cinzel', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-dark);
+            letter-spacing: 3px;
+        }
+
+        /* Right side controls */
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Shared dropdown button style */
+        .hdr-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            transition: var(--trans);
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .hdr-btn:hover { background: #f0f4f8; }
+
+        .hdr-btn i.main-icon {
+            color: var(--text-dark);
+            font-size: 16px;
+        }
+
+        .hdr-btn .chevron {
+            font-size: 11px;
+            color: var(--text-mid);
+            transition: var(--trans);
+        }
+
+        .hdr-btn.open .chevron { transform: rotate(180deg); }
+
+        /* Dropdown menus */
+        .hdr-dropdown {
+            position: relative;
+        }
+
+        .hdr-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: var(--white);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid #e2e8f0;
+            min-width: 200px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: var(--trans);
+            z-index: 1200;
+            overflow: hidden;
+        }
+
+        .hdr-dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .hdr-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 16px;
+            font-size: 13px;
+            color: var(--text-dark);
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            transition: var(--trans);
+            text-decoration: none;
+        }
+
+        .hdr-menu-item:last-child { border-bottom: none; }
+
+        .hdr-menu-item:hover {
+            background: #f0f4f8;
+            padding-left: 22px;
+        }
+
+        .hdr-menu-item i { color: var(--nav-bg); font-size: 13px; width: 18px; text-align: center; }
+        .hdr-menu-item.active { background: #e8f0fe; color: var(--nav-bg); font-weight: 600; }
+        .hdr-menu-item.logout { color: #dc2626; }
+        .hdr-menu-item.logout i { color: #dc2626; }
+        .hdr-menu-item.logout:hover { background: #fef2f2; }
+
+        .divider-thin { height: 1px; background: #e2e8f0; }
+
+        /* ===========================
+           MAIN NAV BAR
+        =========================== */
+        .main-nav {
+            position: fixed;
+            top: var(--top-nav-height);
+            left: 0; right: 0;
+            height: var(--main-nav-height);
+            background: var(--nav-bg);
+            z-index: 999;
+            padding: 0 32px;
+            box-shadow: 0 3px 12px rgba(13,74,122,0.35);
+        }
+
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            align-items: stretch;
+            height: 100%;
+            gap: 0;
+        }
+
+        .nav-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0 18px;
+            height: 100%;
+            text-decoration: none;
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--nav-text);
+            letter-spacing: 0.3px;
+            transition: var(--trans);
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .nav-link i {
+            color: var(--nav-gold);
+            font-size: 15px;
+            transition: var(--trans);
+        }
+
+        /* Bottom active indicator */
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 50%;
+            width: 0; height: 3px;
+            background: var(--nav-gold-light);
+            border-radius: 3px 3px 0 0;
+            transition: var(--trans);
+            transform: translateX(-50%);
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: #fff;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after { width: 70%; }
+
+        .nav-link:hover i { color: var(--nav-gold-light); transform: translateY(-2px); }
+
+        /* Submenu arrow */
+        .nav-link.has-sub .sub-arrow {
+            font-size: 10px;
+            color: var(--nav-gold);
+            margin-left: 2px;
+            transition: var(--trans);
+        }
+
+        .nav-item:hover .nav-link.has-sub .sub-arrow { transform: rotate(180deg); }
+
+        /* Submenu */
+        .submenu {
+            position: absolute;
+            top: 100%; left: 0;
+            background: var(--submenu-bg);
+            border-radius: 0 0 var(--radius-md) var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            min-width: 240px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(8px);
+            transition: var(--trans);
+            z-index: 1100;
+            overflow: hidden;
+            border-top: 2px solid var(--nav-gold);
+        }
+
+        .nav-item:hover .submenu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .submenu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            text-decoration: none;
+            color: var(--nav-text);
+            font-size: 13px;
+            font-weight: 500;
+            transition: var(--trans);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .submenu-item:last-child { border-bottom: none; }
+
+        .submenu-item i {
+            color: var(--nav-gold);
+            width: 18px;
+            text-align: center;
+            font-size: 12px;
+            transition: var(--trans);
+        }
+
+        .submenu-item:hover {
+            background: var(--submenu-hover);
+            padding-left: 26px;
+            color: #fff;
+        }
+
+        .submenu-item:hover i { color: var(--nav-gold-light); }
+
+        /* ===========================
+           MAIN CONTENT
+        =========================== */
+        .main-content {
+            flex: 1;
+            margin-top: 50px;
+            padding: 28px 32px;
+        }
+
+        /* ===========================
+           STAT CARDS (teal gradient)
+        =========================== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--card-teal-a), var(--card-teal-b));
+            border-radius: var(--radius-md);
+            padding: 22px 20px 20px;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 18px rgba(15,192,192,0.35);
+            transition: var(--trans);
+            animation: fadeUp 0.5s ease both;
+        }
+
+        .stat-card:nth-child(2) { animation-delay: 0.1s; }
+        .stat-card:nth-child(3) { animation-delay: 0.2s; }
+        .stat-card:nth-child(4) { animation-delay: 0.3s; }
+
+        .stat-card:hover { transform: translateY(-4px); box-shadow: 0 8px 28px rgba(15,192,192,0.45); }
+
+        /* Decorative circle */
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -18px; right: -18px;
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.15);
+        }
+
+        .stat-card-icon {
+            font-size: 22px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-card-icon .emoji { font-size: 20px; }
+
+        .stat-card-label {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            margin-bottom: 12px;
+        }
+
+        .stat-card-rows { display: flex; flex-direction: column; gap: 4px; }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 3px 0;
+        }
+
+        .stat-row-branch { font-weight: 600; color: rgba(255,255,255,0.9); }
+        .stat-row-value { font-weight: 700; color: #fff; }
+        .stat-row-value.highlight { color: #ffeb3b; }
+
+        /* ===========================
+           FOOTER
+        =========================== */
+        .footer {
+            background: var(--footer-bg);
+            color: var(--footer-text);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12.5px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .footer-powered { font-style: italic; }
+        .footer-powered strong { color: var(--nav-gold-light); font-style: italic; }
+
+        /* ===========================
+           ANIMATIONS
+        =========================== */
+        @keyframes fadeUp {
+            from { opacity:0; transform: translateY(20px); }
+            to   { opacity:1; transform: translateY(0); }
+        }
+
+        /* ===========================
+           RESPONSIVE
+        =========================== */
+        @media (max-width: 1100px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            :root { --top-nav-height: 60px; --main-nav-height: 48px; --total-header: 108px; }
+            .top-nav, .main-nav, .main-content, .footer { padding-left: 16px; padding-right: 16px; }
+            .logo-title { font-size: 15px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .nav-menu { overflow-x: auto; }
+        }
+
+        /* ===========================
+           UTILITY
+        =========================== */
+        .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+    </style>
+</head>
+<body>
+
+    {% if messages %}
+    <script>
+        {% for message in messages %}
+            Swal.fire({
+                title: "{% if message.tags == 'error' %}Error!{% else %}Success!{% endif %}",
+                text: "{{ message|escapejs }}",
+                icon: "{% if message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% elif message.tags == 'info' %}info{% else %}success{% endif %}",
+                confirmButtonText: "OK"
+            });
+        {% endfor %}
+    </script>
+    {% endif %}
+
+    <!-- ====== TOP HEADER ====== -->
+    <nav class="top-nav">
+        <!-- Logo -->
+        <div class="logo-area">
+            <div class="logo-icon-wrap">
+                <!-- Masco SVG Logo -->
+                <img src="{% static 'app/masco.png' %}" alt="" height="50px" width="auto">
+            </div>
+            <div class="logo-text-block">
+                <span class="logo-brand">masco</span>
+                <span class="logo-title">DIGITAL SYSTEM</span>
+            </div>
+        </div>
+
+        <!-- Right controls -->
+        <div class="header-right">
+
+            <!-- Branch / Office dropdown -->
+            <div class="hdr-dropdown" id="branchDropdownWrap">
+                {% if user.is_superuser %}
+                <button class="hdr-btn" id="branchBtn">
+                    <i class="fas fa-home main-icon"></i>
+                    <span id="branchLabel">{{ request.session.selected_office_name }}</span>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </button>
+                <div class="hdr-dropdown-menu" id="branchMenu">
+                    <a class="hdr-menu-item {% if not request.session.selected_office_id %}active{% endif %}"
+                       data-url="{% url 'switch_branch' %}?next={{ request.path }}">
+                        <i class="fas fa-globe"></i> All Branches
+                    </a>
+                    {% for office in offices %}
+                    <a class="hdr-menu-item {% if request.session.selected_office_id == office.id %}active{% endif %}"
+                       data-url="{% url 'switch_branch' %}?office_id={{ office.id }}&next={{ request.path }}">
+                        <i class="fas fa-building"></i> {{ office.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="hdr-btn" style="cursor:default;">
+                    <i class="fas fa-home main-icon"></i>
+                    <span>{{ user.office_allocation.name|default:"No Office" }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- User profile dropdown -->
+            <div class="hdr-dropdown" id="profileDropdownWrap">
+                <button class="hdr-btn" id="profileBtn">
+                    <i class="fas fa-user-circle main-icon"></i>
+                    <span>{{ user.get_full_name|default:"YAHYA" }}</span>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </button>
+                <div class="hdr-dropdown-menu" id="profileMenu">
+                    <div style="padding:14px 16px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+                        <div style="font-weight:700; font-size:14px;">{{ user.get_full_name }}</div>
+                        <div style="font-size:12px; color:#64748b; margin-top:2px;">{{ user.role }}</div>
+                    </div>
+                    <a href="#" class="hdr-menu-item"><i class="fas fa-user-circle"></i> My Profile</a>
+                    <a href="{% url 'logout' %}" class="hdr-menu-item logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <!-- ====== MAIN NAV BAR ====== -->
+    <nav class="main-nav">
+        <ul class="nav-menu">
+
+            <li class="nav-item">
+                <a href="{% url 'index' %}" class="nav-link active">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+
+            {% if selected_office.name == "HQ" %}
+            <li class="nav-item">
+                <a href="#" class="nav-link has-sub">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Registrations</span>
+                    <i class="fas fa-chevron-down sub-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="{% url 'staff_list' %}" class="submenu-item"><i class="fas fa-user-tie"></i> Register Staff</a>
+                    <a href="{% url 'office' %}" class="submenu-item"><i class="fas fa-building"></i> Register Office Account</a>
+                    <a href="{% url 'expense_category_list' %}" class="submenu-item"><i class="fas fa-building"></i>Office Expenses Registration</a>
+                    <a href="{% url 'staff_salary_list' %}" class="submenu-item"><i class="fas fa-money-bill-wave"></i> Staff Salary</a>
+                    <a href="{% url 'salary_advance_list' %}" class="submenu-item"><i class="fas fa-money-bill-wave"></i> Staff Specific Deduction</a>
+                    <a href="{% url 'nyongeza' %}" class="submenu-item"><i class="fas fa-percentage"></i> Nyongeza</a>
+                    <a href="{% url 'transfer_staff' %}" class="submenu-item"><i class="fas fa-exchange-alt"></i> Transfer Staff</a>
+                    <a href="{% url 'manage_admin_branches' %}" class="submenu-item"><i class="fas fa-tags"></i> Manage Staff Branch</a>
+                    <a href="{% url 'block_user' %}" class="submenu-item"><i class="fas fa-ban"></i> Block User</a>
+                    <a href="{% url 'blocked_staff_list' %}" class="submenu-item"><i class="fas fa-user-slash"></i> Blocked Staff</a>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link has-sub">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transaction</span>
+                    <i class="fas fa-chevron-down sub-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="{% url 'office_transaction_list' %}" class="submenu-item"><i class="fas fa-money-check-alt"></i> Office Transaction**</a>
+                    <a href="{% url 'payroll_filter' %}" class="submenu-item"><i class="fas fa-money-check-alt"></i> Salary Payment</a>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link has-sub">
+                    <i class="fas fa-envelope"></i>
+                    <span>Reports</span>
+                    <i class="fas fa-chevron-down sub-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="{% url 'loans_issued_report_filter' %}" class="submenu-item"><i class="fas fa-hand-holding-usd"></i> Loans Issued</a>
+                    <a href="#" class="submenu-item"><i class="fas fa-file-invoice-dollar"></i> Loans Owed</a>
+                    <a href="{% url 'monthly_outstanding_filter_summary' %}" class="submenu-item"><i class="fas fa-file-invoice-dollar"></i> Repayment Scheduled</a>
+                    <a href="{% url 'expired_loans_report_summary' %}" class="submenu-item"><i class="fas fa-exclamation-triangle"></i> Expired Loan</a>
+                    <a href="{% url 'bank_transfer_expenses_filter' %}" class="submenu-item"><i class="fas fa-credit-card"></i> Bank Transfer Expenses</a>
+                    <a href="{% url 'expenses_statement_filter' %}" class="submenu-item"><i class="fas fa-file-alt"></i> Expenses Statement</a>
+                    <a href="{% url 'general_financial_statement_filter' %}" class="submenu-item"><i class="fas fa-balance-scale"></i> HQ Financial Statement</a>
+                    <a href="{% url 'branch_financial_summary_filter' %}" class="submenu-item"><i class="fas fa-chart-line"></i> Financial Statement</a>
+                    <a href="{% url 'salary_slip_filter' %}" class="submenu-item"><i class="fas fa-receipt"></i> Salary Slip</a>
+                </div>
+            </li>
+            
+            {% else %}
+
+            <li class="nav-item">
+                <a href="#" class="nav-link has-sub">
+                    <i class="fas fa-file-signature"></i>
+                    <span>Loan Applications</span>
+                    <i class="fas fa-chevron-down sub-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="{% url 'customer_plan_calculator' %}" class="submenu-item"><i class="fas fa-calculator"></i> Customer Plan Calculator</a>
+                    <a href="{% url 'loan_calculator' %}" class="submenu-item"><i class="fas fa-coins"></i> Loan Calculator</a>
+                    <a href="{% url 'clients' %}" class="submenu-item"><i class="fas fa-hand-holding-usd"></i> Process Loans</a>
+                </div>
+            </li>
+
+            <li class="nav-item">
+                <a href="#" class="nav-link has-sub">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transaction</span>
+                    <i class="fas fa-chevron-down sub-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="{% url 'loan_payment_page' %}" class="submenu-item"><i class="fas fa-university"></i> Loan Payment</a>
+                    <a href="{% url 'office_transaction_page' %}" class="submenu-item"><i class="fas fa-university"></i> Office Transaction</a>
+                </div>
+            </li>
+
+            
+
+            <li class="nav-item">
+                <a href="#" class="nav-link has-sub">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Customer Report</span>
+                    <i class="fas fa-chevron-down sub-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="{% url 'loan_receipt_select' %}" class="submenu-item"><i class="fas fa-receipt"></i> Payment Receipt</a>
+                    <a href="{% url 'loan_outstanding_select' %}" class="submenu-item"><i class="fas fa-file-invoice-dollar"></i> Customer Loans Report</a>
+                    <a href="{% url 'customer_statement_select' %}" class="submenu-item"><i class="fas fa-file-alt"></i> Customer Statement</a>
+                </div>
+            </li>
+
+            <li class="nav-item">
+                <a href="#" class="nav-link has-sub">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Office Reports</span>
+                    <i class="fas fa-chevron-down sub-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="{% url 'branch_transaction_statement' %}" class="submenu-item"><i class="fas fa-file-invoice"></i> Transaction Statement</a>
+                    <a href="{% url 'loan_collection_statement' %}" class="submenu-item"><i class="fas fa-hand-holding-usd"></i> Loans Collection Statement</a>
+                    <a href="{% url 'bank_transfer_expenses' %}" class="submenu-item"><i class="fas fa-university"></i> Bank Transfer Expenses</a>
+                    <a href="{% url 'bank_cash_transfer' %}" class="submenu-item"><i class="fas fa-exchange-alt"></i> Money Transfer Statement</a>
+                    <a href="{% url 'loan_issued_filter' %}" class="submenu-item"><i class="fas fa-money-check-alt"></i> Loans Issued</a>
+                    <a href="{% url 'loan_report' %}" class="submenu-item"><i class="fas fa-file-invoice-dollar"></i> Loans Report</a>
+                    <a href="{% url 'no_loan_customers' %}" class="submenu-item"><i class="fas fa-file-invoice-dollar"></i> Completed Customers</a>
+                    <a href="#" class="submenu-item"><i class="fas fa-file-invoice-dollar"></i> Hazina Loan Reports</a>
+                    <a href="{% url 'expired_loans' %}" class="submenu-item"><i class="fas fa-hourglass-end"></i> Expired Loans</a>
+                    <a href="{% url 'loans_owed_summary' %}" class="submenu-item"><i class="fas fa-exclamation-circle"></i> Loans Owed</a>
+                    <a href="{% url 'monthly_outstanding_filter' %}" class="submenu-item"><i class="fas fa-calendar-alt"></i> Repayment Schedule</a>
+                    <a href="{% url 'expenses_filter' %}" class="submenu-item"><i class="fas fa-receipt"></i> Expenses Statement</a>
+                    <a href="{% url 'financial_statement_filter' %}" class="submenu-item"><i class="fas fa-balance-scale"></i> Financial Statement</a>
+                    <a href="{% url 'monthly_repayment_filter' %}" class="submenu-item"><i class="fas fa-calendar-week"></i> Monthly-Wise Repayment</a>
+                </div>
+            </li>
+
+            {% endif %}
+
+
+        </ul>
+    </nav>
+
+    <!-- ====== CONTENT BLOCK ====== -->
+    <main class="main-content">
+        {% block content %}
+
+
+        {% endblock %}
+    </main>
+
+    <!-- ====== FOOTER ====== -->
+    <footer class="footer">
+        <span>Copyright &copy; 2026 <strong>MASCO FINANCE Company Limited</strong> , All rights reserved.</span>
+        <span class="footer-powered">Powered by <strong><em>MASCO Technology</em></strong></span>
+    </footer>
+
+    <script>
+        // ===== Header dropdowns =====
+        function setupDropdown(btnId, menuId) {
+            const btn = document.getElementById(btnId);
+            const menu = document.getElementById(menuId);
+            if (!btn || !menu) return;
+
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const isOpen = menu.classList.contains('show');
+                // Close all
+                document.querySelectorAll('.hdr-dropdown-menu').forEach(m => m.classList.remove('show'));
+                document.querySelectorAll('.hdr-btn').forEach(b => b.classList.remove('open'));
+                if (!isOpen) {
+                    menu.classList.add('show');
+                    btn.classList.add('open');
+                }
+            });
+        }
+
+        setupDropdown('branchBtn', 'branchMenu');
+        setupDropdown('profileBtn', 'profileMenu');
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.hdr-dropdown-menu').forEach(m => m.classList.remove('show'));
+            document.querySelectorAll('.hdr-btn').forEach(b => b.classList.remove('open'));
+        });
+
+        // Branch item navigation
+        document.querySelectorAll('#branchMenu .hdr-menu-item[data-url]').forEach(item => {
+            item.addEventListener('click', function () {
+                const url = this.dataset.url;
+                if (url) window.location.href = url;
+            });
+        });
+
+        // ===== Nav active state =====
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function () {
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // ===== Keyboard shortcuts =====
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.hdr-dropdown-menu').forEach(m => m.classList.remove('show'));
+                document.querySelectorAll('.hdr-btn').forEach(b => b.classList.remove('open'));
+            }
+        });
+    </script>
+</body>
+</html>

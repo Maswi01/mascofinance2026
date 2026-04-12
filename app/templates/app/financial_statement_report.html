@@ -1,0 +1,513 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+    /* ── Page layout ─────────────────────────────────────────── */
+    .fs-page {
+        max-width: 800px;
+        margin: 70px auto 60px;
+        padding: 0 16px;
+        font-family: Arial, sans-serif;
+    }
+    .fs-topbar {
+        background: #7fc8d9;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 10px 20px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .fs-card {
+        background: #fff;
+        border: 1px solid #ccc;
+        padding: 0 0 16px;
+    }
+
+    /* ── Letterhead ──────────────────────────────────────────── */
+    .company-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px 30px 14px;
+        border-bottom: 2px solid #8b0000;
+        justify-content: center;
+        text-align: center;
+    }
+    .company-logo img { width: 72px; height: auto; }
+    .company-name {
+        font-size: 24px;
+        font-weight: 900;
+        color: #2471a3;
+        text-transform: uppercase;
+        line-height: 1.1;
+    }
+    .company-sub     { font-size: 12px; font-weight: 600; color: #1a1a1a; margin-top: 2px; }
+    .company-contact { font-size: 11px; color: #1a1a1a; margin-top: 2px; }
+
+    /* ── Titles ──────────────────────────────────────────────── */
+    .fs-branch {
+        font-size: 14px; font-weight: 700; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        margin: 18px 0 5px; text-transform: uppercase;
+    }
+    .fs-title {
+        font-size: 13px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        margin-bottom: 18px; text-transform: uppercase;
+    }
+
+    /* ── Main table ──────────────────────────────────────────── */
+    .fs-table {
+        width: calc(100% - 60px);
+        margin: 0 30px;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .fs-table th {
+        padding: 9px 14px;
+        text-align: left;
+        font-weight: 700;
+        border: 1px solid #bbb;
+        background: #fff;
+    }
+    .fs-table th.amt { text-align: right; }
+    .fs-table td {
+        padding: 9px 14px;
+        color: #1a1a1a;
+        border: 1px solid #ddd;
+        font-size: 13px;
+        vertical-align: middle;
+    }
+    .fs-table td.amt { text-align: right; white-space: nowrap; }
+
+    /* ── Row types ───────────────────────────────────────────── */
+
+    /* Major section header  e.g. "INCOME", "EXPENDITURE" */
+    .fs-table tr.section-header td {
+        background: #e8f4f8;
+        font-weight: 800;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #1a3a4a;
+        border-top: 2px solid #7fc8d9;
+        border-bottom: 1px solid #b0d8e8;
+        padding: 8px 14px;
+    }
+
+    /* Sub-section header  e.g. "Matumizi Ofisini" */
+    .fs-table tr.section-subheader td {
+        background: #f5f9fb;
+        font-weight: 700;
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: #34607a;
+        border-top: 1px dashed #b0cfe0;
+        padding: 6px 14px 6px 22px;
+    }
+
+    .fs-table tr.opening td { font-weight: 700; }
+
+    /* Separator */
+    .fs-table tr.sep td { padding: 4px; border: none; background: #f7f7f7; }
+
+    /* Main subtotal  (bold, double-underline style) */
+    .fs-table tr.subtotal td {
+        border-top: 2px solid #999;
+        border-bottom: 2px solid #999;
+        background: #fafafa;
+    }
+    .fs-table tr.subtotal td.amt { font-weight: 700; text-decoration: underline; }
+
+    /* Minor subtotal per sub-section */
+    .fs-table tr.subtotal-minor td {
+        background: #f0f6fa;
+        font-weight: 600;
+        border-top: 1px solid #c0d8e8;
+        border-bottom: 1px solid #c0d8e8;
+    }
+    .fs-table tr.subtotal-minor td.amt { font-weight: 700; }
+
+    /* Transfer received — green tint */
+    .fs-table tr.transfer-in-row td {
+        background: #f0fff4;
+        color: #1a6b3a;
+        font-weight: 600;
+    }
+
+    /* Transfer sent out — blue tint */
+    .fs-table tr.transfer-out-row td {
+        background: #f0f6ff;
+        color: #1a3a8a;
+        font-weight: 600;
+    }
+
+    /* Loan disbursement — amber tint */
+    .fs-table tr.loan-out-row td {
+        background: #fff8f0;
+        color: #7a3000;
+        font-weight: 600;
+    }
+
+    /* HQ transfer — purple tint */
+    .fs-table tr.hq-row td {
+        background: #fdf0ff;
+        color: #5a006b;
+        font-weight: 600;
+    }
+
+    /* Bank deductions — red tint */
+    .fs-table tr.makato-row td {
+        background: #fff0f0;
+        color: #7a0000;
+        font-weight: 600;
+    }
+
+    /* Empty / nil notice */
+    .fs-table tr.nil-row td {
+        text-align: center;
+        color: #aaa;
+        font-style: italic;
+        padding: 8px 14px;
+        border: none;
+        background: #fafafa;
+    }
+
+    /* ── Action bar ──────────────────────────────────────────── */
+    .action-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 30px 4px;
+    }
+    .back-link { font-size: 13px; color: #2980b9; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .btn-group { display: flex; gap: 6px; }
+    .save-pdf-btn, .print-btn {
+        padding: 5px 16px;
+        background: #fff;
+        border: 1px solid #888;
+        border-radius: 2px;
+        font-size: 13px;
+        cursor: pointer;
+        color: #333;
+    }
+    .save-pdf-btn:hover, .print-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row, .fs-topbar { display: none !important; }
+    }
+</style>
+
+<div class="fs-page">
+
+    <div class="fs-topbar no-print">
+        <span>Financial Statement</span>
+    </div>
+
+    <div class="fs-card">
+        <div class="printable" id="fsContent">
+
+            <!-- ── Letterhead ───────────────────────────────────────── -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515 &nbsp;|&nbsp; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="fs-branch">{{ branch_name }} BRANCH</div>
+            <div class="fs-title">
+                Financial Statement &mdash; {{ date_from_display }} to {{ date_to_display }}
+            </div>
+
+            <table class="fs-table" id="fsTable">
+                <thead>
+                    <tr>
+                        <th>Particular</th>
+                        <th class="amt">Amount (TZS)</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <!-- ════════════════════════════════════════════════ -->
+                    <!--  OPENING BALANCE                                 -->
+                    <!-- ════════════════════════════════════════════════ -->
+                    <tr class="opening">
+                        <td>Opening Balance</td>
+                        <td class="amt">{{ opening_stock|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <tr class="sep"><td colspan="2"></td></tr>
+
+                    <!-- ════════════════════════════════════════════════ -->
+                    <!--  INCOME  (Inflows)                               -->
+                    <!-- ════════════════════════════════════════════════ -->
+
+                    <tr>
+                        <td>MAPATO</td>
+                        <td class="amt">
+                            {% if total_mapato %}{{ total_mapato|floatformat:0|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+
+                    <tr class="transfer-in-row">
+                        <td>NYONGEZA</td>
+                        <td class="amt">
+                            {% if total_transfers_in %}{{ total_transfers_in|floatformat:0|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>HAZINA</td>
+                        <td class="amt">
+                            {% if total_hazina %}{{ total_hazina|floatformat:0|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Jumla ya Mapato (incl. Opening Balance) -->
+                    <tr class="subtotal">
+                        <td></td>
+                        <td class="amt">{{ total_income_with_opening|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <tr class="sep"><td colspan="2"></td></tr>
+
+                    <!-- ════════════════════════════════════════════════ -->
+                    <!--  EXPENDITURE  (Outflows)                         -->
+                    <!-- ════════════════════════════════════════════════ -->
+
+                    <!-- ── 0. FOMU (Loan Disbursements) ──────────────── -->
+                    <tr class="subtotal-minor loan-out-row">
+                        <td>FOMU</td>
+                        <td class="amt">
+                            {% if total_loans_disbursed %}{{ total_loans_disbursed|floatformat:0|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+
+                    <tr class="sep"><td colspan="2"></td></tr>
+
+                    <!-- ── 1. MATUMIZI OFISINI ────────────────────────── -->
+                    <tr class="subtotal-minor">
+                        <td>MATUMIZI OFISINI</td>
+                        <td class="amt">
+                            {% if total_matumizi_ofisini %}{{ total_matumizi_ofisini|floatformat:0|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+
+                    <tr class="sep"><td colspan="2"></td></tr>
+
+                    <!-- ── 2. MATUMIZI BENKI-[KITUO] ──────────────────── -->
+                    <tr class="subtotal-minor">
+                        <td>MATUMIZI BENKI-[KITUO]</td>
+                        <td class="amt">
+                            {% if total_matumizi_kituo %}{{ total_matumizi_kituo|floatformat:0|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+
+                    <tr class="sep"><td colspan="2"></td></tr>
+
+                    <!-- ── 3. MATUMIZI BENKI-[MKURUGENZI] ────────────── -->
+                    <tr class="subtotal-minor">
+                        <td>MATUMIZI BENKI-[MKURUGENZI]</td>
+                        <td class="amt">
+                            {% if total_matumizi_mkurugenzi %}{{ total_matumizi_mkurugenzi|floatformat:0|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+
+                    <tr class="sep"><td colspan="2"></td></tr>
+
+                    <!-- ── 4. MAKATO BANK ─────────────────────────────── -->
+                    <tr class="subtotal-minor makato-row">
+                        <td>MAKATO BANK</td>
+                        <td class="amt">
+                            {% if total_makato_benki %}{{ total_makato_benki|floatformat:0|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- ── Grand Expenditure total ─────────────────── -->
+                    <tr class="sep"><td colspan="2"></td></tr>
+                    <tr class="subtotal">
+                        <td></td>
+                        <td class="amt">{{ total_outflow_current|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <tr class="sep"><td colspan="2"></td></tr>
+
+                    <!-- ════════════════════════════════════════════════ -->
+                    <!--  CLOSING BALANCE                                 -->
+                    <!-- ════════════════════════════════════════════════ -->
+
+                    <tr>
+                        <td>BALANCE CASH</td>
+                        <td class="amt">{{ cash_in_office|floatformat:0|intcomma }}</td>
+                    </tr>
+                    <tr>
+                        <td>BALANCE BENKI</td>
+                        <td class="amt">{{ cash_in_bank|floatformat:0|intcomma }}</td>
+                    </tr>
+                    <tr class="subtotal">
+                        <td></td>
+                        <td class="amt">{{ total_cash|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                </tbody>
+            </table>
+
+        </div><!-- /.printable -->
+
+        <!-- ── Action bar ──────────────────────────────────────────── -->
+        <div class="action-row no-print">
+            <a class="back-link" href="{% url 'financial_statement_filter' %}">&#8592; Change date range</a>
+            <div class="btn-group">
+                <button class="save-pdf-btn" onclick="savePDF()">SAVE PDF</button>
+                <button class="print-btn"    onclick="window.print()">PRINT</button>
+            </div>
+        </div>
+
+    </div><!-- /.fs-card -->
+</div><!-- /.fs-page -->
+
+<script>
+function savePDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pw  = doc.internal.pageSize.getWidth();
+
+    // ── Letterhead ─────────────────────────────────────────────────
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+    doc.text('MASCO FINANCE CO. LTD', pw / 2, 50, { align: 'center' });
+
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text('P.O.BOX 30474—KIBAHA | TANZANIA', pw / 2, 63, { align: 'center' });
+    doc.text('Mobile: +255 718 544 515  |  Email: mascofinance@gmail.com', pw / 2, 74, { align: 'center' });
+
+    doc.setLineWidth(0.8); doc.setDrawColor(139, 0, 0);
+    doc.line(40, 80, pw - 40, 80);
+
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+    doc.text('{{ branch_name }} BRANCH', pw / 2, 96, { align: 'center' });
+    doc.text('FINANCIAL STATEMENT', pw / 2, 110, { align: 'center' });
+
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    doc.text('From {{ date_from_display }} To {{ date_to_display }}', pw / 2, 123, { align: 'center' });
+
+    // ── Build table rows from DOM (skip .sep rows) ──────────────────
+    const table    = document.getElementById('fsTable');
+    const allRows  = Array.from(table.querySelectorAll('tbody tr'));
+    const dataRows = allRows.filter(tr => !tr.classList.contains('sep'));
+
+    const rows = dataRows.map(tr => {
+        const cells = Array.from(tr.querySelectorAll('td'));
+        if (tr.classList.contains('section-header')) {
+            return [{
+                content:  cells[0].innerText.trim().toUpperCase(),
+                colSpan:  2,
+                styles: {
+                    fontStyle:   'bold',
+                    fillColor:   [232, 244, 248],
+                    textColor:   [26, 58, 74],
+                    fontSize:    10,
+                }
+            }];
+        }
+        if (tr.classList.contains('section-subheader')) {
+            return [{
+                content: cells[0].innerText.trim().toUpperCase(),
+                colSpan: 2,
+                styles: {
+                    fontStyle:  'bold',
+                    fillColor:  [245, 249, 251],
+                    textColor:  [52, 96, 122],
+                    fontSize:   9,
+                }
+            }];
+        }
+        return cells.map(td => td.innerText.trim());
+    }).filter(r => r && r.length > 0);
+
+    doc.autoTable({
+        head: [['Particular', 'Amount (TZS)']],
+        body: rows,
+        startY: 133,
+        styles:    { fontSize: 10, cellPadding: 5 },
+        headStyles: {
+            fillColor: [255, 255, 255], textColor: [0, 0, 0],
+            fontStyle: 'bold', lineWidth: 0.5, lineColor: [180, 180, 180]
+        },
+        columnStyles: { 1: { halign: 'right' } },
+        didParseCell: function (data) {
+            const tr = dataRows[data.row.index];
+            if (!tr) return;
+
+            if (tr.classList.contains('subtotal')) {
+                data.cell.styles.fontStyle  = 'bold';
+                data.cell.styles.lineWidth  = { top: 1.5, bottom: 1.5, left: 0.2, right: 0.2 };
+                data.cell.styles.fillColor  = [250, 250, 250];
+            }
+            if (tr.classList.contains('subtotal-minor')) {
+                data.cell.styles.fontStyle  = 'bold';
+                data.cell.styles.fillColor  = [240, 246, 250];
+                data.cell.styles.lineWidth  = { top: 0.8, bottom: 0.8, left: 0.2, right: 0.2 };
+            }
+            if (tr.classList.contains('opening')) {
+                data.cell.styles.fontStyle  = 'bold';
+            }
+            if (tr.classList.contains('transfer-in-row')) {
+                data.cell.styles.fillColor  = [240, 255, 244];
+                data.cell.styles.textColor  = [26, 107, 58];
+                data.cell.styles.fontStyle  = 'bold';
+            }
+            if (tr.classList.contains('transfer-out-row')) {
+                data.cell.styles.fillColor  = [240, 246, 255];
+                data.cell.styles.textColor  = [26, 58, 138];
+                data.cell.styles.fontStyle  = 'bold';
+            }
+            if (tr.classList.contains('loan-out-row')) {
+                data.cell.styles.fillColor  = [255, 248, 240];
+                data.cell.styles.textColor  = [122, 48, 0];
+                data.cell.styles.fontStyle  = 'bold';
+            }
+            if (tr.classList.contains('hq-row')) {
+                data.cell.styles.fillColor  = [253, 240, 255];
+                data.cell.styles.textColor  = [90, 0, 107];
+                data.cell.styles.fontStyle  = 'bold';
+            }
+            if (tr.classList.contains('makato-row')) {
+                data.cell.styles.fillColor  = [255, 240, 240];
+                data.cell.styles.textColor  = [122, 0, 0];
+                data.cell.styles.fontStyle  = 'bold';
+            }
+            if (tr.classList.contains('nil-row')) {
+                data.cell.styles.textColor  = [170, 170, 170];
+                data.cell.styles.fontStyle  = 'italic';
+                data.cell.styles.fillColor  = [250, 250, 250];
+            }
+        },
+    });
+
+    const filename = 'financial_statement_{{ date_from_display }}_{{ date_to_display }}.pdf'
+        .replace(/\//g, '-');
+    doc.save(filename);
+}
+</script>
+
+{% endblock %}

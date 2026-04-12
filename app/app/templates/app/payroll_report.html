@@ -1,0 +1,297 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .pr-wrapper {
+        max-width: 1600px;
+        margin: 20px auto 60px;
+        padding: 0 16px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .pr-title {
+        font-size: 16px; font-weight: 700; color: #1a1a1a;
+        padding-bottom: 10px; border-bottom: 1.5px solid #bbb;
+        margin-bottom: 20px; text-transform: uppercase;
+    }
+
+    /* Messages */
+    .alert { padding: 10px 16px; border-radius: 3px; margin-bottom: 14px; font-size: 13px; }
+    .alert-success { background:#d5f5e3; border:1px solid #82e0aa; color:#1e8449; }
+    .alert-info    { background:#d6eaf8; border:1px solid #85c1e9; color:#1a5276; }
+    .alert-warning { background:#fef9e7; border:1px solid #f9e79f; color:#7d6608; }
+    .alert-error   { background:#fde8e8; border:1px solid #f5b7b1; color:#c0392b; }
+
+    /* Top toolbar */
+    .toolbar {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 12px; flex-wrap: wrap; gap: 10px;
+    }
+    .toolbar-left  { display: flex; align-items: center; gap: 8px; }
+    .toolbar-right { display: flex; align-items: center; gap: 8px; }
+    .btn {
+        padding: 6px 16px; border: none; border-radius: 2px;
+        font-size: 13px; cursor: pointer; font-family: Arial, sans-serif;
+        font-weight: 600; transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-select-all  { background: #2d6ae3; color: #fff; }
+    .btn-deselect    { background: #95a5a6; color: #fff; }
+    .btn-select-unpaid { background: #8e44ad; color: #fff; }
+    .btn-print       { background: #fff; color: #333; border: 1px solid #888; font-weight: 400; }
+    .btn-back        { background: #fff; color: #9b59b6; border: 1px solid #9b59b6; font-weight: 400; text-decoration: none; display:inline-flex; align-items:center; }
+
+    /* Table */
+    .pr-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 12px;
+    }
+    .pr-table thead th {
+        padding: 8px 6px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 11.5px;
+        border: 1px solid #ccc; background: #fff; white-space: nowrap;
+    }
+    .pr-table thead th.num { text-align: right; }
+
+    .pr-table tbody tr { border-bottom: 1px solid #e8e8e8; }
+    .pr-table tbody tr:nth-child(even) { background: #fafafa; }
+    .pr-table tbody tr:hover           { background: #f0f6ff; }
+    .pr-table tbody tr.already-paid    { background: #f0fff4; }
+    .pr-table tbody tr.already-paid:hover { background: #e0f7ea; }
+
+    .pr-table td {
+        padding: 6px 6px; color: #1a1a1a;
+        border-right: 1px solid #ececec;
+        vertical-align: middle; font-size: 12px;
+        white-space: nowrap;
+    }
+    .pr-table td:last-child { border-right: none; }
+    .pr-table td.num { text-align: right; }
+    .pr-table td.dash { text-align: center; color: #bbb; }
+
+    /* No cell — contains row number + checkbox */
+    .no-cell {
+        display: flex; align-items: center; gap: 5px;
+        white-space: nowrap;
+    }
+    .pr-table input[type="checkbox"] {
+        width: 14px; height: 14px; cursor: pointer;
+        accent-color: #2d6ae3;
+    }
+    .pr-table input[type="checkbox"]:disabled {
+        cursor: not-allowed; accent-color: #27ae60;
+    }
+    .paid-tick { color: #27ae60; font-size: 12px; font-weight: 700; }
+
+    /* Grand total */
+    .grand-total-row td {
+        background: #d4b97a !important;
+        font-weight: 700; font-size: 12.5px;
+        padding: 8px 6px;
+        border-top: 2px solid #b89650;
+        border-right: 1px solid #b89650;
+    }
+    .grand-total-row td:last-child { border-right: none; }
+    .grand-total-row td.num { text-align: right; }
+
+    /* Bottom submit form */
+    .submit-section {
+        margin-top: 24px; padding-top: 16px;
+        border-top: 1px solid #e0e0e0;
+        display: flex; align-items: center; gap: 40px; flex-wrap: wrap;
+    }
+    .sf-field { display: flex; align-items: center; gap: 14px; }
+    .sf-label { font-size: 13.5px; color: #333; white-space: nowrap; }
+    .sf-date {
+        padding: 8px 12px; border: 1px solid #ccc; border-radius: 2px;
+        font-size: 13px; min-width: 185px; outline: none;
+        transition: border-color 0.15s;
+    }
+    .sf-date:focus { border-color: #1abc9c; }
+    .btn-submit {
+        padding: 9px 36px; background: #1a7a4a; color: #fff;
+        border: none; border-radius: 3px; font-size: 14px;
+        font-weight: 700; cursor: pointer; font-family: Arial, sans-serif;
+    }
+    .btn-submit:hover { background: #155f3a; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .toolbar, .submit-section { display: none !important; }
+        .pr-table { font-size: 9pt; }
+        .pr-table th, .pr-table td { padding: 3px 4px; }
+    }
+</style>
+
+<div class="pr-wrapper">
+
+    <!-- Alerts -->
+    {% if messages %}
+        {% for msg in messages %}
+        <div class="alert
+            {% if 'success' in msg.tags %}alert-success
+            {% elif 'info' in msg.tags %}alert-info
+            {% elif 'warning' in msg.tags %}alert-warning
+            {% else %}alert-error{% endif %}">
+            {{ msg }}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <a href="{% url 'payroll_filter' %}" class="btn btn-back">← Change month</a>
+        </div>
+        <div class="toolbar-right">
+            <button type="button" class="btn btn-select-unpaid" onclick="selectUnpaid()">Select Unpaid</button>
+            <button type="button" class="btn btn-select-all"    onclick="selectAll(true)">Select All</button>
+            <button type="button" class="btn btn-deselect"      onclick="selectAll(false)">Deselect All</button>
+            <button type="button" class="btn btn-print"         onclick="window.print()">PRINT</button>
+        </div>
+    </div>
+
+    <div class="pr-title">Payroll {{ payroll_month }}</div>
+
+    <form method="POST" action="{% url 'payroll_submit' %}" id="payrollForm">
+        {% csrf_token %}
+        <input type="hidden" name="payroll_month" value="{{ payroll_month }}">
+
+        <div class="printable">
+        <table class="pr-table">
+            <thead>
+                <tr>
+                    <th style="width:70px;">No</th>
+                    <th style="min-width:170px;">Name</th>
+                    <th style="min-width:120px;">Account Number</th>
+                    <th class="num">Basic Salary</th>
+                    <th class="num">Deduction amount</th>
+                    <th class="num">Salary Advance</th>
+                    <th class="num">Staff loan</th>
+                    <th class="num">NSSF</th>
+                    <th class="num">PAYE</th>
+                    <th class="num">Total Deduction</th>
+                    <th class="num">Net Pay</th>
+                    <th class="num">Open Balance</th>
+                    <th class="num">Closing Advances</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in staff_rows %}
+                <tr class="{% if row.already_paid %}already-paid{% endif %}"
+                    data-paid="{{ row.already_paid|yesno:'1,0' }}">
+                    <td>
+                        <div class="no-cell">
+                            <span>{{ forloop.counter }}</span>
+                            {% if row.already_paid %}
+                                <input type="checkbox" name="pay_ids" value="{{ row.user.id }}"
+                                       checked disabled title="Already paid for {{ payroll_month }}">
+                                <span class="paid-tick">✓</span>
+                            {% else %}
+                                <input type="checkbox" name="pay_ids" value="{{ row.user.id }}"
+                                       class="pay-cb">
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>{{ row.user.get_full_name }}</td>
+                    <td>{{ row.user.bank_account_number|default:'' }}</td>
+
+                    <!-- Basic Salary: show 0 if zero (matches screenshot) -->
+                    <td class="num">{{ row.basic_salary|floatformat:0|intcomma }}</td>
+
+                    <!-- Deduction amount -->
+                    <td class="num">{{ row.deduction_amount|floatformat:0|intcomma }}</td>
+
+                    <!-- Salary Advance: '-' if zero -->
+                    <td class="dash">
+                        {% if row.salary_advance %}-{% else %}-{% endif %}
+                    </td>
+
+                    <!-- Staff loan: '-' if zero -->
+                    <td class="dash">-</td>
+
+                    <!-- NSSF: show value or '-' -->
+                    <td class="num">
+                        {% if row.nssf %}<span>{{ row.nssf|floatformat:0|intcomma }}</span>
+                        {% else %}<span style="color:#bbb;">-</span>{% endif %}
+                    </td>
+
+                    <!-- PAYE: '-' until field is added -->
+                    <td class="dash">-</td>
+
+                    <!-- Total Deduction -->
+                    <td class="num">{{ row.total_deduction|floatformat:0|intcomma }}</td>
+
+                    <!-- Net Pay -->
+                    <td class="num">{{ row.net_pay|floatformat:0|intcomma }}</td>
+
+                    <!-- Open Balance -->
+                    <td class="dash">-</td>
+
+                    <!-- Closing Advances -->
+                    <td class="dash">-</td>
+                </tr>
+                {% endfor %}
+
+                <!-- Grand Total -->
+                <tr class="grand-total-row">
+                    <td colspan="3"><strong>GRAND TOTAL</strong></td>
+                    <td class="num"><strong>{{ totals.basic_salary|floatformat:0|intcomma }}</strong></td>
+                    <td class="num"><strong>{{ totals.deduction_amount|floatformat:0|intcomma }}</strong></td>
+                    <td class="num"><strong>{{ totals.salary_advance|floatformat:0|intcomma }}</strong></td>
+                    <td class="num"><strong>{{ totals.staff_loan|floatformat:0|intcomma }}</strong></td>
+                    <td class="num"><strong>{{ totals.nssf|floatformat:0|intcomma }}</strong></td>
+                    <td class="num"><strong>{{ totals.paye|floatformat:0|intcomma }}</strong></td>
+                    <td class="num"><strong>{{ totals.total_deduction|floatformat:0|intcomma }}</strong></td>
+                    <td class="num"><strong>{{ totals.net_pay|floatformat:0|intcomma }}</strong></td>
+                    <td class="num"><strong>{{ totals.open_balance|floatformat:0|intcomma }}</strong></td>
+                    <td class="num"><strong>{{ totals.closing_advances|floatformat:0|intcomma }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+        </div><!-- end printable -->
+
+        <!-- Transaction Date + Submit -->
+        <div class="submit-section">
+            <div class="sf-field">
+                <label class="sf-label">Transaction Date</label>
+                <input type="date" name="transaction_date" class="sf-date"
+                       id="txnDate" required>
+            </div>
+            <button type="submit" class="btn-submit"
+                    onclick="return confirmSubmit()">SUBMIT</button>
+        </div>
+
+    </form>
+</div>
+
+<script>
+/* Default transaction date = today */
+document.getElementById('txnDate').value = new Date().toISOString().split('T')[0];
+
+/* Select / deselect all UNPAID checkboxes only */
+function selectAll(checked) {
+    document.querySelectorAll('.pay-cb').forEach(cb => cb.checked = checked);
+}
+
+/* Select only unpaid (default useful action) */
+function selectUnpaid() {
+    document.querySelectorAll('.pay-cb').forEach(cb => cb.checked = true);
+}
+
+/* Confirm before submit */
+function confirmSubmit() {
+    const selected = document.querySelectorAll('.pay-cb:checked').length;
+    if (selected === 0) {
+        alert('Please select at least one unpaid staff member before submitting.');
+        return false;
+    }
+    return confirm(`Process salary payment for ${selected} staff member(s)?`);
+}
+</script>
+
+{% endblock %}

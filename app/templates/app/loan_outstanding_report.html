@@ -1,0 +1,659 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'loans-list' as can_view_loans %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1200px;
+        margin: 30px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .lp-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 32px 36px 36px;
+    }
+    .part-title {
+        font-size: 16px; font-weight: 700; color: #1a1a1a;
+        letter-spacing: 0.5px; padding-bottom: 10px;
+        border-bottom: 1.5px solid #999; margin-bottom: 28px;
+        font-family: Arial, sans-serif; text-transform: uppercase;
+    }
+
+    /* ── Customer selector ── */
+    .form-row { display: flex; align-items: flex-start; margin-bottom: 22px; }
+    .form-row label {
+        width: 160px; flex-shrink: 0; font-size: 14px; color: #333;
+        padding-top: 10px; font-family: Arial, sans-serif;
+    }
+    .field-wrap { flex: 1; max-width: 420px; position: relative; }
+
+    .custom-select-wrapper { position: relative; width: 100%; }
+    .custom-select-trigger {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 9px 12px; border: 1px solid #ccc; border-radius: 2px;
+        font-size: 13.5px; font-family: Arial, sans-serif;
+        color: #222; background: #fff; cursor: pointer; user-select: none;
+    }
+    .custom-select-trigger:hover,
+    .custom-select-wrapper.open .custom-select-trigger {
+        border-color: #9b59b6; box-shadow: 0 0 0 2px rgba(155,89,182,0.12);
+    }
+    .custom-select-trigger .arrow { font-size: 12px; color: #888; transition: transform 0.2s; margin-left: 8px; }
+    .custom-select-wrapper.open .custom-select-trigger .arrow { transform: rotate(180deg); }
+    .custom-select-dropdown {
+        display: none; position: absolute; top: 100%; left: 0; right: 0;
+        z-index: 999; background: #fff; border: 1px solid #ccc; border-top: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12); max-height: 240px; overflow: hidden; flex-direction: column;
+    }
+    .custom-select-wrapper.open .custom-select-dropdown { display: flex; }
+    .dropdown-search {
+        padding: 6px 10px; border: none; border-bottom: 1px solid #e2e8f0;
+        font-size: 13px; font-family: Arial, sans-serif; outline: none;
+        background: #fafafa; flex-shrink: 0;
+    }
+    .dropdown-options { overflow-y: auto; flex: 1; }
+    .dropdown-option {
+        padding: 10px 14px; font-size: 13.5px; font-family: Arial, sans-serif;
+        color: #222; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid #f2f2f2;
+    }
+    .dropdown-option:hover { background: #f0e8f8; }
+    .dropdown-option.selected { background: #9b59b6; color: #fff; }
+
+    /* ── Company header ── */
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 14px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 20px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 80px; height: auto; }
+    .company-name {
+        font-size: 26px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub { font-size: 13px; font-weight: 600; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 3px; }
+    .company-contact { font-size: 12px; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 2px; }
+
+    /* ── Report heading ── */
+    .report-heading {
+        font-size: 15px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin-bottom: 14px;
+        letter-spacing: 0.3px;
+    }
+
+    /* ── Client info line ── */
+    .client-info-line {
+        font-size: 14px; font-family: Arial, sans-serif; color: #1a1a1a;
+        margin-bottom: 14px;
+    }
+    .client-info-line strong { font-weight: 700; text-decoration: underline; }
+
+    /* ── Main outstanding table ── */
+    .outstanding-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 12.5px;
+    }
+    .outstanding-table thead tr { background: #7de8e0; }
+    .outstanding-table th {
+        padding: 9px 10px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 12px; border: 1px solid #5dd4cc;
+        white-space: nowrap;
+    }
+    .outstanding-table tbody tr { border-bottom: 1px solid #e8f8f7; }
+    .outstanding-table tbody tr:hover { background: #f5fffe; }
+    .outstanding-table td {
+        padding: 9px 10px; color: #1a1a1a;
+        border: 1px solid #e0e0e0; vertical-align: middle;
+        font-size: 12.5px;
+    }
+    .outstanding-table td.num { text-align: right; }
+    .outstanding-table td.center { text-align: center; }
+
+    /* Pink highlight for rows with outstanding balance */
+    .outstanding-table tr.has-balance td.balance-cell {
+        background: #e8d5e8;
+        font-weight: 700;
+        color: #1a1a1a;
+    }
+
+    /* Total row */
+    .total-row td {
+        background: #d4b97a !important;
+        font-weight: 700;
+        font-size: 12.5px;
+        border: 1px solid #b89650;
+    }
+
+    /* ── Action buttons ── */
+    .view-btn {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 14px;
+        background: #1abc9c; color: #fff; border: none;
+        border-radius: 3px; font-size: 12px; font-family: Arial, sans-serif;
+        font-weight: 600; cursor: pointer; text-decoration: none;
+        transition: background 0.15s; white-space: nowrap;
+    }
+    .view-btn:hover { background: #16a085; color: #fff; text-decoration: none; }
+
+    /* Delete loan button */
+    .btn-del-loan {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 12px;
+        background: #e74c3c; color: #fff; border: none;
+        border-radius: 3px; font-size: 12px; font-family: Arial, sans-serif;
+        font-weight: 600; cursor: pointer; white-space: nowrap;
+        transition: background 0.15s;
+    }
+    .btn-del-loan:hover { background: #c0392b; }
+
+    /* Approve / Completed toggle button */
+    .btn-approve {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 12px;
+        background: #f39c12; color: #fff; border: none;
+        border-radius: 3px; font-size: 12px; font-family: Arial, sans-serif;
+        font-weight: 600; cursor: pointer; white-space: nowrap;
+        transition: background 0.15s, transform 0.1s;
+    }
+    .btn-approve:hover { background: #d68910; transform: translateY(-1px); }
+
+    .btn-completed {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 12px;
+        background: #27ae60; color: #fff; border: none;
+        border-radius: 3px; font-size: 12px; font-family: Arial, sans-serif;
+        font-weight: 600; cursor: pointer; white-space: nowrap;
+        transition: background 0.15s, transform 0.1s;
+    }
+    .btn-completed:hover { background: #1e8449; transform: translateY(-1px); }
+
+    /* ── Print button ── */
+    .print-row {
+        display: flex; justify-content: flex-end;
+        padding-top: 16px; border-top: 1px solid #ddd; margin-top: 10px;
+    }
+    .print-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; color: #333; transition: background 0.15s;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+
+    /* ── Delete confirm modal ── */
+    .del-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,.45);
+        backdrop-filter: blur(3px);
+        display: none; align-items: center; justify-content: center;
+        z-index: 9000; padding: 20px;
+    }
+    .del-overlay.active { display: flex; }
+
+    .del-box {
+        background: #fff; border-radius: 4px;
+        width: 100%; max-width: 400px;
+        box-shadow: 0 8px 30px rgba(0,0,0,.18);
+        overflow: hidden;
+        animation: popIn .22s cubic-bezier(.34,1.4,.64,1);
+    }
+    @keyframes popIn {
+        from { opacity:0; transform: scale(.94) translateY(-10px); }
+        to   { opacity:1; transform: scale(1)  translateY(0); }
+    }
+    .del-box-hdr {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 18px; background: #c0392b; color: #fff;
+    }
+    .del-box-hdr h3 {
+        font-size: 14px; font-weight: 700; font-family: Arial, sans-serif;
+        text-transform: uppercase; letter-spacing: .3px;
+        display: flex; align-items: center; gap: 8px; margin: 0;
+    }
+    .del-close-btn {
+        background: rgba(255,255,255,.2); border: none;
+        width: 28px; height: 28px; border-radius: 50%;
+        color: #fff; font-size: 14px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: background .15s;
+    }
+    .del-close-btn:hover { background: rgba(255,255,255,.35); }
+    .del-box-body { padding: 28px 22px; text-align: center; }
+    .del-icon-ring {
+        width: 56px; height: 56px; border-radius: 50%;
+        background: #fef2f2; border: 2px solid #f5c6c6;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 14px; font-size: 20px; color: #c0392b;
+    }
+    .del-box-body h4 {
+        font-size: 14.5px; font-weight: 700; color: #1a1a1a;
+        font-family: Arial, sans-serif; margin-bottom: 8px;
+    }
+    .del-loan-label {
+        font-size: 16px; font-weight: 700; color: #c0392b;
+        font-family: Arial, sans-serif; margin-bottom: 10px;
+    }
+    .del-box-body p {
+        font-size: 12.5px; color: #777;
+        font-family: Arial, sans-serif; margin: 0; line-height: 1.5;
+    }
+    .del-notice {
+        margin-top: 12px; padding: 10px 14px;
+        background: #fffbeb; border: 1px solid #f0d070;
+        border-radius: 3px; font-size: 12px; color: #7a5c00;
+        font-family: Arial, sans-serif; text-align: left;
+        display: flex; align-items: flex-start; gap: 7px;
+    }
+    .del-notice i { flex-shrink:0; margin-top: 1px; }
+    .del-box-footer {
+        display: flex; gap: 10px; justify-content: flex-end;
+        padding: 14px 20px; border-top: 1px solid #f0f0f0; background: #fafafa;
+    }
+    .btn-del-cancel {
+        padding: 8px 18px; background: #fff; color: #444;
+        border: 1px solid #ccc; border-radius: 3px;
+        font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; transition: background .15s;
+    }
+    .btn-del-cancel:hover { background: #f0f0f0; }
+    .btn-del-go {
+        padding: 8px 20px; background: #c0392b; color: #fff;
+        border: none; border-radius: 3px;
+        font-size: 13px; font-family: Arial, sans-serif; font-weight: 700;
+        cursor: pointer; transition: background .15s;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .btn-del-go:hover { background: #a93226; }
+    .btn-del-go:disabled { opacity: .6; cursor: not-allowed; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .no-print, .print-row { display: none !important; }
+        .form-row { display: none !important; }
+    }
+
+    @media (max-width: 900px) {
+        .outstanding-table { font-size: 11px; }
+        .lp-card { padding: 16px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="lp-card">
+
+        <div class="part-title">Customer Loan Outstanding</div>
+
+        <!-- ── Filter: change client ── -->
+        <form method="POST" action="{% url 'loan_outstanding_report' %}" id="filterForm" class="no-print">
+            {% csrf_token %}
+            <div class="form-row">
+                <label>Customer Name</label>
+                <div class="field-wrap">
+                    <div class="custom-select-wrapper" id="customerSelectWrapper">
+                        <div class="custom-select-trigger">
+                            <span id="customerTriggerText">
+                                {{ client.firstname }} {{ client.middlename|default:'' }} {{ client.lastname }} -[{{ client.checkno|default:client.employmentcardno|default:'' }}]
+                            </span>
+                            <span class="arrow">▼</span>
+                        </div>
+                        <div class="custom-select-dropdown">
+                            <input type="text" class="dropdown-search" id="customerSearch"
+                                   placeholder="Search..." autocomplete="off">
+                            <div class="dropdown-options" id="customerOptions">
+                                {% for c in all_clients %}
+                                <div class="dropdown-option {% if c.id == client.id %}selected{% endif %}"
+                                     data-value="{{ c.id }}"
+                                     data-label="{{ c.firstname }} {{ c.middlename|default:'' }} {{ c.lastname }} -[{{ c.checkno|default:c.employmentcardno|default:'' }}]">
+                                    {{ c.firstname }} {{ c.middlename|default:'' }} {{ c.lastname }} -[{{ c.checkno|default:c.employmentcardno|default:'' }}]
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <input type="hidden" name="client_id" id="clientIdInput" value="{{ client.id }}">
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- ── Printable section ── -->
+        <div class="printable">
+
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="report-heading">CUSTOMER LOAN OUTSTANDING</div>
+
+            <div class="client-info-line">
+                Customer Name: <strong>{{ client.firstname }} {{ client.middlename|default:'' }} {{ client.lastname }}</strong>
+                &nbsp;&nbsp;
+                Check No : <strong>{{ client.checkno|default:client.employmentcardno|default:'—' }}</strong>
+                &nbsp;&nbsp;
+                Branch : <strong>{{ branch_name }}</strong>
+            </div>
+
+            {% if can_view_loans %}
+            <table class="outstanding-table">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Loan Type</th>
+                        <th>Loan ID</th>
+                        <th>Loan amount</th>
+                        <th>Interest Amount</th>
+                        <th>Penalt Amount</th>
+                        <th>Total Amount</th>
+                        <th>Paid Amount</th>
+                        <th>Outstanding Balance</th>
+                        <th class="no-print">Repayment Schedules</th>
+                        <th class="no-print">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in loan_rows %}
+                    <tr class="{% if row.outstanding_balance > 0 %}has-balance{% endif %}" id="loan-row-{{ row.loan.id }}">
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ row.loan.loan_type }}</td>
+                        <td>{{ row.loan_id_label }}</td>
+                        <td class="num">{{ row.loan_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.interest_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.penalty_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.total_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.paid_amount|floatformat:0|intcomma }}</td>
+                        <td class="num balance-cell">
+                            {% if row.outstanding_balance > 0 %}
+                                {{ row.outstanding_balance|floatformat:0|intcomma }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <!-- Repayment Schedules -->
+                        <td class="no-print" style="text-align:center;">
+                            <div style="display:flex; justify-content:space-between; gap:5px;">
+                                <a class="view-btn" href="{% url 'loan_repayment_schedule' row.loan.id %}">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                {% if row.loan.loan_type == 'Maendeleo' %}
+                                <a class="view-btn" href="{% url 'fomu_mkopo' row.loan.id %}">form</a>
+                                {% else %}
+                                <a class="view-btn" href="{% url 'fomu_mkopo_wa_dharula' row.loan.id %}">form</a>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Status column -->
+                        <td class="no-print center" id="status-cell-{{ row.loan.id }}">
+                            {% if row.repayment_count == 0 %}
+                                {# No repayments at all → show Delete button #}
+                                <button
+                                    class="btn-del-loan"
+                                    data-id="{{ row.loan.id }}"
+                                    data-label="{{ row.loan_id_label }}"
+                                    onclick="openDelLoanModal(this)">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+
+                            {% elif row.outstanding_balance <= 0 %}
+                                {# Fully paid → toggle Approve / Completed #}
+                                {% if row.is_approved %}
+                                    <button
+                                        class="btn-completed"
+                                        data-id="{{ row.loan.id }}"
+                                        onclick="toggleApprove(this)">
+                                        <i class="fas fa-check-circle"></i> Completed
+                                    </button>
+                                {% else %}
+                                    <button
+                                        class="btn-approve"
+                                        data-id="{{ row.loan.id }}"
+                                        onclick="toggleApprove(this)">
+                                        <i class="fas fa-stamp"></i> Approve
+                                    </button>
+                                {% endif %}
+
+                            {% else %}
+                                {# Has repayments but still outstanding → empty #}
+                                &nbsp;
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- TOTAL row -->
+                    <tr class="total-row">
+                        <td colspan="3"><strong>TOTAL</strong></td>
+                        <td class="num"><strong>{{ totals.loan_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ totals.interest_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ totals.penalty_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ totals.total_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ totals.paid_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ totals.outstanding_balance|floatformat:0|intcomma }}</strong></td>
+                        <td class="no-print"></td>
+                        <td class="no-print"></td>
+                    </tr>
+                </tbody>
+            </table>
+            {% endif %}
+
+        </div><!-- /.printable -->
+
+        <div class="print-row">
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     DELETE LOAN CONFIRM MODAL
+══════════════════════════════════════ -->
+<div class="del-overlay" id="delLoanOverlay">
+    <div class="del-box">
+        <div class="del-box-hdr">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete Loan</h3>
+            <button class="del-close-btn" onclick="closeDelLoanModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="del-box-body">
+            <div class="del-icon-ring"><i class="fas fa-file-invoice-dollar"></i></div>
+            <h4>Delete this loan record?</h4>
+            <div class="del-loan-label" id="delLoanLabel"></div>
+            <p>This loan has no repayments and will be permanently removed.</p>
+            <div class="del-notice">
+                <i class="fas fa-info-circle"></i>
+                <span>This action <strong>cannot be undone</strong>. The loan application will be deleted entirely.</span>
+            </div>
+        </div>
+        <div class="del-box-footer">
+            <button class="btn-del-cancel" onclick="closeDelLoanModal()">
+                <i class="fas fa-times" style="margin-right:4px;"></i> Cancel
+            </button>
+            <button class="btn-del-go" id="delLoanGoBtn">
+                <i class="fas fa-trash"></i> Yes, Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+/* ── URL bases ── */
+const deleteLoanBase    = "{% url 'delete_loan' 0 %}";
+const toggleApproveBase = "{% url 'toggle_loan_approve' 0 %}";
+const csrfToken         = '{{ csrf_token }}';
+
+function loanUrl(base, id) {
+    return base.replace('/0/', '/' + id + '/');
+}
+
+/* ══════════════════════════════════════
+   APPROVE / COMPLETED TOGGLE
+══════════════════════════════════════ */
+function toggleApprove(btn) {
+    const loanId = btn.getAttribute('data-id');
+    btn.disabled = true;
+
+    fetch(loanUrl(toggleApproveBase, loanId), {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.success) {
+            const cell = document.getElementById('status-cell-' + loanId);
+            if (data.is_approved) {
+                // Switch to Completed button
+                cell.innerHTML = `
+                    <button class="btn-completed" data-id="${loanId}" onclick="toggleApprove(this)">
+                        <i class="fas fa-check-circle"></i> Completed
+                    </button>`;
+            } else {
+                // Switch back to Approve button
+                cell.innerHTML = `
+                    <button class="btn-approve" data-id="${loanId}" onclick="toggleApprove(this)">
+                        <i class="fas fa-stamp"></i> Approve
+                    </button>`;
+            }
+        } else {
+            alert(data.error || 'Failed to update status.');
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        alert('Network error. Please try again.');
+    });
+}
+
+/* ══════════════════════════════════════
+   DELETE LOAN MODAL
+══════════════════════════════════════ */
+let _pendingDeleteLoanId = null;
+
+function openDelLoanModal(btn) {
+    _pendingDeleteLoanId = btn.getAttribute('data-id');
+    const label = btn.getAttribute('data-label');
+    document.getElementById('delLoanLabel').textContent = label;
+    document.getElementById('delLoanOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDelLoanModal() {
+    document.getElementById('delLoanOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+    _pendingDeleteLoanId = null;
+}
+
+document.getElementById('delLoanOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeDelLoanModal();
+});
+
+document.getElementById('delLoanGoBtn').addEventListener('click', function() {
+    if (!_pendingDeleteLoanId) return;
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting…';
+
+    fetch(loanUrl(deleteLoanBase, _pendingDeleteLoanId), {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+    })
+    // REPLACE WITH:
+.then(r => r.json())
+.then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-trash"></i> Yes, Delete';
+    closeDelLoanModal();
+    if (data.success) {
+        window.location.reload();
+    } else {
+        alert(data.error || 'Delete failed. Please try again.');
+    }
+})
+.catch(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-trash"></i> Yes, Delete';
+    closeDelLoanModal();
+    alert('Network error. Please try again.');
+});
+});
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeDelLoanModal();
+});
+
+/* ══════════════════════════════════════
+   CUSTOMER DROPDOWN
+══════════════════════════════════════ */
+(function() {
+    const wrapper = document.getElementById('customerSelectWrapper');
+    const trigger = wrapper.querySelector('.custom-select-trigger');
+    const search  = document.getElementById('customerSearch');
+    const options = document.getElementById('customerOptions');
+    const hidden  = document.getElementById('clientIdInput');
+    const form    = document.getElementById('filterForm');
+
+    trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        wrapper.classList.toggle('open');
+        if (wrapper.classList.contains('open')) {
+            search.value = '';
+            filterOptions('');
+            setTimeout(() => search.focus(), 50);
+        }
+    });
+    document.addEventListener('click', function(e) {
+        if (!wrapper.contains(e.target)) wrapper.classList.remove('open');
+    });
+    search.addEventListener('input', function() { filterOptions(this.value.toLowerCase().trim()); });
+    search.addEventListener('click', e => e.stopPropagation());
+    search.addEventListener('keydown', e => { if (e.key === 'Escape') wrapper.classList.remove('open'); });
+
+    function filterOptions(query) {
+        let visible = 0;
+        options.querySelectorAll('.dropdown-option').forEach(opt => {
+            const show = !query || (opt.dataset.label||opt.textContent).toLowerCase().includes(query);
+            opt.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        const noRes = options.querySelector('.no-results');
+        if (noRes) noRes.remove();
+        if (visible === 0 && query) {
+            const d = document.createElement('div');
+            d.className = 'dropdown-option no-results';
+            d.textContent = 'No customers found';
+            options.appendChild(d);
+        }
+    }
+
+    options.addEventListener('click', function(e) {
+        const opt = e.target.closest('.dropdown-option');
+        if (!opt || opt.classList.contains('no-results')) return;
+        const val = opt.dataset.value || '';
+        options.querySelectorAll('.dropdown-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        hidden.value = val;
+        wrapper.classList.remove('open');
+        if (val) form.submit();
+    });
+})();
+</script>
+
+{% endblock %}

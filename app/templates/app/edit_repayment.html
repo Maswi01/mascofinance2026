@@ -1,0 +1,137 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .edit-wrapper {
+        max-width: 700px;
+        margin: 80px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+    }
+    .edit-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 32px 50px 40px;
+    }
+    .edit-title {
+        font-size: 16px; font-weight: 700; color: #1a1a1a;
+        letter-spacing: 0.5px; padding-bottom: 10px;
+        border-bottom: 1.5px solid #999; margin-bottom: 28px;
+        font-family: Arial, sans-serif; text-transform: uppercase;
+    }
+    .form-row {
+        display: flex; align-items: center; margin-bottom: 20px;
+    }
+    .form-row label {
+        width: 180px; flex-shrink: 0; font-size: 13.5px;
+        color: #333; font-family: Arial, sans-serif;
+        text-align: right; padding-right: 20px;
+    }
+    .form-row .field-wrap { flex: 1; max-width: 360px; }
+    .form-row input, .form-row select {
+        width: 100%; padding: 9px 12px; border: 1px solid #ccc;
+        border-radius: 2px; font-size: 13.5px; font-family: Arial, sans-serif;
+        color: #333; background: #fff; outline: none; box-sizing: border-box;
+    }
+    .form-row input[readonly] {
+        background: #f0f0f0; color: #555; cursor: not-allowed;
+    }
+    .form-row input:focus, .form-row select:focus {
+        border-color: #9b59b6;
+        box-shadow: 0 0 0 2px rgba(155,89,182,0.1);
+    }
+    .form-actions { text-align: center; padding-top: 20px; }
+    .submit-btn {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 10px 36px; background: #9b59b6; color: #fff;
+        border: none; border-radius: 3px; font-size: 14px;
+        font-family: Arial, sans-serif; font-weight: 700; cursor: pointer;
+        letter-spacing: 0.5px; transition: background 0.15s;
+    }
+    .submit-btn:hover { background: #7d3c98; }
+    .alert-success {
+        background: #d4edda; border: 1px solid #c3e6cb; color: #155724;
+        padding: 10px 16px; border-radius: 3px; font-size: 13px;
+        font-family: Arial, sans-serif; margin-bottom: 18px;
+    }
+    .alert-error {
+        background: #fde8e8; border: 1px solid #f5c6c6; color: #b00;
+        padding: 10px 16px; border-radius: 3px; font-size: 13px;
+        font-family: Arial, sans-serif; margin-bottom: 18px;
+    }
+</style>
+
+<div class="edit-wrapper">
+    <div class="edit-card">
+        <div class="edit-title">Editing Monthly Repayment</div>
+
+        {% if messages %}
+            {% for msg in messages %}
+            <div class="alert-{% if 'successfully' in msg.tags or 'success' in msg.tags %}success{% else %}error{% endif %}">
+                {{ msg }}
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-row">
+                <label>Name</label>
+                <div class="field-wrap">
+                    <input type="text" value="{{ name }}" readonly>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Receipt No</label>
+                <div class="field-wrap">
+                    <input type="text" value="{{ receipt_no }}" readonly>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Amount</label>
+                <div class="field-wrap">
+                    <input type="text" value="{{ amount|floatformat:0 }}" readonly>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Repayment Mode</label>
+                <div class="field-wrap">
+                    <select name="transaction_method">
+                        <option value="cash"  {% if transaction_method == 'cash'  %}selected{% endif %}>CASH</option>
+                        <option value="bank"  {% if transaction_method == 'bank'  %}selected{% endif %}>BANK</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Payment Month</label>
+                <div class="field-wrap">
+                    <input type="date" name="payment_month"
+                        value="{% if payment_month %}{{ payment_month|date:'Y-m-d' }}{% endif %}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Transaction Date</label>
+                <div class="field-wrap">
+                    <input type="date" name="transaction_date"
+                           value="{{ repayment_date|date:'Y-m-d' }}" required>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="submit-btn">
+                    <i class="fas fa-check-circle"></i> CONTINUE &gt;&gt;
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

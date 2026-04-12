@@ -1,0 +1,207 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'loans-repay-edit' as can_edit_repay %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1000px;
+        margin: 30px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .lp-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 32px 36px 36px;
+    }
+
+    /* ── Report heading ── */
+    .report-heading {
+        font-size: 16px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin-bottom: 18px;
+        letter-spacing: 0.3px;
+    }
+
+    /* ── Client info line ── */
+    .client-info-line {
+        font-size: 14px; font-family: Arial, sans-serif; color: #1a1a1a;
+        margin-bottom: 16px; display: flex; gap: 24px; flex-wrap: wrap;
+    }
+    .client-info-line strong { font-weight: 700; text-decoration: underline; }
+
+    /* ── Schedule table ── */
+    .schedule-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 13px;
+    }
+    .schedule-table thead tr th {
+        padding: 9px 12px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 12.5px;
+        border: 1px solid #ccc; background: #fff;
+        white-space: nowrap;
+    }
+    .schedule-table tbody tr { border-bottom: 1px solid #ddd; }
+    .schedule-table tbody tr:hover { background: #f8f8f8; }
+    .schedule-table td {
+        padding: 9px 12px; color: #1a1a1a;
+        border: 1px solid #e0e0e0; vertical-align: middle;
+        font-size: 13px;
+    }
+
+    /* Alternating light blue for installment month column */
+    .schedule-table tbody tr:nth-child(odd) td:first-child { background: #e8f4fb; }
+    .schedule-table tbody tr:nth-child(even) td:first-child { background: #d4ecf7; }
+
+    .schedule-table td.num { text-align: right; }
+
+    /* Pink/red for outstanding (Out column) */
+    .out-cell {
+        background: #c9a0a0 !important;
+        color: #1a1a1a;
+        font-weight: 700;
+        text-align: right;
+    }
+
+    /* Total row */
+    .total-row td {
+        background: #d4b97a !important;
+        font-weight: 700; font-size: 13px;
+        border: 1px solid #b89650;
+    }
+
+    /* ── Print button ── */
+    .print-row {
+        display: flex; justify-content: flex-end;
+        padding-top: 16px; border-top: 1px solid #ddd; margin-top: 10px;
+    }
+    .print-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; color: #333; transition: background 0.15s;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+
+    /* Back link */
+    .back-link {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 13px; color: #2980b9; font-family: Arial, sans-serif;
+        text-decoration: none; margin-bottom: 16px;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    /* Extra payment rows (beyond schedule) */
+    .extra-row td {
+        background: #eaf7ea !important;
+        font-style: italic;
+    }
+    .extra-badge {
+        display: inline-block;
+        font-size: 10px;
+        background: #27ae60;
+        color: #fff;
+        border-radius: 3px;
+        padding: 1px 5px;
+        margin-left: 6px;
+        font-style: normal;
+        vertical-align: middle;
+    }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .print-row, .back-link { display: none !important; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="lp-card">
+
+        <a class="back-link no-print"
+           href="{% url 'loan_outstanding_report' %}?client_id={{ loan.client.id }}">
+            ← Back to loan outstanding
+        </a>
+
+        <div class="printable">
+
+            <div class="report-heading">LOAN REPAYMENT SCHEDULES</div>
+
+            <div class="client-info-line">
+                <span>Customer Name: <strong>{{ client_fullname }}</strong></span>
+                <span>NIDA : <strong>{{ client.checkno|default:client.employmentcardno|default:'—' }}</strong></span>
+                <span>Branch : <strong>{{ branch_name }}</strong></span>
+            </div>
+
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Installment Month</th>
+                        <th style="text-align:right;">Principal Repayment</th>
+                        <th style="text-align:right;">Interest Repayment</th>
+                        <th style="text-align:right;">Penalt Repayment</th>
+                        <th style="text-align:right;">Total</th>
+                        <th style="text-align:right;">Paid</th>
+                        <th style="text-align:right;">Out</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in schedule_rows %}
+                        <tr{% if row.extra %} class="extra-row"{% endif %}>
+                            <td>
+                                {{ row.month_label }}
+                                {% if row.extra %}
+                                    {% if row.is_topup %}
+                                        <span class="extra-badge" style="background:#e67e22;">Topup</span>
+                                    {% else %}
+                                        <span class="extra-badge">Extra</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="num">{{ row.principal|floatformat:0|intcomma }}</td>
+                            <td class="num">{{ row.interest|floatformat:0|intcomma }}</td>
+                            <td class="num">{{ row.penalty|floatformat:0|intcomma }}</td>
+                            <td class="num">{{ row.total|floatformat:0|intcomma }}</td>
+                            <td class="num">{{ row.paid|floatformat:0|intcomma }}</td>
+                            <td class="num">
+                                <!-- {% if row.outstanding > 0 %}{{ row.outstanding|floatformat:0|intcomma }}{% endif %} -->
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    <!-- TOTAL row -->
+                    <tr class="total-row">
+                        <td><strong>TOTAL</strong></td>
+                        <td class="num"><strong>{{ totals.principal|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ totals.interest|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ totals.penalty|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ totals.total|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ totals.paid|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong></strong></td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div><!-- end printable -->
+
+        
+
+        <div class="print-row">
+            {% if can_edit_repay %}
+                <a href="{% url 'loan_edit' loan.id %}"
+                    style="padding:5px 16px; margin: 0 10px; background:#e67e22; color:#fff; border-radius:2px;
+                            font-family:Arial,sans-serif; font-size:13px; text-decoration:none;">
+                        ✏ Re Schedule
+                </a>
+            {% endif %}
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,409 @@
+{% extends 'app/base.html' %}
+{% block content %}
+
+<style>
+  a { text-decoration: none; }
+
+  .role-edit-page {
+    max-width: 1100px;
+    margin: 2rem auto;
+    padding: 0 1rem 4rem;
+    margin-top: 70px; 
+  }
+
+  /* ── Breadcrumb ── */
+  .breadcrumb {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .82rem; color: #6b7280; margin-bottom: 1.5rem;
+  }
+  .breadcrumb a { color: #0d4a7a; font-weight: 600; }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb i { font-size: .7rem; color: #9ca3af; }
+
+  /* ── Card ── */
+  .edit-card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e2f0f0;
+    box-shadow: 0 2px 12px rgba(13,74,122,.08);
+    overflow: hidden;
+  }
+
+  .edit-card-header {
+    background: linear-gradient(135deg, #0d4a7a 0%, #0a3d66 100%);
+    padding: 1.4rem 1.8rem;
+    display: flex; align-items: center; gap: .8rem;
+  }
+  .edit-card-header i { color: #f5c842; font-size: 1.3rem; }
+  .edit-card-header h2 {
+    color: #fff; margin: 0; font-size: 1.2rem; font-weight: 700;
+  }
+
+  .edit-card-body { padding: 1.8rem; }
+
+  /* ── Form fields ── */
+  .form-group { margin-bottom: 1.4rem; }
+  .form-label {
+    display: block; font-weight: 700; color: #0d4a7a;
+    font-size: .9rem; margin-bottom: .45rem;
+  }
+  .form-label span.req { color: #dc2626; margin-left: 2px; }
+  .form-hint { font-size: .78rem; color: #6b7280; margin-top: .3rem; }
+
+  .form-control {
+    width: 100%; padding: .65rem 1rem;
+    border: 1.5px solid #d0e8f0; border-radius: 8px;
+    font-size: .9rem; color: #1e2d3d;
+    background: #f8fbfd; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    box-sizing: border-box;
+  }
+  .form-control:focus {
+    border-color: #0fc0c0;
+    box-shadow: 0 0 0 3px rgba(15,192,192,.12);
+    background: #fff;
+  }
+  textarea.form-control { min-height: 90px; resize: vertical; }
+
+  /* ── Permissions section ── */
+  .permissions-section { margin-top: 2rem; }
+
+  .perm-section-header {
+    display: flex; align-items: flex-end;
+    justify-content: space-between; flex-wrap: wrap;
+    gap: .8rem; margin-bottom: 1rem;
+  }
+  .perm-section-title {
+    color: #0d4a7a; font-size: 1.05rem; font-weight: 700; margin: 0;
+  }
+  .perm-section-subtitle { font-size: .82rem; color: #6b7280; margin: .2rem 0 0; }
+
+  .perm-global-btns { display: flex; gap: .5rem; }
+  .btn-select-all {
+    background: #7c3aed; color: #fff; border: none;
+    padding: .4rem 1.1rem; border-radius: 6px;
+    font-size: .82rem; font-weight: 600; cursor: pointer;
+    transition: background .2s;
+  }
+  .btn-select-all:hover { background: #6d28d9; }
+  .btn-deselect-all {
+    background: #f3f4f6; color: #374151; border: 1.5px solid #d1d5db;
+    padding: .4rem 1.1rem; border-radius: 6px;
+    font-size: .82rem; font-weight: 600; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-deselect-all:hover { background: #e5e7eb; }
+
+  /* Info notice */
+  .perm-notice {
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 8px; padding: .85rem 1.1rem;
+    margin-bottom: 1.2rem; font-size: .85rem;
+  }
+  .perm-notice strong { color: #92400e; }
+  .perm-notice span   { color: #b45309; }
+
+  /* Permission groups grid */
+  .perm-groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.1rem;
+  }
+
+  .perm-group-card {
+    border: 1.5px solid #e2f0f0; border-radius: 10px;
+    overflow: hidden; background: #fff;
+  }
+
+  .perm-group-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .7rem 1rem;
+    background: #f8fbfd; border-bottom: 1px solid #e2f0f0;
+  }
+  .perm-group-name { font-weight: 700; color: #0d4a7a; font-size: .9rem; }
+  .btn-toggle-group {
+    background: none; border: none; color: #7c3aed;
+    font-size: .78rem; font-weight: 700; cursor: pointer;
+    padding: 0; transition: color .2s;
+  }
+  .btn-toggle-group:hover { color: #6d28d9; }
+
+  .perm-group-items {
+    padding: .5rem .2rem;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .perm-group-items::-webkit-scrollbar { width: 4px; }
+  .perm-group-items::-webkit-scrollbar-thumb { background: #b2e8e8; border-radius: 4px; }
+
+  /* Scrollbar indicator arrows */
+  .perm-group-card { position: relative; }
+  .scroll-indicator {
+    text-align: center; padding: .2rem;
+    color: #9ca3af; font-size: .7rem; line-height: 1;
+  }
+
+  /* Individual permission checkbox row */
+  .perm-item {
+    display: flex; align-items: flex-start; gap: .75rem;
+    padding: .55rem 1rem; cursor: pointer;
+    border-radius: 6px; margin: .1rem .4rem;
+    transition: background .15s;
+  }
+  .perm-item:hover { background: #f0fbfb; }
+  .perm-item.is-checked { background: #f0f4ff; }
+
+  .perm-checkbox {
+    width: 18px; height: 18px; border-radius: 4px;
+    border: 2px solid #d1d5db; cursor: pointer;
+    flex-shrink: 0; margin-top: 2px;
+    appearance: none; -webkit-appearance: none;
+    background: #fff;
+    transition: all .15s;
+    position: relative;
+  }
+  .perm-checkbox:checked {
+    background: #7c3aed; border-color: #7c3aed;
+  }
+  .perm-checkbox:checked::after {
+    content: '';
+    position: absolute; left: 4px; top: 1px;
+    width: 6px; height: 10px;
+    border: 2px solid #fff;
+    border-top: none; border-left: none;
+    transform: rotate(45deg);
+  }
+
+  .perm-item-info { flex: 1; min-width: 0; }
+  .perm-item-name { font-weight: 600; font-size: .85rem; color: #1e2d3d; display: block; }
+  .perm-item-code { font-size: .75rem; color: #9ca3af; font-family: monospace; display: block; margin-top: .1rem; }
+
+  /* Group count badge */
+  .perm-group-count {
+    font-size: .72rem; background: #e8f8f8;
+    color: #0d4a7a; padding: .15rem .5rem;
+    border-radius: 20px; font-weight: 700;
+    border: 1px solid #b2e8e8;
+    white-space: nowrap;
+  }
+
+  .perm-group-footer {
+    padding: .5rem 1rem; border-top: 1px solid #f0f4f8;
+    font-size: .78rem; color: #6b7280;
+  }
+
+  /* ── Action buttons ── */
+  .form-actions {
+    display: flex; gap: .8rem; justify-content: flex-end;
+    padding: 1.4rem 1.8rem; border-top: 1px solid #f0f4f8;
+    background: #f8fbfd;
+  }
+  .btn-save {
+    background: #0d4a7a; color: #fff; border: none;
+    padding: .6rem 1.8rem; border-radius: 8px;
+    font-weight: 700; font-size: .92rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: .5rem;
+    transition: background .2s;
+  }
+  .btn-save:hover { background: #0a3d66; }
+  .btn-back {
+    background: #f3f4f6; color: #374151;
+    border: 1.5px solid #d1d5db; padding: .6rem 1.4rem;
+    border-radius: 8px; font-weight: 600; font-size: .92rem;
+    cursor: pointer; display: inline-flex; align-items: center;
+    gap: .5rem; transition: all .2s;
+  }
+  .btn-back:hover { background: #e5e7eb; }
+</style>
+
+<div class="role-edit-page">
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb">
+    <a href="{% url 'roles_list' %}"><i class="fas fa-shield-alt"></i> Role Management</a>
+    <i class="fas fa-chevron-right"></i>
+    <span>{{ page_title }}</span>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="edit-card">
+
+      <!-- Card header -->
+      <div class="edit-card-header">
+        <i class="fas fa-{% if role %}edit{% else %}plus-circle{% endif %}"></i>
+        <h2>{{ page_title }}</h2>
+      </div>
+
+      <!-- Fields -->
+      <div class="edit-card-body">
+
+        <div class="form-group">
+          <label class="form-label" for="id_title">Role Name<span class="req">*</span></label>
+          <input type="text" id="id_title" name="title" class="form-control"
+                 value="{{ role.title|default:'' }}"
+                 placeholder="e.g. Director of Marketing &amp; Sales" required>
+          <p class="form-hint">Choose a descriptive name that clearly identifies the role's purpose</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="id_description">Description</label>
+          <textarea id="id_description" name="description" class="form-control"
+                    placeholder="Provide a brief description of this role's responsibilities and scope">{{ role.description|default:'' }}</textarea>
+          <p class="form-hint">Optional: Help users understand what this role is meant for</p>
+        </div>
+
+        <!-- ── Permissions ── -->
+        <div class="permissions-section">
+
+          <div class="perm-section-header">
+            <div>
+              <h3 class="perm-section-title">Permissions</h3>
+              <p class="perm-section-subtitle">Select the permissions this role should have</p>
+            </div>
+            <div class="perm-global-btns">
+              <button type="button" class="btn-select-all"   onclick="selectAll()">Select All</button>
+              <button type="button" class="btn-deselect-all" onclick="deselectAll()">Deselect All</button>
+            </div>
+          </div>
+
+          <div class="perm-notice">
+            <strong>Important:</strong>
+            <span> Currently selected permissions are highlighted. You can always modify permissions later.</span>
+          </div>
+
+          <!-- Groups grid -->
+          <div class="perm-groups-grid">
+            {% for group in perm_groups %}
+            <div class="perm-group-card" data-group="{{ group.group }}">
+
+              <div class="perm-group-header">
+                <span class="perm-group-name">{{ group.group }}</span>
+                <div style="display:flex;align-items:center;gap:.6rem;">
+                  <span class="perm-group-count" id="count-{{ group.group|slugify }}">
+                    0 of {{ group.permissions|length }} selected
+                  </span>
+                  <button type="button" class="btn-toggle-group"
+                          onclick="toggleGroup('{{ group.group|escapejs }}')">Toggle All</button>
+                </div>
+              </div>
+
+              <div class="perm-group-items" id="items-{{ group.group|slugify }}">
+                {% for perm in group.permissions %}
+                <label class="perm-item {% if perm.codename in selected %}is-checked{% endif %}"
+                       id="label-{{ perm.codename|slugify }}">
+                  <input type="checkbox" class="perm-checkbox"
+                         name="permissions" value="{{ perm.codename }}"
+                         {% if perm.codename in selected %}checked{% endif %}
+                         onchange="onPermChange(this)">
+                  <div class="perm-item-info">
+                    <span class="perm-item-name">{{ perm.name }}</span>
+                    <span class="perm-item-code">{{ perm.codename }}</span>
+                  </div>
+                </label>
+                {% endfor %}
+              </div>
+
+              <div class="perm-group-footer" id="footer-{{ group.group|slugify }}">
+                Loading…
+              </div>
+
+            </div>
+            {% endfor %}
+          </div>
+          <!-- end grid -->
+
+        </div>
+        <!-- end permissions-section -->
+
+      </div>
+      <!-- end card-body -->
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <a href="{% url 'roles_list' %}" class="btn-back">
+          <i class="fas fa-arrow-left"></i> Back
+        </a>
+        <button type="submit" class="btn-save">
+          <i class="fas fa-save"></i>
+          {% if role %}Save Changes{% else %}Create Role{% endif %}
+        </button>
+      </div>
+
+    </div>
+    <!-- end card -->
+
+  </form>
+</div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────────────────
+   Count helpers
+   ──────────────────────────────────────────────────────────────────────────── */
+function getGroupSlug(groupName) {
+  // mirrors Django's |slugify
+  return groupName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function updateGroupCount(groupName) {
+  const slug      = getGroupSlug(groupName);
+  const container = document.getElementById('items-' + slug);
+  if (!container) return;
+  const total   = container.querySelectorAll('input[type=checkbox]').length;
+  const checked = container.querySelectorAll('input[type=checkbox]:checked').length;
+  const countEl = document.getElementById('count-' + slug);
+  if (countEl) countEl.textContent = `${checked} of ${total} selected`;
+  const footerEl = document.getElementById('footer-' + slug);
+  if (footerEl) footerEl.textContent = `${checked} of ${total} selected`;
+}
+
+function onPermChange(checkbox) {
+  const label     = checkbox.closest('.perm-item');
+  const groupCard = checkbox.closest('.perm-group-card');
+  if (label)     label.classList.toggle('is-checked', checkbox.checked);
+  if (groupCard) updateGroupCount(groupCard.dataset.group);
+}
+
+function toggleGroup(groupName) {
+  const slug      = getGroupSlug(groupName);
+  const container = document.getElementById('items-' + slug);
+  if (!container) return;
+  const boxes   = container.querySelectorAll('input[type=checkbox]');
+  const allChecked = [...boxes].every(b => b.checked);
+  boxes.forEach(b => {
+    b.checked = !allChecked;
+    b.closest('.perm-item').classList.toggle('is-checked', b.checked);
+  });
+  updateGroupCount(groupName);
+}
+
+function selectAll() {
+  document.querySelectorAll('.perm-checkbox').forEach(b => {
+    b.checked = true;
+    b.closest('.perm-item').classList.add('is-checked');
+  });
+  document.querySelectorAll('.perm-group-card').forEach(card => {
+    updateGroupCount(card.dataset.group);
+  });
+}
+
+function deselectAll() {
+  document.querySelectorAll('.perm-checkbox').forEach(b => {
+    b.checked = false;
+    b.closest('.perm-item').classList.remove('is-checked');
+  });
+  document.querySelectorAll('.perm-group-card').forEach(card => {
+    updateGroupCount(card.dataset.group);
+  });
+}
+
+/* ── init on load ── */
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.perm-group-card').forEach(card => {
+    updateGroupCount(card.dataset.group);
+  });
+});
+</script>
+
+{% endblock %}

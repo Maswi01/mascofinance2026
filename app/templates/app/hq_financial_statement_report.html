@@ -1,0 +1,283 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 20px 40px 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+    }
+
+    .report-card {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 36px 40px 28px;
+        max-width: 860px;
+        margin: 0 auto;
+    }
+
+    #printArea {
+        max-width: 780px;
+        margin: 0 auto;
+    }
+
+    .doc-branch {
+        text-align: center;
+        font-size: 15px;
+        font-weight: 700;
+        color: #1a2a4a;
+        text-decoration: underline;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+    }
+
+    .doc-title {
+        text-align: center;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #1a2a4a;
+        text-decoration: underline;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 28px;
+    }
+
+    /* ── Statement Table ── */
+    .stmt-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .stmt-table th {
+        padding: 10px 18px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+        font-size: 13px;
+        border: 1px solid #c8d0db;
+        background: #f7f9fb;
+    }
+
+    .stmt-table th.col-amt {
+        text-align: right;
+        width: 220px;
+    }
+
+    .stmt-table td {
+        padding: 10px 18px;
+        border: 1px solid #dde3ea;
+        color: #333;
+        vertical-align: middle;
+    }
+
+    .stmt-table td.col-amt {
+        text-align: right;
+        width: 220px;
+        font-weight: 400;
+    }
+
+    /* Row 1 — Opening Balance bold */
+    .row-opening td {
+        font-weight: 700;
+    }
+
+    /* Subtotal rows (row 5 and row 8) */
+    .row-subtotal td {
+        border-top: 2px solid #555;
+        background: #fafafa;
+        border-left-color: #dde3ea;
+        border-right-color: #dde3ea;
+        border-bottom-color: #dde3ea;
+    }
+
+    .row-subtotal td.col-amt {
+        font-weight: 700;
+        text-decoration: underline;
+        color: #1a2a4a;
+    }
+
+    /* Row 9 — Closing Balance bold */
+    .row-closing td {
+        font-weight: 700;
+        font-size: 14px;
+        border-top: 2px solid #333;
+    }
+
+    .neg  { color: #c62828; }
+    .zero { color: #999; }
+
+    /* ── Action bar ── */
+    .action-bar {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 22px;
+    }
+
+    .btn-print {
+        padding: 6px 22px;
+        border: 1px solid #cdd4da;
+        background: #fff;
+        border-radius: 3px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 500;
+        cursor: pointer;
+        color: #333;
+        letter-spacing: 0.5px;
+        transition: all 0.18s;
+    }
+
+    .btn-print:hover {
+        background: #f0f6ff;
+        border-color: #1a73c7;
+        color: #1a73c7;
+    }
+
+    .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #1a73c7;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        text-decoration: none;
+        margin-bottom: 20px;
+        transition: color 0.15s;
+    }
+    .btn-back:hover { color: #1557a0; }
+
+    /* ── Print ── */
+    @media print {
+        body * { visibility: hidden; }
+        #printArea, #printArea * { visibility: visible; }
+        #printArea { position: absolute; left: 0; top: 0; width: 100%; padding: 24px; }
+        .no-print { display: none !important; }
+    }
+
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 16px; margin-top: 60px; }
+        .report-card  { padding: 16px; }
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="report-card">
+
+        <a href="{% url 'financial_statement_filter' %}" class="btn-back no-print">
+            <i class="fas fa-arrow-left"></i> Back to Filter
+        </a>
+
+        <div id="printArea">
+
+            <!-- Title Block -->
+            <div class="doc-branch">{{ hq_office_name|upper }} BRANCH</div>
+            <div class="doc-title">
+                Financial Statement From {{ date_from_display }} To {{ date_to_display }}
+            </div>
+
+            <!-- ══ 9-ROW STATEMENT TABLE ══ -->
+            <table class="stmt-table">
+                <thead>
+                    <tr>
+                        <th>Particular</th>
+                        <th class="col-amt">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <!-- Row 1: Opening Balance -->
+                    <tr class="row-opening">
+                        <td>Opening Balance</td>
+                        <td class="col-amt {% if opening_balance < 0 %}neg{% endif %}">
+                            {{ opening_balance|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 2: Posted Amount -->
+                    <tr>
+                        <td>Posted Amount</td>
+                        <td class="col-amt {% if total_repayments == 0 %}zero{% endif %}">
+                            {{ total_repayments|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 3: Hazina -->
+                    <tr>
+                        <td>Hazina</td>
+                        <td class="col-amt {% if total_nyongeza == 0 %}zero{% endif %}">
+                            {{ total_nyongeza|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 4: External Sources -->
+                    <tr>
+                        <td>External Sources</td>
+                        <td class="col-amt {% if total_external == 0 %}zero{% endif %}">
+                            {{ total_external|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 5: Income Subtotal -->
+                    <tr class="row-subtotal">
+                        <td></td>
+                        <td class="col-amt {% if income_subtotal < 0 %}neg{% endif %}">
+                            {{ income_subtotal|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 6: Money to Branch -->
+                    <tr>
+                        <td>Money to Branch</td>
+                        <td class="col-amt {% if total_money_to_branch == 0 %}zero{% endif %}">
+                            {{ total_money_to_branch|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 7: Expenses (single consolidated total) -->
+                    <tr>
+                        <td>Expenses</td>
+                        <td class="col-amt {% if total_dynamic_expenses == 0 %}zero{% endif %}">
+                            {{ total_dynamic_expenses|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 8: Outflow Subtotal -->
+                    <tr class="row-subtotal">
+                        <td></td>
+                        <td class="col-amt {% if outflow_subtotal < 0 %}neg{% endif %}">
+                            {{ outflow_subtotal|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 9: Closing Balance -->
+                    <tr class="row-closing">
+                        <td>Closing Balance</td>
+                        <td class="col-amt {% if closing_balance < 0 %}neg{% endif %}">
+                            {{ closing_balance|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                </tbody>
+            </table>
+
+        </div>
+        <!-- END printArea -->
+
+        <!-- PRINT button bottom-right -->
+        <div class="action-bar no-print">
+            <button class="btn-print" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

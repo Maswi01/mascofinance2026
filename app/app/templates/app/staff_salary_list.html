@@ -1,0 +1,439 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 30px 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+    }
+
+    .page-title-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(90deg, #1a73c7 0%, #2196F3 60%, #64b5f6 100%);
+        border-radius: 4px 4px 0 0;
+        padding: 0 20px;
+        height: 46px;
+    }
+
+    .page-title-bar h2 {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        margin: 0;
+    }
+
+    .main-card {
+        background: #fff;
+        border-radius: 0 0 6px 6px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        padding: 24px 24px 20px;
+    }
+
+    .top-bar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 16px;
+    }
+
+    .btn-primary-action {
+        background: #7c4dff;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 22px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        box-shadow: 0 2px 8px rgba(124,77,255,0.22);
+        text-decoration: none;
+    }
+
+    .btn-primary-action:hover {
+        background: #651fff;
+        transform: translateY(-1px);
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .controls-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .entries-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #555;
+    }
+
+    .entries-select {
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        cursor: pointer;
+    }
+
+    .search-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #555;
+    }
+
+    .search-input {
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        padding: 5px 12px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        outline: none;
+        width: 200px;
+        transition: border-color 0.2s;
+    }
+
+    .search-input:focus { border-color: #1a73c7; }
+
+    .table-wrap {
+        border: 1px solid #e4e8ed;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .staff-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+    }
+
+    .staff-table thead tr { background: #f7f9fb; }
+
+    .staff-table th {
+        padding: 11px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #555;
+        font-size: 13px;
+        border-bottom: 2px solid #dde3ea;
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .staff-table th:hover { background: #eef1f5; }
+    .sort-icon { opacity: 0.45; margin-left: 5px; font-size: 10px; }
+
+    .staff-table tbody tr {
+        border-bottom: 1px solid #eef1f5;
+        transition: background 0.12s;
+    }
+
+    .staff-table tbody tr:last-child { border-bottom: none; }
+    .staff-table tbody tr:hover { background: #f5f8ff; }
+
+    .staff-table td {
+        padding: 10px 16px;
+        color: #333;
+        vertical-align: middle;
+        font-size: 13.5px;
+    }
+
+    .col-no { width: 70px; text-align: center; color: #777; }
+    .staff-table th.col-no { text-align: center; }
+
+    .salary-val {
+        font-weight: 500;
+        color: #1a73c7;
+    }
+
+    .deduction-val {
+        font-weight: 500;
+        color: #e53935;
+    }
+
+    .designation-badge {
+        background: #e8f0fe;
+        color: #1a73c7;
+        border-radius: 12px;
+        padding: 2px 10px;
+        font-size: 11.5px;
+        font-weight: 500;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 45px 20px;
+        color: #aaa;
+        font-size: 13.5px;
+    }
+
+    .empty-state i { font-size: 36px; margin-bottom: 10px; display: block; }
+
+    .bottom-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 16px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .showing-info { font-size: 13px; color: #666; }
+
+    .pagination { display: flex; gap: 3px; align-items: center; }
+
+    .page-btn {
+        min-width: 34px;
+        height: 32px;
+        padding: 0 10px;
+        border-radius: 4px;
+        border: 1px solid #dde3ea;
+        background: #fff;
+        color: #555;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+    }
+
+    .page-btn:hover:not(:disabled):not(.active) {
+        background: #f0f6ff;
+        border-color: #1a73c7;
+        color: #1a73c7;
+    }
+
+    .page-btn.active {
+        background: #1a73c7;
+        border-color: #1a73c7;
+        color: #fff;
+    }
+
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 16px; margin-top: 60px; }
+        .controls-row { flex-direction: column; align-items: flex-start; }
+        .staff-table { display: block; overflow-x: auto; }
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="page-title-bar">
+        <h2>List of Registered Staff</h2>
+    </div>
+
+    <div class="main-card">
+        <div class="top-bar">
+            <a href="{% url 'staff_salary_setting' %}" class="btn-primary-action">
+                <i class="fas fa-money-bill-wave"></i> Enter Basic Salary
+            </a>
+        </div>
+
+        <div class="controls-row">
+            <div class="entries-control">
+                Show
+                <select class="entries-select" id="entriesSelect" onchange="changeEntries(this.value)">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                entries
+            </div>
+            <div class="search-control">
+                Search:
+                <input type="text" class="search-input" id="searchInput" onkeyup="applyFilters()">
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th class="col-no" onclick="sortTable('id')">No. <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable('name')">Name <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable('role')">Designation <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable('salary')">Salary Amount <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable('deduction')">Deduction Amount <span class="sort-icon">↕</span></th>
+                    </tr>
+                </thead>
+                <tbody id="staffTableBody">
+                    {% for staff in staff_list %}
+                    <tr data-id="{{ staff.id }}">
+                        <td class="col-no">{{ forloop.counter }}</td>
+                        <td>{{ staff.get_full_name|default:staff.username }}</td>
+                        <td>
+                            <span class="designation-badge">{{ staff.role|default:"—" }}</span>
+                        </td>
+                        <td class="salary-val">
+                            {{ staff.salary|default:"0"|floatformat:0 }}
+                        </td>
+                        <td class="deduction-val">
+                            {{ staff.deduction_amount|default:"0"|floatformat:0 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="emptyRow">
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-users"></i>
+                                No staff members found.
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bottom-row">
+            <div class="showing-info">
+                Showing <strong id="startIndex">0</strong> to <strong id="endIndex">0</strong> of <strong id="totalItems">0</strong> entries
+            </div>
+            <div class="pagination" id="paginationContainer"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const staffData = [
+        {% for staff in staff_list %}
+        {
+            id: {{ staff.id }},
+            name: "{{ staff.get_full_name|default:staff.username|escapejs }}",
+            role: "{{ staff.role|default:''|escapejs }}",
+            salary: {{ staff.salary|default:0 }},
+            deduction: {{ staff.deduction_amount|default:0 }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    let currentPage = 1;
+    let itemsPerPage = 10;
+    let filteredData = [...staffData];
+    let sortField = 'id';
+    let sortAsc = true;
+
+    document.addEventListener('DOMContentLoaded', () => applyFilters());
+
+    function applyFilters() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        filteredData = staffData.filter(s =>
+            s.name.toLowerCase().includes(q) ||
+            s.role.toLowerCase().includes(q)
+        );
+        filteredData.sort((a, b) => {
+            let va = (a[sortField] || '').toString().toLowerCase();
+            let vb = (b[sortField] || '').toString().toLowerCase();
+            if (!isNaN(va) && !isNaN(vb)) { va = parseFloat(va); vb = parseFloat(vb); return sortAsc ? va - vb : vb - va; }
+            return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        });
+        currentPage = 1;
+        renderTable();
+    }
+
+    function sortTable(field) {
+        sortAsc = sortField === field ? !sortAsc : true;
+        sortField = field;
+        applyFilters();
+    }
+
+    function changeEntries(val) {
+        itemsPerPage = parseInt(val);
+        currentPage = 1;
+        renderTable();
+    }
+
+    function renderTable() {
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const pageItems = filteredData.slice(start, end);
+
+        document.querySelectorAll('#staffTableBody tr[data-id]').forEach(r => r.style.display = 'none');
+        const emptyRow = document.getElementById('emptyRow');
+        if (emptyRow) emptyRow.style.display = 'none';
+
+        if (filteredData.length === 0) {
+            if (emptyRow) emptyRow.style.display = '';
+            document.getElementById('startIndex').textContent = '0';
+            document.getElementById('endIndex').textContent = '0';
+            document.getElementById('totalItems').textContent = '0';
+            renderPagination(0);
+            return;
+        }
+
+        pageItems.forEach((s, idx) => {
+            const row = document.querySelector(`#staffTableBody tr[data-id="${s.id}"]`);
+            if (row) {
+                row.style.display = '';
+                const cells = row.querySelectorAll('td');
+                if (cells[0]) cells[0].textContent = start + idx + 1;
+                if (cells[1]) cells[1].textContent = s.name;
+                if (cells[3]) cells[3].textContent = s.salary.toLocaleString();
+                if (cells[4]) cells[4].textContent = s.deduction.toLocaleString();
+            }
+        });
+
+        document.getElementById('startIndex').textContent = start + 1;
+        document.getElementById('endIndex').textContent = Math.min(end, filteredData.length);
+        document.getElementById('totalItems').textContent = filteredData.length;
+        renderPagination(Math.ceil(filteredData.length / itemsPerPage));
+    }
+
+    function renderPagination(totalPages) {
+        const c = document.getElementById('paginationContainer');
+        c.innerHTML = '';
+        const prev = makeBtn('Previous', currentPage === 1, () => { currentPage--; renderTable(); });
+        c.appendChild(prev);
+        let s = Math.max(1, currentPage - 2), e = Math.min(totalPages, s + 4);
+        if (e - s < 4) s = Math.max(1, e - 4);
+        for (let i = s; i <= e; i++) {
+            const btn = makeBtn(i, false, (function(p){ return function(){ currentPage = p; renderTable(); }; })(i));
+            if (i === currentPage) btn.classList.add('active');
+            c.appendChild(btn);
+        }
+        const next = makeBtn('Next', currentPage === totalPages || totalPages === 0, () => { currentPage++; renderTable(); });
+        c.appendChild(next);
+    }
+
+    function makeBtn(label, disabled, onClick) {
+        const btn = document.createElement('button');
+        btn.className = 'page-btn';
+        btn.textContent = label;
+        btn.disabled = disabled;
+        btn.onclick = onClick;
+        return btn;
+    }
+</script>
+{% endblock %}

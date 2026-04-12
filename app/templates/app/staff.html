@@ -1,0 +1,1617 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'user-edit' as can_edit_user %}
+{% user_has_perm request.user 'user-create' as can_create_user %}
+{% user_has_perm request.user 'user-show' as can_show_user %}
+<style>
+    /* ==================== Staff Page Styles ==================== */
+    .staff-container {
+        padding: var(--spacing-md);
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Summary Cards */
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .summary-card {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        box-shadow: var(--shadow-md);
+        transition: var(--transition-base);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .summary-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--primary-blue), var(--accent-purple));
+    }
+
+    .summary-card.total::before {
+        background: linear-gradient(to bottom, var(--primary-blue), var(--dark-blue));
+    }
+
+    .summary-card.active::before {
+        background: linear-gradient(to bottom, var(--accent-green), #34d399);
+    }
+
+    .summary-card.inactive::before {
+        background: linear-gradient(to bottom, #ef4444, #f87171);
+    }
+
+    .summary-card.on-leave::before {
+        background: linear-gradient(to bottom, var(--accent-orange), #fbbf24);
+    }
+
+    .summary-card-content {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .summary-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: var(--border-radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--font-size-lg);
+        color: var(--white);
+        background: var(--primary-blue);
+        flex-shrink: 0;
+    }
+
+    .summary-card.active .summary-icon {
+        background: var(--accent-green);
+    }
+
+    .summary-card.inactive .summary-icon {
+        background: #ef4444;
+    }
+
+    .summary-card.on-leave .summary-icon {
+        background: var(--accent-orange);
+    }
+
+    .summary-text h3 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-3xl);
+        font-weight: 700;
+        color: var(--gray-dark);
+        margin-bottom: 4px;
+    }
+
+    .summary-text p {
+        color: var(--gray-medium);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    /* Search and Filter Bar */
+    .search-filter-bar {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 300px;
+        position: relative;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 20px 12px 45px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--gray-medium);
+        font-size: var(--font-size-base);
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: var(--spacing-md);
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        padding: 10px 15px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        color: var(--gray-dark);
+        background: var(--white);
+        cursor: pointer;
+        min-width: 150px;
+        transition: var(--transition-base);
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: var(--spacing-sm);
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        border: none;
+        outline: none;
+    }
+
+    .btn-primary {
+        background: var(--primary-blue);
+        color: var(--white);
+    }
+
+    .btn-primary:hover {
+        background: var(--dark-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1.5px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+        background: var(--white);
+        border-color: var(--primary-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Staff Table */
+    .table-container {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .staff-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .staff-table thead {
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+    }
+
+    .staff-table th {
+        padding: var(--spacing-md) var(--spacing-lg);
+        text-align: left;
+        color: var(--white);
+        font-weight: 600;
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family-heading);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .staff-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: var(--transition-fast);
+    }
+
+    .staff-table tbody tr:hover {
+        background: rgba(45, 106, 227, 0.05);
+    }
+
+    .staff-table td {
+        padding: var(--spacing-md) var(--spacing-lg);
+        color: var(--gray-dark);
+        font-size: var(--font-size-sm);
+    }
+
+    .staff-info {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .staff-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #e2e8f0;
+    }
+
+    .staff-name {
+        font-weight: 600;
+        color: var(--gray-dark);
+        margin-bottom: 2px;
+    }
+
+    .staff-id {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .status-active {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--accent-green);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .status-inactive {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .status-on-leave {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--accent-orange);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .action-buttons-cell {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+    }
+
+    .icon-btn:hover {
+        background: var(--white);
+        transform: translateY(-2px);
+    }
+
+    .icon-btn.view:hover {
+        color: var(--primary-blue);
+        border-color: var(--primary-blue);
+    }
+
+    .icon-btn.edit:hover {
+        color: var(--accent-green);
+        border-color: var(--accent-green);
+    }
+
+    .icon-btn.delete:hover {
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-lg);
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .pagination-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background: var(--primary-blue);
+        color: var(--white);
+        border-color: var(--primary-blue);
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-pages {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+
+    .page-number {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    .page-number.active {
+        background: var(--primary-blue);
+        color: var(--white);
+        border-color: var(--primary-blue);
+    }
+
+    .page-number:hover:not(.active) {
+        background: var(--gray-light);
+        border-color: var(--primary-blue);
+    }
+
+    /* Popup Overlay */
+    .popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        display: none;
+        justify-content: flex-end;
+        align-items: center;
+        z-index: 2000;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .popup-overlay.active {
+        display: flex;
+    }
+
+    /* Staff Details Popup */
+    .staff-details-popup {
+        width: 450px;
+        height: 100vh;
+        background: var(--white);
+        box-shadow: var(--shadow-xl);
+        transform: translateX(100%);
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .staff-details-popup {
+        transform: translateX(0);
+    }
+
+    .popup-header {
+        padding: var(--spacing-lg);
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+        color: var(--white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .popup-title {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        font-weight: 600;
+    }
+
+    .close-popup {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        color: var(--white);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition-fast);
+    }
+
+    .close-popup:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+
+    .popup-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
+    }
+
+    .staff-profile-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+        padding-bottom: var(--spacing-lg);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .staff-profile-avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #e2e8f0;
+        box-shadow: var(--shadow-md);
+    }
+
+    .staff-profile-info h2 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        color: var(--gray-dark);
+        margin-bottom: var(--spacing-xs);
+    }
+
+    .staff-profile-info .status-badge {
+        margin-top: var(--spacing-xs);
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .info-item h4 {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .info-item p {
+        font-size: var(--font-size-base);
+        color: var(--gray-dark);
+        font-weight: 500;
+    }
+
+    .popup-footer {
+        padding: var(--spacing-lg);
+        background: var(--gray-light);
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--spacing-md);
+    }
+
+    /* Add Staff Popup */
+    .add-staff-popup {
+        width: 500px;
+        max-width: 90vw;
+        height: 90vh;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .add-staff-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-md);
+    }
+
+    .form-group {
+        margin-bottom: var(--spacing-md);
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        color: var(--gray-dark);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    /* Update Staff Popup */
+    .update-staff-popup {
+        width: 500px;
+        max-width: 90vw;
+        height: 90vh;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .update-staff-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .search-filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-box {
+            min-width: 100%;
+        }
+
+        .filter-controls {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .staff-table {
+            display: block;
+            overflow-x: auto;
+        }
+
+        .staff-details-popup {
+            width: 100%;
+        }
+
+        .add-staff-popup,
+        .update-staff-popup {
+            width: 95vw;
+            height: 95vh;
+            margin: 2.5vh auto;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .summary-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .action-buttons {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .staff-profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+</style>
+
+<div class="staff-container">
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card total" onclick="filterStaff('all')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="totalStaff">0</h3>
+                    <p>Total Staff Members</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card active" onclick="filterStaff('active')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="activeStaff">0</h3>
+                    <p>Active Staff</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card inactive" onclick="filterStaff('inactive')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-user-slash"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="inactiveStaff">0</h3>
+                    <p>Inactive Staff</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card on-leave" onclick="filterStaff('on-leave')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-umbrella-beach"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="onLeaveStaff">0</h3>
+                    <p>On Leave</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Bar -->
+    <div class="search-filter-bar">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" 
+                   class="search-input" 
+                   placeholder="Search staff by name, ID, or department..."
+                   id="searchInput"
+                   onkeyup="searchStaff()">
+        </div>
+
+        <div class="filter-controls">
+            <select class="filter-select" id="officeFilter" onchange="filterStaff()">
+                <option value="">All Offices</option>
+                {% for office in offices %}
+                <option value="{{ office.name }}">{{ office.name }}</option>
+                {% endfor %}
+            </select>
+
+            <select class="filter-select" id="statusFilter" onchange="filterStaff()">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="on-leave">On Leave</option>
+            </select>
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="exportStaffData()">
+                    <i class="fas fa-download"></i>
+                    Export
+                </button>
+                {% if can_create_user %}
+                <button class="btn btn-primary" onclick="openAddStaffPopup()">
+                    <i class="fas fa-user-plus"></i>
+                    Add New Staff
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Table -->
+     {% if can_show_user%}
+    <div class="table-container">
+        <table class="staff-table">
+            <thead>
+                <tr>
+                    <th>Staff Member</th>
+                    <th>Username</th>
+                    <th>Department</th>
+                    <th>Phone</th>
+                    <th>Allocation</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="staffTableBody">
+                {% for staff in staff_members %}
+                <tr data-id="{{ staff.id }}" data-status="{{ staff.status|default:'active' }}">
+                    <td>
+                        <div class="staff-info">
+                            <img src="https://ui-avatars.com/api/?name={{ staff.first_name|default:'' }}+{{ staff.last_name|default:'' }}&background={% if staff.status == 'active' %}10b981{% elif staff.status == 'inactive' %}ef4444{% else %}f59e0b{% endif %}&color=fff&size=40" 
+                                 alt="{{ staff.first_name }} {{ staff.last_name }}" 
+                                 class="staff-avatar">
+                            <div>
+                                <div class="staff-name">{{ staff.first_name }} {{ staff.last_name }}</div>
+                                <div class="staff-email" style="font-size: var(--font-size-xs); color: var(--gray-medium);">{{ staff.email }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ staff.username }}</td>
+                    <td>{{ staff.role|title }}</td>
+                    <td>{{ staff.phone|default:"-" }}</td>
+                    <td>{{ staff.office_allocation.name|default:"-" }}</td>
+                    <td>
+                        <span class="status-badge 
+                            {% if staff.status == 'active' %}status-active
+                            {% elif staff.status == 'inactive' %}status-inactive
+                            {% else %}status-on-leave{% endif %}">
+                            {{ staff.status|default:"Active"|title }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons-cell">
+                            <button class="icon-btn view" onclick="viewStaffDetails({{ staff.id }})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="icon-btn edit" onclick="openUpdateStaffPopup({{ staff.id }})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="icon-btn delete" onclick="deleteStaff({{ staff.id }})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: var(--spacing-xl); color: var(--gray-medium);">
+                        No staff members found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Pagination -->
+    <div class="pagination">
+        <button class="pagination-btn" onclick="changePage(-1)" id="prevPage">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        
+        <div class="pagination-pages" id="paginationPages">
+            <!-- Page numbers will be generated by JavaScript -->
+        </div>
+        
+        <button class="pagination-btn" onclick="changePage(1)" id="nextPage">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        
+        <div style="margin-left: var(--spacing-md); font-size: var(--font-size-sm); color: var(--gray-medium);">
+            Showing <span id="startIndex">1</span>-<span id="endIndex">0</span> of <span id="totalItems">0</span> staff
+        </div>
+    </div>
+</div>
+
+<!-- Staff Details Popup -->
+<div class="popup-overlay" id="staffDetailsPopup">
+    <div class="staff-details-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Staff Details</h2>
+            <button class="close-popup" onclick="closeStaffDetails()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content" id="staffDetailsContent">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" onclick="closeStaffDetails()">
+                Close
+            </button>
+            <button class="btn btn-primary" onclick="openUpdateStaffPopup()">
+                <i class="fas fa-edit"></i>
+                Edit Staff
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Staff Popup -->
+<div class="popup-overlay" id="addStaffPopup">
+    <div class="add-staff-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Add New Staff Member</h2>
+            <button class="close-popup" onclick="closeAddStaffPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <form id="addStaffForm" method="post" action="{% url 'signup' %}">
+                {% csrf_token %}
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" name="firstname" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name *</label>
+                        <input type="text" name="lastname" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username *</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Address *</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone Number *</label>
+                        <input type="tel" name="phone" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Department *</label>
+                        <select class="form-control" name="role" required>
+                            <option value="">Select Department</option>
+                            <option value="sales">Sales</option>
+                            <option value="finance">Finance</option>
+                            <option value="hr">Human Resources</option>
+                            <option value="it">IT</option>
+                            <option value="operations">Operations</option>
+                            <option value="md">Director</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Join Date *</label>
+                        <input type="date" name="join_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Salary</label>
+                        <input type="number" name="salary" class="form-control" step="0.01">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Office Allocation *</label>
+                        <select class="form-control" name="office_allocation" required>
+                            <option value="">Select Office</option>
+                            {% for office in offices %}
+                            <option value="{{ office.id }}">{{ office.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="popup-footer">
+                    <button class="btn btn-secondary" type="button" onclick="closeAddStaffPopup()">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-save"></i>
+                        Add Staff Member
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Staff Popup -->
+<div class="popup-overlay" id="updateStaffPopup">
+    <div class="update-staff-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Update Staff Member</h2>
+            <button class="close-popup" onclick="closeUpdateStaffPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <form id="updateStaffForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="staff_id" id="updateStaffId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" name="first_name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name *</label>
+                        <input type="text" name="last_name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username *</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Address *</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone Number *</label>
+                        <input type="tel" name="phone" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Department *</label>
+                        <select class="form-control" name="role" required>
+                            <option value="">Select Department</option>
+                            <option value="sales">Sales</option>
+                            <option value="finance">Finance</option>
+                            <option value="hr">Human Resources</option>
+                            <option value="it">IT</option>
+                            <option value="operations">Operations</option>
+                            <option value="md">Director</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Join Date *</label>
+                        <input type="date" name="join_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Salary</label>
+                        <input type="number" name="salary" class="form-control" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status *</label>
+                        <select class="form-control" name="status" required>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="on-leave">On Leave</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Office Allocation</label>
+                        <select class="form-control" name="office_allocation">
+                            <option value="">Select Office</option>
+                            {% for office in offices %}
+                            <option value="{{ office.id }}">{{ office.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3" placeholder="Any additional information..."></textarea>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" type="button" onclick="closeUpdateStaffPopup()">
+                Cancel
+            </button>
+            <button class="btn btn-primary" type="submit" form="updateStaffForm">
+                <i class="fas fa-save"></i>
+                Update Staff
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== Staff Data from Django ====================
+    // Convert Django template data to JavaScript array
+    const staffData = [
+        {% for staff in staff_members %}
+        {
+            id: {{ staff.id }},
+            firstName: "{{ staff.first_name|default:''|escapejs }}",
+            lastName: "{{ staff.last_name|default:''|escapejs }}",
+            username: "{{ staff.username|default:''|escapejs }}",
+            email: "{{ staff.email|default:''|escapejs }}",
+            phone: "{{ staff.phone|default:''|escapejs }}",
+            employeeId: "{{ staff.id|default:'' }}",
+            department: "{{ staff.role|default:''|title|escapejs }}",
+            position: "{{ staff.role|default:''|title|escapejs }}",
+            joinDate: "{{ staff.join_date|date:'Y-m-d'|default:'' }}",
+            status: "{{ staff.status|default:'active'|escapejs }}",
+            salary: {{ staff.salary|default:0 }},
+            officeAllocation: "{{ staff.office_allocation.name|default:''|escapejs }}",
+            notes: "{{ staff.notes|default:''|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // ==================== Global Variables ====================
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let filteredStaff = [...staffData];
+    let currentSelectedStaff = null;
+
+    // ==================== Initialize Page ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSummaryCards();
+        renderStaffTable();
+        updatePagination();
+        
+        // Add event listeners for table rows
+        document.querySelectorAll('#staffTableBody tr[data-id]').forEach(row => {
+            row.addEventListener('click', function(e) {
+                // Don't trigger on action buttons
+                if (!e.target.closest('.action-buttons-cell')) {
+                    const staffId = parseInt(this.getAttribute('data-id'));
+                    viewStaffDetails(staffId);
+                }
+            });
+        });
+    });
+
+    // ==================== Summary Cards Functions ====================
+    function updateSummaryCards() {
+        const total = staffData.length;
+        const active = staffData.filter(s => s.status === 'active').length;
+        const inactive = staffData.filter(s => s.status === 'inactive').length;
+        const onLeave = staffData.filter(s => s.status === 'on-leave').length;
+
+        document.getElementById('totalStaff').textContent = total;
+        document.getElementById('activeStaff').textContent = active;
+        document.getElementById('inactiveStaff').textContent = inactive;
+        document.getElementById('onLeaveStaff').textContent = onLeave;
+    }
+
+    // ==================== Staff Table Functions ====================
+    function renderStaffTable() {
+        const tableBody = document.getElementById('staffTableBody');
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentStaff = filteredStaff.slice(startIndex, endIndex);
+
+        // If we already have server-rendered rows, just hide/show them
+        const allRows = document.querySelectorAll('#staffTableBody tr[data-id]');
+        
+        if (allRows.length > 0) {
+            // Hide all rows
+            allRows.forEach(row => row.style.display = 'none');
+            
+            // Show only filtered rows for current page
+            currentStaff.forEach((staff, index) => {
+                const row = document.querySelector(`#staffTableBody tr[data-id="${staff.id}"]`);
+                if (row) {
+                    row.style.display = '';
+                }
+            });
+            
+            // Handle no results
+            const noResultsRow = document.querySelector('#staffTableBody tr:not([data-id])');
+            if (noResultsRow) {
+                noResultsRow.style.display = filteredStaff.length === 0 ? '' : 'none';
+            }
+        }
+
+        // Update pagination info
+        document.getElementById('startIndex').textContent = filteredStaff.length > 0 ? startIndex + 1 : 0;
+        document.getElementById('endIndex').textContent = Math.min(endIndex, filteredStaff.length);
+        document.getElementById('totalItems').textContent = filteredStaff.length;
+    }
+
+    // ==================== Search and Filter Functions ====================
+    function searchStaff() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const officeFilter = document.getElementById('officeFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+
+        filteredStaff = staffData.filter(staff => {
+            const matchesSearch = 
+                (staff.firstName && staff.firstName.toLowerCase().includes(searchTerm)) ||
+                (staff.lastName && staff.lastName.toLowerCase().includes(searchTerm)) ||
+                (staff.username && staff.username.toLowerCase().includes(searchTerm)) ||
+                (staff.department && staff.department.toLowerCase().includes(searchTerm)) ||
+                (staff.email && staff.email.toLowerCase().includes(searchTerm)) ||
+                (staff.phone && staff.phone.toLowerCase().includes(searchTerm));
+
+            const matchesOffice = !officeFilter || 
+                                 (staff.officeAllocation && staff.officeAllocation.toLowerCase() === officeFilter.toLowerCase());
+            const matchesStatus = !statusFilter || staff.status === statusFilter;
+
+            return matchesSearch && matchesOffice && matchesStatus;
+        });
+
+        currentPage = 1;
+        renderStaffTable();
+        updatePagination();
+    }
+
+    function filterStaff(status = '') {
+        if (status) {
+            document.getElementById('statusFilter').value = status;
+        }
+        searchStaff();
+    }
+
+    // ==================== Pagination Functions ====================
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
+        const paginationPages = document.getElementById('paginationPages');
+        
+        paginationPages.innerHTML = '';
+
+        // Show max 5 page numbers
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = `page-number ${i === currentPage ? 'active' : ''}`;
+            pageBtn.textContent = i;
+            pageBtn.onclick = () => goToPage(i);
+            paginationPages.appendChild(pageBtn);
+        }
+
+        // Update prev/next buttons
+        document.getElementById('prevPage').disabled = currentPage === 1;
+        document.getElementById('nextPage').disabled = currentPage === totalPages || totalPages === 0;
+    }
+
+    function changePage(direction) {
+        const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
+        const newPage = currentPage + direction;
+
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            renderStaffTable();
+            updatePagination();
+        }
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderStaffTable();
+        updatePagination();
+    }
+
+    // ==================== Staff Details Popup Functions ====================
+    function viewStaffDetails(staffId) {
+        const staff = staffData.find(s => s.id === staffId);
+        if (!staff) return;
+
+        currentSelectedStaff = staff;
+        const popup = document.getElementById('staffDetailsPopup');
+        const content = document.getElementById('staffDetailsContent');
+
+        // Format date
+        let formattedDate = '-';
+        if (staff.joinDate) {
+            const joinDate = new Date(staff.joinDate);
+            formattedDate = joinDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Calculate tenure
+        const tenure = calculateTenure(staff.joinDate);
+
+        // Status badge
+        let statusClass = 'status-active';
+        let statusText = 'Active';
+        
+        if (staff.status === 'inactive') {
+            statusClass = 'status-inactive';
+            statusText = 'Inactive';
+        } else if (staff.status === 'on-leave') {
+            statusClass = 'status-on-leave';
+            statusText = 'On Leave';
+        }
+
+        // Format salary
+        const formattedSalary = staff.salary ? 
+            `$${parseFloat(staff.salary).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
+            'Not specified';
+
+        content.innerHTML = `
+            <div class="staff-profile-header">
+                <img src="https://ui-avatars.com/api/?name=${staff.firstName}+${staff.lastName}&background=${staff.status === 'active' ? '10b981' : staff.status === 'inactive' ? 'ef4444' : 'f59e0b'}&color=fff&size=100" 
+                     alt="${staff.firstName} ${staff.lastName}" 
+                     class="staff-profile-avatar">
+                <div class="staff-profile-info">
+                    <h2>${staff.firstName} ${staff.lastName}</h2>
+                    <div style="color: var(--gray-medium); margin-bottom: var(--spacing-sm);">${staff.position}</div>
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <h4>Username</h4>
+                    <p>${staff.username}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Department</h4>
+                    <p>${staff.department}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Email</h4>
+                    <p>${staff.email}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Phone</h4>
+                    <p>${staff.phone || '-'}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Join Date</h4>
+                    <p>${formattedDate}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Tenure</h4>
+                    <p>${tenure}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Salary</h4>
+                    <p>${formattedSalary}</p>
+                </div>
+            </div>
+
+            ${staff.officeAllocation ? `
+                <div style="margin-bottom: var(--spacing-lg);">
+                    <h4 style="font-size: var(--font-size-xs); color: var(--gray-medium); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;">Office Allocation</h4>
+                    <p style="font-size: var(--font-size-base); color: var(--gray-dark);">${staff.officeAllocation}</p>
+                </div>
+            ` : ''}
+
+            ${staff.notes ? `
+                <div>
+                    <h4 style="font-size: var(--font-size-xs); color: var(--gray-medium); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;">Notes</h4>
+                    <p style="font-size: var(--font-size-base); color: var(--gray-dark); font-style: italic;">${staff.notes}</p>
+                </div>
+            ` : ''}
+        `;
+
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeStaffDetails() {
+        const popup = document.getElementById('staffDetailsPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        currentSelectedStaff = null;
+    }
+
+    // ==================== Add Staff Popup Functions ====================
+    function openAddStaffPopup() {
+        const popup = document.getElementById('addStaffPopup');
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Reset form
+        document.getElementById('addStaffForm').reset();
+        
+        // Set default date to today
+        const today = new Date().toISOString().split('T')[0];
+        const dateInput = document.querySelector('#addStaffForm input[type="date"]');
+        if (dateInput) {
+            dateInput.value = today;
+        }
+    }
+
+    function closeAddStaffPopup() {
+        const popup = document.getElementById('addStaffPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    }
+
+    // ==================== Update Staff Popup Functions ====================
+    function openUpdateStaffPopup(staffId) {
+        if (!staffId && currentSelectedStaff) {
+            staffId = currentSelectedStaff.id;
+        }
+        
+        const staff = staffData.find(s => s.id === staffId);
+        if (!staff) return;
+
+        currentSelectedStaff = staff;
+        const popup = document.getElementById('updateStaffPopup');
+        const form = document.getElementById('updateStaffForm');
+
+        // Set staff ID
+        document.getElementById('updateStaffId').value = staff.id;
+
+        // Populate form fields
+        const formFields = {
+            'first_name': staff.firstName,
+            'last_name': staff.lastName,
+            'username': staff.username,
+            'email': staff.email,
+            'phone': staff.phone || '',
+            'role': staff.department ? staff.department.toLowerCase() : '',
+            'join_date': staff.joinDate,
+            'salary': staff.salary || '',
+            'status': staff.status,
+            'notes': staff.notes || ''
+        };
+
+        // Set form values
+        Object.keys(formFields).forEach(fieldName => {
+            const input = form.querySelector(`[name="${fieldName}"]`);
+            if (input) {
+                if (input.tagName === 'SELECT') {
+                    // For select elements
+                    for (let option of input.options) {
+                        if (option.value.toLowerCase() === String(formFields[fieldName]).toLowerCase()) {
+                            option.selected = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // For other input types
+                    input.value = formFields[fieldName] || '';
+                }
+            }
+        });
+
+        // Set office allocation separately
+        const officeSelect = form.querySelector('[name="office_allocation"]');
+        if (officeSelect && staff.officeAllocation) {
+            for (let option of officeSelect.options) {
+                if (option.text === staff.officeAllocation) {
+                    option.selected = true;
+                    break;
+                }
+            }
+        }
+
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeUpdateStaffPopup() {
+        const popup = document.getElementById('updateStaffPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        currentSelectedStaff = null;
+    }
+
+    // ==================== Delete Staff Function ====================
+    function deleteStaff(staffId) {
+        if (!confirm('Are you sure you want to delete this staff member? This action cannot be undone.')) {
+            return;
+        }
+
+        // You can implement AJAX delete here
+        // For now, we'll just show a notification
+        showNotification('Delete functionality would be implemented here. Staff ID: ' + staffId, 'info');
+        
+        // In a real implementation, you would make an AJAX call to delete the staff
+        // fetch(`/delete-staff/${staffId}/`, {
+        //     method: 'DELETE',
+        //     headers: {
+        //         'X-CSRFToken': getCookie('csrftoken')
+        //     }
+        // }).then(response => {
+        //     if (response.ok) {
+        //         // Remove from local data and update UI
+        //         const index = staffData.findIndex(s => s.id === staffId);
+        //         if (index !== -1) {
+        //             staffData.splice(index, 1);
+        //             updateSummaryCards();
+        //             searchStaff();
+        //             showNotification('Staff member deleted successfully!', 'success');
+        //         }
+        //     }
+        // });
+    }
+
+    // ==================== Utility Functions ====================
+    function calculateTenure(joinDate) {
+        if (!joinDate) return 'Not specified';
+        
+        const join = new Date(joinDate);
+        const now = new Date();
+        
+        const years = now.getFullYear() - join.getFullYear();
+        const months = now.getMonth() - join.getMonth();
+        
+        let tenure = '';
+        if (years > 0) {
+            tenure += `${years} year${years > 1 ? 's' : ''}`;
+        }
+        if (months > 0) {
+            if (tenure) tenure += ', ';
+            tenure += `${months} month${months > 1 ? 's' : ''}`;
+        }
+        
+        return tenure || 'Less than a month';
+    }
+
+    function exportStaffData() {
+        // Create CSV content
+        let csv = 'First Name,Last Name,Username,Email,Phone,Department,Join Date,Status,Salary,Office Allocation\n';
+        
+        filteredStaff.forEach(staff => {
+            csv += `"${staff.firstName}","${staff.lastName}","${staff.username}","${staff.email}","${staff.phone || ''}","${staff.department}","${staff.joinDate || ''}","${staff.status}","${staff.salary || ''}","${staff.officeAllocation || ''}"\n`;
+        });
+        
+        // Create blob and download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `staff_data_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        
+        // Show notification
+        showNotification('Staff data exported successfully!', 'success');
+    }
+
+    function showNotification(message, type = 'info') {
+        // Reuse the notification function from base template
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+        } else {
+            // Fallback notification
+            alert(message);
+        }
+    }
+
+    // Helper function for CSRF token (for AJAX requests)
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // ==================== Event Listeners ====================
+    // Close popups with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeStaffDetails();
+            closeAddStaffPopup();
+            closeUpdateStaffPopup();
+        }
+    });
+
+    // Close popups when clicking outside
+    document.addEventListener('click', function(e) {
+        const staffDetailsPopup = document.getElementById('staffDetailsPopup');
+        const addStaffPopup = document.getElementById('addStaffPopup');
+        const updateStaffPopup = document.getElementById('updateStaffPopup');
+        
+        if (staffDetailsPopup.classList.contains('active')) {
+            if (e.target === staffDetailsPopup) {
+                closeStaffDetails();
+            }
+        }
+        
+        if (addStaffPopup.classList.contains('active')) {
+            if (e.target === addStaffPopup) {
+                closeAddStaffPopup();
+            }
+        }
+        
+        if (updateStaffPopup.classList.contains('active')) {
+            if (e.target === updateStaffPopup) {
+                closeUpdateStaffPopup();
+            }
+        }
+    });
+</script>
+{% endblock %}

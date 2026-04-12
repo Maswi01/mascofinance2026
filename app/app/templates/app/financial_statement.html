@@ -1,0 +1,632 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+<style>
+    /* ==================== Financial Statement Styles ==================== */
+    .financial-container {
+        padding: var(--spacing-md);
+        animation: fadeIn 0.5s ease-out;
+        margin-top: 150px;
+    }
+
+    /* Filter Card */
+    .filter-card {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+        box-shadow: var(--shadow-md);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    .filter-title {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-lg);
+        color: var(--gray-dark);
+        margin-bottom: var(--spacing-lg);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+
+    .filter-title i { color: var(--primary-blue); }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--spacing-md);
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .filter-label {
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        color: var(--gray-dark);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .filter-label i {
+        color: var(--primary-blue);
+        font-size: var(--font-size-base);
+    }
+
+    .filter-input {
+        padding: 10px 12px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: var(--spacing-sm);
+        justify-content: flex-end;
+    }
+
+    .btn-filter {
+        padding: 10px 24px;
+        background: var(--primary-blue);
+        color: var(--white);
+        border: none;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-filter:hover {
+        background: var(--dark-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-reset {
+        padding: 10px 24px;
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .btn-reset:hover {
+        background: var(--white);
+        border-color: var(--primary-blue);
+        transform: translateY(-2px);
+    }
+
+    /* Statement Card */
+    .statement-card {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .statement-header {
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+        color: var(--white);
+        padding: var(--spacing-lg) var(--spacing-xl);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+    }
+
+    .statement-title {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-2xl);
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+
+    .statement-period {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 30px;
+        font-size: var(--font-size-sm);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .statement-body { padding: var(--spacing-xl); }
+
+    /* Table Styles */
+    .statement-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .statement-table tr { border-bottom: 1px solid #e2e8f0; }
+    .statement-table tr:last-child { border-bottom: none; }
+
+    .statement-table td {
+        padding: var(--spacing-md) var(--spacing-lg);
+        font-size: var(--font-size-base);
+    }
+
+    .statement-table td:first-child {
+        font-weight: 500;
+        color: var(--gray-dark);
+    }
+
+    .statement-table td:last-child {
+        text-align: right;
+        font-weight: 600;
+        font-family: var(--font-family-heading);
+    }
+
+    .section-header td {
+        background: var(--gray-light);
+        font-weight: 700 !important;
+        color: var(--gray-dark) !important;
+        font-size: var(--font-size-lg) !important;
+        padding: var(--spacing-md) var(--spacing-lg) !important;
+    }
+
+    .section-header td:first-child {
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .income-row td:last-child { color: var(--accent-green); }
+    .expense-row td:last-child { color: #ef4444; }
+    .loan-row td:last-child { color: #f97316; }
+    .salary-row td:last-child { color: #8b5cf6; }
+
+    .balance-row td {
+        background: rgba(45, 106, 227, 0.05);
+        font-weight: 700;
+        font-size: var(--font-size-lg);
+    }
+
+    .balance-row td:last-child {
+        color: var(--primary-blue);
+        font-size: var(--font-size-xl);
+    }
+
+    /* Cash summary row styles */
+    .cash-bank-row td:last-child { color: #0891b2; }    /* cyan-600 */
+    .cash-office-row td:last-child { color: #7c3aed; }  /* violet-600 */
+    .cash-total-row td {
+        background: rgba(8, 145, 178, 0.08);
+        font-weight: 700;
+        font-size: var(--font-size-lg);
+    }
+    .cash-total-row td:last-child {
+        color: #0891b2;
+        font-size: var(--font-size-xl);
+    }
+
+    .indent-row td:first-child { padding-left: calc(var(--spacing-lg) * 2); }
+
+    .subtext {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+        font-weight: normal;
+        margin-left: 8px;
+    }
+
+    /* Cash section header */
+    .cash-section-header td {
+        background: linear-gradient(90deg, rgba(8,145,178,0.12), rgba(124,58,237,0.08));
+        font-weight: 700 !important;
+        color: var(--gray-dark) !important;
+        font-size: var(--font-size-lg) !important;
+        padding: var(--spacing-md) var(--spacing-lg) !important;
+        border-left: 4px solid #0891b2;
+    }
+
+    /* Branch breakdown table inside cash section */
+    .branch-breakdown-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+    }
+
+    .branch-breakdown-table td {
+        padding: 6px 16px;
+        font-size: var(--font-size-sm);
+        border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .branch-breakdown-table td:last-child {
+        text-align: right;
+        font-weight: 600;
+    }
+
+    .branch-breakdown-table .bank-col { color: #0891b2; }
+    .branch-breakdown-table .office-col { color: #7c3aed; }
+
+    .branch-breakdown-header td {
+        background: rgba(226, 232, 240, 0.5);
+        font-size: var(--font-size-xs) !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--gray-medium) !important;
+        padding: 6px 16px !important;
+    }
+
+    /* Export Button */
+    .export-btn {
+        background: var(--white);
+        color: var(--primary-blue);
+        border: 2px solid var(--primary-blue);
+        padding: 8px 16px;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .export-btn:hover {
+        background: var(--primary-blue);
+        color: var(--white);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .no-data {
+        text-align: center;
+        padding: var(--spacing-xl);
+        color: var(--gray-medium);
+        font-style: italic;
+    }
+
+    .sub-section-header td {
+        background: rgba(45, 106, 227, 0.05);
+        font-weight: 600;
+        color: var(--gray-dark);
+        padding-left: calc(var(--spacing-lg) * 2);
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    @media (max-width: 768px) {
+        .filter-grid { grid-template-columns: 1fr; }
+        .statement-header { flex-direction: column; align-items: flex-start; }
+        .statement-table td { padding: var(--spacing-sm); font-size: var(--font-size-sm); }
+        .indent-row td:first-child { padding-left: var(--spacing-lg); }
+    }
+</style>
+
+<!-- Quick date range buttons -->
+<div style="margin-top: 150px; margin-bottom: var(--spacing-md); padding: 0 var(--spacing-md); display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+    <button class="btn-reset" onclick="setDateRange(7)" style="padding: 6px 12px;">
+        <i class="fas fa-clock"></i> Last 7 Days
+    </button>
+    <button class="btn-reset" onclick="setDateRange(30)" style="padding: 6px 12px;">
+        <i class="fas fa-calendar-week"></i> Last 30 Days
+    </button>
+    <button class="btn-reset" onclick="setDateRange(90)" style="padding: 6px 12px;">
+        <i class="fas fa-calendar-alt"></i> Last 90 Days
+    </button>
+    <button class="btn-reset" onclick="setDateRange(365)" style="padding: 6px 12px;">
+        <i class="fas fa-calendar"></i> This Year
+    </button>
+</div>
+
+<div class="financial-container" style="margin-top: 0;">
+    <!-- Filter Section -->
+    <div class="filter-card">
+        <div class="filter-title">
+            <i class="fas fa-filter"></i>
+            Filter Financial Statement
+        </div>
+
+        <form method="GET" action="{% url 'financial_statement' %}" id="filterForm">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-calendar-alt"></i>
+                        Start Date
+                    </label>
+                    <input type="date"
+                           name="start_date"
+                           class="filter-input"
+                           value="{{ start_date|date:'Y-m-d' }}"
+                           max="{{ current_date|date:'Y-m-d' }}">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-calendar-alt"></i>
+                        End Date
+                    </label>
+                    <input type="date"
+                           name="end_date"
+                           class="filter-input"
+                           value="{{ end_date|date:'Y-m-d' }}"
+                           max="{{ current_date|date:'Y-m-d' }}">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-building"></i>
+                        Branch/Office
+                    </label>
+                    <select name="branch" class="filter-input">
+                        <option value="">All Branches</option>
+                        {% for office in offices %}
+                        <option value="{{ office.name }}" {% if selected_branch == office.name %}selected{% endif %}>
+                            {{ office.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="btn-filter">
+                        <i class="fas fa-search"></i>
+                        Apply Filters
+                    </button>
+                    <a href="{% url 'financial_statement' %}" class="btn-reset">
+                        <i class="fas fa-redo-alt"></i>
+                        Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Financial Statement -->
+    <div class="statement-card">
+        <div class="statement-header">
+            <div class="statement-title">
+                <i class="fas fa-chart-pie"></i>
+                Financial Statement
+            </div>
+            <div class="statement-period">
+                <i class="fas fa-calendar"></i>
+                {{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}
+                {% if selected_branch %}
+                | <i class="fas fa-building"></i> {{ selected_branch }}
+                {% else %}
+                | All Branches
+                {% endif %}
+            </div>
+            <button class="export-btn" onclick="exportStatement()">
+                <i class="fas fa-download"></i>
+                Export PDF
+            </button>
+        </div>
+
+        <div class="statement-body">
+            <table class="statement-table">
+
+                <!-- ===== OPENING STOCK SECTION ===== -->
+                <tr class="section-header">
+                    <td colspan="2">
+                        OPENING STOCK
+                        {% if dates_specified %}
+                        (Before {{ start_date|date:"M d, Y" }})
+                        {% else %}
+                        (Starting Balance)
+                        {% endif %}
+                    </td>
+                </tr>
+
+                {% if not dates_specified %}
+                <tr>
+                    <td style="padding: 8px 32px;">Opening Balance (All Time View)</td>
+                    <td style="padding: 8px 16px; text-align: right; font-weight: 600;">0.00</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="2" style="padding: 0;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="background: var(--primary-blue); color: white;">
+                                <td style="padding: 12px 16px; font-weight: 700;">OPENING STOCK</td>
+                                <td style="padding: 12px 16px; text-align: right; font-weight: 700; font-size: 1.2em;">
+                                    {{ opening_stock|floatformat:2|intcomma }}
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                {% endif %}
+
+                <!-- ===== INCOME SECTION ===== -->
+                <tr class="section-header">
+                    <td colspan="2">INCOME</td>
+                </tr>
+                <tr class="income-row">
+                    <td>
+                        Mapato (Loan Repayments)
+                        <span class="subtext">{{ mapato_count }} payments</span>
+                    </td>
+                    <td>{{ total_mapato|floatformat:2|intcomma }}</td>
+                </tr>
+                <tr class="income-row">
+                    <td>
+                        Nyongeza
+                        <span class="subtext">{{ nyongeza_count }} entries</span>
+                    </td>
+                    <td>{{ total_nyongeza|floatformat:2|intcomma }}</td>
+                </tr>
+                <tr style="background: rgba(16, 185, 129, 0.05);">
+                    <td style="font-weight: 700;">Total Income</td>
+                    <td style="font-weight: 700; color: var(--accent-green);">{{ total_income|floatformat:2|intcomma }}</td>
+                </tr>
+
+                <!-- ===== EXPENSES SECTION ===== -->
+                <tr class="section-header">
+                    <td colspan="2">EXPENSES</td>
+                </tr>
+
+                <!-- A. Regular Expenses by Category -->
+                <tr class="sub-section-header">
+                    <td colspan="2">A. Regular Expenses by Category</td>
+                </tr>
+                {% for expense in expenses_by_category %}
+                <tr class="expense-row">
+                    <td style="padding-left: 48px;">
+                        {{ expense.category }}
+                        <span class="subtext">{{ expense.count }} transactions</span>
+                    </td>
+                    <td>{{ expense.amount|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" style="padding-left: 48px;" class="no-data">No regular expenses recorded in this period</td>
+                </tr>
+                {% endfor %}
+                <tr>
+                    <td style="padding-left: 48px; font-weight: 600;">Subtotal - Regular Expenses</td>
+                    <td style="text-align: right; font-weight: 600;">{{ total_expenses_current|floatformat:2|intcomma }}</td>
+                </tr>
+
+                <!-- B. Loan Disbursements -->
+                <tr class="sub-section-header">
+                    <td colspan="2">B. Loan Disbursements</td>
+                </tr>
+                <tr>
+                    <td style="padding-left: 48px; font-weight: 600;">Loan Disbursements</td>
+                    <td style="text-align: right; font-weight: 600; color: #f97316;">{{ total_loans_current|floatformat:2|intcomma }}</td>
+                </tr>
+
+                <!-- C. Salaries -->
+                <tr class="sub-section-header">
+                    <td colspan="2">C. Salaries</td>
+                </tr>
+                <tr>
+                    <td style="padding-left: 48px; font-weight: 600;">Subtotal - Salaries</td>
+                    <td style="text-align: right; font-weight: 600; color: #8b5cf6;">{{ total_salaries_current|floatformat:2|intcomma }}</td>
+                </tr>
+
+                <!-- Total Expenses -->
+                <tr style="background: rgba(239, 68, 68, 0.05);">
+                    <td style="font-weight: 700;">TOTAL EXPENSES</td>
+                    <td style="font-weight: 700; color: #ef4444;">{{ total_outflow_current|floatformat:2|intcomma }}</td>
+                </tr>
+
+
+                <!-- Cash in Bank row -->
+                <tr class="cash-bank-row">
+                    <td>
+                        <i class="fas fa-university" style="color: #0891b2; margin-right: 8px;"></i>
+                        Cash in Bank
+                        <span class="subtext">Current bank balance</span>
+                    </td>
+                    <td>{{ cash_in_bank|floatformat:2|intcomma }}</td>
+                </tr>
+
+                <!-- Cash in Office row -->
+                <tr class="cash-office-row">
+                    <td>
+                        <i class="fas fa-money-bill-wave" style="color: #7c3aed; margin-right: 8px;"></i>
+                        Cash in Office
+                        <span class="subtext">Physical cash on hand</span>
+                    </td>
+                    <td>{{ cash_in_office|floatformat:2|intcomma }}</td>
+                </tr>
+
+                <!-- Total Cash -->
+                <tr class="cash-total-row">
+                    <td>
+                        <i class="fas fa-coins" style="color: #0891b2; margin-right: 8px;"></i>
+                        TOTAL CASH AVAILABLE
+                    </td>
+                    <td>{{ total_cash|floatformat:2|intcomma }}</td>
+                </tr>
+
+                <!-- ===== CLOSING BALANCE ===== -->
+                <tr class="balance-row">
+                    <td>CLOSING BALANCE</td>
+                    <td>{{ closing_balance|floatformat:2|intcomma }}</td>
+                </tr>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Form validation
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+        const startDate = document.querySelector('input[name="start_date"]').value;
+        const endDate = document.querySelector('input[name="end_date"]').value;
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+            e.preventDefault();
+            alert('Start date cannot be after end date');
+        }
+    });
+
+    // Export function
+    function exportStatement() {
+        const startDate = document.querySelector('input[name="start_date"]').value;
+        const endDate = document.querySelector('input[name="end_date"]').value;
+        const branch = document.querySelector('select[name="branch"]').value;
+
+        let url = "{% url 'financial_statement' %}?export=pdf";
+        if (startDate) url += `&start_date=${startDate}`;
+        if (endDate) url += `&end_date=${endDate}`;
+        if (branch) url += `&branch=${branch}`;
+
+        window.open(url, '_blank');
+        showNotification('Generating PDF statement...', 'info');
+    }
+
+    function showNotification(message, type) {
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+        } else {
+            alert(message);
+        }
+    }
+
+    // Auto-refresh on branch change
+    document.querySelector('select[name="branch"]').addEventListener('change', function() {
+        document.getElementById('filterForm').submit();
+    });
+
+    // Quick date range buttons
+    function setDateRange(days) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - days);
+        document.querySelector('input[name="start_date"]').value = start.toISOString().split('T')[0];
+        document.querySelector('input[name="end_date"]').value = end.toISOString().split('T')[0];
+        document.getElementById('filterForm').submit();
+    }
+</script>
+{% endblock %}

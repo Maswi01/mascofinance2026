@@ -1,0 +1,297 @@
+{% extends 'app/base.html' %}
+{% load humanize %}
+{% load dict_filters %}
+
+{% block title %}HQ Financial Statement{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-4">
+
+  <!-- ── Page Header ─────────────────────────────────────────────────────── -->
+  <div class="text-center mb-4">
+    <h4 class="fw-bold text-uppercase">
+      Financial Statement
+      {% if dates_specified %}
+        From {{ start_date|date:"d/m/Y" }} To {{ end_date|date:"d/m/Y" }}
+      {% else %}
+        (All Time — up to {{ current_date|date:"d/m/Y" }})
+      {% endif %}
+    </h4>
+  </div>
+
+  <!-- ── Filter Form ─────────────────────────────────────────────────────── -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Start Date</label>
+          <input type="date" name="start_date" class="form-control"
+                 value="{{ start_date|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">End Date</label>
+          <input type="date" name="end_date" class="form-control"
+                 value="{{ end_date|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-filter"></i> Filter
+          </button>
+        </div>
+        <div class="col-md-2">
+          <a href="{% url 'hq_financial_statement' %}" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Quick Month Shortcuts ───────────────────────────────────────────── -->
+  <div class="mb-3 d-flex flex-wrap gap-2">
+    {% for m in month_options %}
+      <a href="?start_date={{ m.value }}-01&end_date={{ m.value }}-{% now "t" %}"
+         class="btn btn-sm btn-outline-primary">{{ m.label }}</a>
+    {% endfor %}
+  </div>
+
+  <!-- ── Print Button ────────────────────────────────────────────────────── -->
+  <div class="d-flex justify-content-end mb-3">
+    <button onclick="window.print()" class="btn btn-success btn-sm me-2">
+      <i class="bi bi-printer"></i> Print
+    </button>
+    <button onclick="exportToExcel()" class="btn btn-warning btn-sm">
+      <i class="bi bi-file-earmark-excel"></i> Export Excel
+    </button>
+  </div>
+
+  <!-- ── Main Financial Table ────────────────────────────────────────────── -->
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-middle hq-fin-table" id="hqFinTable">
+      <thead>
+        <tr class="table-dark text-center">
+          <th class="text-start sticky-col" style="min-width:160px;">PARTICULAR</th>
+          {% for office in offices %}
+            <th style="min-width:130px;">{{ office.name|upper }}</th>
+          {% endfor %}
+          <th class="table-warning" style="min-width:140px;">TOTAL</th>
+        </tr>
+      </thead>
+
+      <tbody>
+
+        <!-- ── Opening Balance ─────────────────────────────────────────────── -->
+        <tr class="fw-semibold bg-light-blue">
+          <td class="sticky-col">Opening Balance</td>
+          {% for oname in office_names %}
+            <td class="text-end {% if branch_data|get_item:oname|get_item:'opening_balance' < 0 %}text-danger{% endif %}">
+              {{ branch_data|get_item:oname|get_item:'opening_balance'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold {% if totals.opening_balance < 0 %}text-danger{% endif %}">
+            {{ totals.opening_balance|floatformat:0|intcomma }}
+          </td>
+        </tr>
+
+        <!-- ── MAPATO ──────────────────────────────────────────────────────── -->
+        <tr>
+          <td class="sticky-col">MAPATO</td>
+          {% for oname in office_names %}
+            <td class="text-end">
+              {{ branch_data|get_item:oname|get_item:'mapato'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold">{{ totals.mapato|floatformat:0|intcomma }}</td>
+        </tr>
+
+        <!-- ── NYONGEZA ────────────────────────────────────────────────────── -->
+        <tr>
+          <td class="sticky-col">NYONGEZA</td>
+          {% for oname in office_names %}
+            <td class="text-end">
+              {{ branch_data|get_item:oname|get_item:'nyongeza'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold">{{ totals.nyongeza|floatformat:0|intcomma }}</td>
+        </tr>
+
+        <!-- ── HAZINA (subtotal) ───────────────────────────────────────────── -->
+        <tr class="table-secondary fw-bold">
+          <td class="sticky-col">HAZINA</td>
+          {% for oname in office_names %}
+            <td class="text-end {% if branch_data|get_item:oname|get_item:'hazina' < 0 %}text-danger{% endif %}">
+              {{ branch_data|get_item:oname|get_item:'hazina'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end {% if totals.hazina < 0 %}text-danger{% endif %}">
+            {{ totals.hazina|floatformat:0|intcomma }}
+          </td>
+        </tr>
+
+        <!-- ── Spacer ──────────────────────────────────────────────────────── -->
+        <tr class="table-light">
+          <td colspan="{{ offices|length|add:2 }}" class="py-1 text-muted small ps-2">
+            <em>Expenditure</em>
+          </td>
+        </tr>
+
+        <!-- ── FOMU ───────────────────────────────────────────────────────── -->
+        <tr>
+          <td class="sticky-col">FOMU</td>
+          {% for oname in office_names %}
+            <td class="text-end">
+              {{ branch_data|get_item:oname|get_item:'fomu'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold">{{ totals.fomu|floatformat:0|intcomma }}</td>
+        </tr>
+
+        <!-- ── MATUMIZI OFISINI ────────────────────────────────────────────── -->
+        <tr>
+          <td class="sticky-col">MATUMIZI OFISINI</td>
+          {% for oname in office_names %}
+            <td class="text-end">
+              {{ branch_data|get_item:oname|get_item:'matumizi_ofisini'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold">{{ totals.matumizi_ofisini|floatformat:0|intcomma }}</td>
+        </tr>
+
+        <!-- ── MATUMIZI-KITUO ──────────────────────────────────────────────── -->
+        <tr>
+          <td class="sticky-col">MATUMIZI-[KITUO]</td>
+          {% for oname in office_names %}
+            <td class="text-end">
+              {{ branch_data|get_item:oname|get_item:'matumizi_kituo'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold">{{ totals.matumizi_kituo|floatformat:0|intcomma }}</td>
+        </tr>
+
+        <!-- ── MATUMIZI-MKURUGENZI ────────────────────────────────────────── -->
+        <tr>
+          <td class="sticky-col">MATUMIZI-[MKURUGENZI]</td>
+          {% for oname in office_names %}
+            <td class="text-end">
+              {{ branch_data|get_item:oname|get_item:'matumizi_mkurugenzi'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold">{{ totals.matumizi_mkurugenzi|floatformat:0|intcomma }}</td>
+        </tr>
+
+        <!-- ── MAKATO BENKI (subtotal) ─────────────────────────────────────── -->
+        <tr class="table-secondary fw-bold">
+          <td class="sticky-col">MAKATO BENKI</td>
+          {% for oname in office_names %}
+            <td class="text-end">
+              {{ branch_data|get_item:oname|get_item:'makato_benki'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end">{{ totals.makato_benki|floatformat:0|intcomma }}</td>
+        </tr>
+
+        <!-- ── Spacer ──────────────────────────────────────────────────────── -->
+        <tr class="table-light">
+          <td colspan="{{ offices|length|add:2 }}" class="py-1 text-muted small ps-2">
+            <em>Balances</em>
+          </td>
+        </tr>
+
+        <!-- ── BALANCE OFISINI ─────────────────────────────────────────────── -->
+        <tr>
+          <td class="sticky-col">BALANCE OFISINI</td>
+          {% for oname in office_names %}
+            <td class="text-end {% if branch_data|get_item:oname|get_item:'balance_ofisini' < 0 %}text-danger{% endif %}">
+              {{ branch_data|get_item:oname|get_item:'balance_ofisini'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold {% if totals.balance_ofisini < 0 %}text-danger{% endif %}">
+            {{ totals.balance_ofisini|floatformat:0|intcomma }}
+          </td>
+        </tr>
+
+        <!-- ── BALANCE BENKI ───────────────────────────────────────────────── -->
+        <tr>
+          <td class="sticky-col">BALANCE BENKI</td>
+          {% for oname in office_names %}
+            <td class="text-end {% if branch_data|get_item:oname|get_item:'balance_benki' < 0 %}text-danger{% endif %}">
+              {{ branch_data|get_item:oname|get_item:'balance_benki'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold {% if totals.balance_benki < 0 %}text-danger{% endif %}">
+            {{ totals.balance_benki|floatformat:0|intcomma }}
+          </td>
+        </tr>
+
+        <!-- ── Closing Balance ─────────────────────────────────────────────── -->
+        <tr class="table-dark fw-bold">
+          <td class="sticky-col text-white">Closing Balance</td>
+          {% for oname in office_names %}
+            <td class="text-end {% if branch_data|get_item:oname|get_item:'closing_balance' < 0 %}text-danger{% else %}text-white{% endif %}">
+              {{ branch_data|get_item:oname|get_item:'closing_balance'|floatformat:0|intcomma }}
+            </td>
+          {% endfor %}
+          <td class="text-end {% if totals.closing_balance < 0 %}text-danger{% else %}text-warning{% endif %}">
+            {{ totals.closing_balance|floatformat:0|intcomma }}
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div><!-- end table-responsive -->
+
+</div><!-- end container-fluid -->
+
+
+<!-- ── Styles ──────────────────────────────────────────────────────────────── -->
+<style>
+  .hq-fin-table {
+    font-size: 0.82rem;
+    border-collapse: collapse;
+  }
+  .hq-fin-table th,
+  .hq-fin-table td {
+    padding: 5px 8px;
+    white-space: nowrap;
+  }
+  .sticky-col {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 2;
+    border-right: 2px solid #dee2e6 !important;
+    font-weight: 600;
+  }
+  thead .sticky-col {
+    background: #212529;
+    z-index: 3;
+  }
+  .bg-light-blue {
+    background-color: #e8f4f8;
+  }
+  @media print {
+    .btn, form, .card { display: none !important; }
+    .table-responsive { overflow: visible !important; }
+    body { font-size: 10px; }
+    .hq-fin-table th, .hq-fin-table td { padding: 3px 5px; font-size: 9px; }
+    h4 { font-size: 14px; }
+  }
+</style>
+
+<!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
+<script>
+function exportToExcel() {
+  const table = document.getElementById('hqFinTable');
+  let csv = [];
+  for (const row of table.rows) {
+    const cols = [...row.cells].map(c => '"' + c.innerText.replace(/"/g, '""').trim() + '"');
+    csv.push(cols.join(','));
+  }
+  const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hq_financial_statement_{{ start_date|date:"Ymd" }}_{{ end_date|date:"Ymd" }}.csv';
+  a.click();
+}
+</script>
+{% endblock %}

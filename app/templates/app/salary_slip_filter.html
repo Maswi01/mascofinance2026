@@ -1,0 +1,336 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 50px 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    .filter-card {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 36px 40px 40px;
+        width: 100%;
+        max-width: 900px;
+    }
+
+    .form-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #1a2a4a;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        padding-bottom: 14px;
+        border-bottom: 2px solid #e0e0e0;
+        margin-bottom: 50px;
+    }
+
+    .month-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 40px;
+        flex-wrap: wrap;
+    }
+
+    .month-row label {
+        font-size: 14px;
+        color: #444;
+        font-weight: 400;
+        white-space: nowrap;
+    }
+
+    /* Text input styled like screenshot */
+    .month-text-input {
+        width: 280px;
+        padding: 10px 14px;
+        border: 1.5px solid #7c4dff;
+        border-radius: 4px;
+        font-size: 13.5px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        cursor: pointer;
+    }
+
+    /* Hidden actual month input */
+    #month_value { display: none; }
+
+    /* Purple CONTINUE button matching screenshot */
+    .btn-continue {
+        background: #7c4dff;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 28px;
+        font-size: 13.5px;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        letter-spacing: 0.5px;
+        transition: background 0.2s, transform 0.15s;
+        box-shadow: 0 2px 8px rgba(124,77,255,0.3);
+        white-space: nowrap;
+    }
+
+    .btn-continue:hover { background: #651fff; transform: translateY(-1px); }
+
+    /* ── Custom Calendar Popup ── */
+    .cal-popup {
+        display: none;
+        position: absolute;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        width: 260px;
+        z-index: 999;
+        padding: 0 0 8px;
+        font-family: 'Poppins', sans-serif;
+        font-size: 13px;
+    }
+
+    .cal-popup.open { display: block; }
+
+    .cal-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 12px 8px;
+        background: #f7f9fb;
+        border-bottom: 1px solid #eee;
+        border-radius: 6px 6px 0 0;
+    }
+
+    .cal-header select {
+        padding: 4px 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-family: 'Poppins', sans-serif;
+        font-size: 12.5px;
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .cal-grid { padding: 8px 10px 4px; }
+
+    .cal-days-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+        font-weight: 600;
+        font-size: 11.5px;
+        color: #555;
+        margin-bottom: 4px;
+    }
+
+    .cal-days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+    }
+
+    .cal-day {
+        text-align: center;
+        padding: 5px 2px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 12px;
+        color: #333;
+        transition: background 0.15s;
+    }
+
+    .cal-day:hover { background: #e8eaf6; }
+    .cal-day.today { font-weight: 700; color: #7c4dff; }
+    .cal-day.selected { background: #7c4dff; color: #fff; border-radius: 50%; }
+    .cal-day.empty { cursor: default; }
+
+    .cal-footer {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 12px 0;
+        border-top: 1px solid #eee;
+        margin-top: 4px;
+    }
+
+    .cal-footer button {
+        background: none;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 4px 14px;
+        font-size: 12px;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .cal-footer button:hover { background: #f0f0f0; }
+    .cal-footer .btn-done { background: #f0f0f0; font-weight: 600; }
+
+    .input-wrap { position: relative; display: inline-block; }
+
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 20px 16px; margin-top: 60px; }
+        .filter-card { padding: 24px 16px; }
+        .month-row { flex-direction: column; align-items: flex-start; }
+        .month-text-input { width: 100%; }
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="filter-card">
+        <div class="form-title">Salary Slip</div>
+
+        <form method="get" action="{% url 'salary_slip_list' %}">
+            <input type="hidden" name="month" id="month_value">
+
+            <div class="month-row">
+                <label>Month From</label>
+                <div class="input-wrap">
+                    <input
+                        type="text"
+                        id="month_display"
+                        class="month-text-input"
+                        placeholder="Changua mwezi"
+                        readonly
+                        onclick="toggleCal()"
+                        autocomplete="off"
+                    >
+                    <!-- Custom Calendar -->
+                    <div class="cal-popup" id="calPopup">
+                        <div class="cal-header">
+                            <select id="calMonth" onchange="renderCal()"></select>
+                            <select id="calYear"  onchange="renderCal()"></select>
+                        </div>
+                        <div class="cal-grid">
+                            <div class="cal-days-header">
+                                <span>Su</span><span>Mo</span><span>Tu</span>
+                                <span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                            </div>
+                            <div class="cal-days" id="calDays"></div>
+                        </div>
+                        <div class="cal-footer">
+                            <button type="button" onclick="selectToday()">Today</button>
+                            <button type="button" class="btn-done" onclick="closeCal()">Done</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-continue" id="continueBtn" disabled>
+                    <i class="fas fa-check-square"></i> CONTINUE &gt;&gt;
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_FULL = ['January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+
+let selectedDate = null;
+const today = new Date();
+
+// Populate month/year selects
+function initSelects() {
+    const mSel = document.getElementById('calMonth');
+    const ySel = document.getElementById('calYear');
+    MONTHS.forEach((m, i) => {
+        const opt = document.createElement('option');
+        opt.value = i; opt.textContent = m;
+        if (i === today.getMonth()) opt.selected = true;
+        mSel.appendChild(opt);
+    });
+    for (let y = today.getFullYear() - 3; y <= today.getFullYear() + 2; y++) {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y;
+        if (y === today.getFullYear()) opt.selected = true;
+        ySel.appendChild(opt);
+    }
+}
+
+function renderCal() {
+    const month = parseInt(document.getElementById('calMonth').value);
+    const year  = parseInt(document.getElementById('calYear').value);
+    const first = new Date(year, month, 1).getDay();
+    const days  = new Date(year, month + 1, 0).getDate();
+    const container = document.getElementById('calDays');
+    container.innerHTML = '';
+
+    // Empty cells
+    for (let i = 0; i < first; i++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day empty';
+        container.appendChild(el);
+    }
+
+    for (let d = 1; d <= days; d++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day';
+        el.textContent = d;
+
+        const thisDate = new Date(year, month, d);
+        if (thisDate.toDateString() === today.toDateString()) el.classList.add('today');
+        if (selectedDate && thisDate.toDateString() === selectedDate.toDateString()) el.classList.add('selected');
+
+        el.onclick = () => selectDay(year, month, d);
+        container.appendChild(el);
+    }
+}
+
+function selectDay(year, month, day) {
+    selectedDate = new Date(year, month, day);
+    // Format for display: "Mar 2026"
+    const display = MONTHS[month] + ' ' + year;
+    // Format for form value: YYYY-MM
+    const val = year + '-' + String(month + 1).padStart(2, '0');
+    document.getElementById('month_display').value = display;
+    document.getElementById('month_value').value   = val;
+    document.getElementById('continueBtn').disabled = false;
+    renderCal();
+}
+
+function selectToday() {
+    const m = today.getMonth(), y = today.getFullYear();
+    document.getElementById('calMonth').value = m;
+    document.getElementById('calYear').value  = y;
+    selectDay(y, m, today.getDate());
+}
+
+function toggleCal() {
+    const popup = document.getElementById('calPopup');
+    popup.classList.toggle('open');
+}
+
+function closeCal() {
+    document.getElementById('calPopup').classList.remove('open');
+}
+
+// Close when clicking outside
+document.addEventListener('click', function(e) {
+    const wrap = document.querySelector('.input-wrap');
+    if (!wrap.contains(e.target)) closeCal();
+});
+
+initSelects();
+renderCal();
+</script>
+{% endblock %}

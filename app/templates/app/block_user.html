@@ -1,0 +1,419 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* Messages */
+    .messages-wrap {
+        width: 100%;
+        max-width: 900px;
+        margin-bottom: 16px;
+    }
+
+    .alert {
+        padding: 11px 16px;
+        border-radius: 5px;
+        font-size: 13px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .alert-success { background: #e8f5e9; color: #388e3c; border: 1px solid #c8e6c9; }
+    .alert-error   { background: #fce4e4; color: #c62828; border: 1px solid #ffcdd2; }
+    .alert-warning { background: #fff8e1; color: #f57f17; border: 1px solid #ffe082; }
+
+    /* White card */
+    .form-card {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 30px 36px 36px;
+        width: 100%;
+        max-width: 900px;
+    }
+
+    /* Gold title with underline */
+    .form-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #b8860b;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding-bottom: 12px;
+        border-bottom: 1.5px solid #e0e0e0;
+        margin-bottom: 32px;
+    }
+
+    /* Form row */
+    .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .form-row label {
+        width: 160px;
+        min-width: 160px;
+        font-size: 13.5px;
+        color: #555;
+        font-weight: 400;
+        text-align: right;
+        padding-right: 24px;
+    }
+
+    /* Select with arrow */
+    .select-wrap {
+        position: relative;
+        width: 280px;
+    }
+
+    .select-wrap select {
+        width: 100%;
+        padding: 8px 36px 8px 13px;
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        transition: border-color 0.2s;
+    }
+
+    .select-wrap select:focus { border-color: #1a73c7; }
+
+    .select-wrap::after {
+        content: '▼';
+        position: absolute;
+        right: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        color: #888;
+        pointer-events: none;
+    }
+
+    /* Auto-fill read-only input */
+    .form-control-readonly {
+        width: 280px;
+        padding: 8px 13px;
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #555;
+        background: #f4f6f8;
+        outline: none;
+    }
+
+    /* Divider */
+    .form-divider {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 24px 0;
+    }
+
+    /* Status info badge */
+    .status-info {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12.5px;
+        font-weight: 600;
+    }
+
+    .status-active { background: #e8f5e9; color: #388e3c; }
+    .status-blocked { background: #fce4e4; color: #c62828; }
+
+    /* Action buttons row - matching screenshot */
+    .action-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 28px;
+        padding-top: 16px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .btn-block {
+        background: #e6ac00;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 32px;
+        font-size: 13.5px;
+        font-weight: 700;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        transition: background 0.2s, transform 0.15s;
+        box-shadow: 0 2px 8px rgba(230,172,0,0.3);
+    }
+
+    .btn-block:hover { background: #cc9900; transform: translateY(-1px); }
+    .btn-block:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-unblock {
+        background: #2ecc9a;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 32px;
+        font-size: 13.5px;
+        font-weight: 700;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        transition: background 0.2s, transform 0.15s;
+        box-shadow: 0 2px 8px rgba(46,204,154,0.3);
+    }
+
+    .btn-unblock:hover { background: #27ae88; transform: translateY(-1px); }
+    .btn-unblock:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* Toast */
+    .toast {
+        position: fixed;
+        top: 80px;
+        right: 24px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Poppins', sans-serif;
+        color: #fff;
+        z-index: 9999;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+        pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { background: #2ecc9a; }
+    .toast.error   { background: #e53935; }
+    .toast.warning { background: #e6ac00; }
+
+    /* View blocked list link */
+    .view-blocked-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #1a73c7;
+        font-size: 13px;
+        text-decoration: none;
+        margin-top: 18px;
+        transition: color 0.15s;
+    }
+
+    .view-blocked-link:hover { color: #1557a0; text-decoration: underline; }
+
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 16px; margin-top: 60px; }
+        .form-card { padding: 20px 16px; }
+        .form-row { flex-direction: column; align-items: flex-start; }
+        .form-row label { width: 100%; text-align: left; padding-right: 0; margin-bottom: 5px; }
+        .select-wrap, .form-control-readonly { width: 100%; }
+        .action-bar { flex-direction: column; gap: 12px; align-items: stretch; }
+        .btn-block, .btn-unblock { text-align: center; }
+    }
+</style>
+
+<div class="toast" id="toast"></div>
+
+<div class="page-wrapper">
+
+    {% if messages %}
+    <div class="messages-wrap">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="form-card">
+        <div class="form-title">Block Staff</div>
+
+        <!-- Staff Name Row -->
+        <div class="form-row">
+            <label for="staff_select">Staff Name</label>
+            <div class="select-wrap">
+                <select id="staff_select" onchange="onStaffChange(this)">
+                    <option value="">Select Staff Name</option>
+                    {% for user in users %}
+                    {% if user.id != request.user.id %}
+                    <option
+                        value="{{ user.id }}"
+                        data-name="{{ user.get_full_name|default:user.username }}"
+                        data-role="{{ user.role|default:'—' }}"
+                        data-branch="{{ user.office_allocation.name|default:'Not Allocated' }}"
+                        data-active="{{ user.is_active|yesno:'true,false' }}"
+                    >
+                        {{ user.get_full_name|upper|default:user.username|upper }}
+                    </option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Current Designation (auto-filled) -->
+        <div class="form-row" id="row_designation" style="display:none;">
+            <label>Designation</label>
+            <input type="text" id="field_designation" class="form-control-readonly" readonly>
+        </div>
+
+        <!-- Current Branch (auto-filled) -->
+        <div class="form-row" id="row_branch" style="display:none;">
+            <label>Current Branch</label>
+            <input type="text" id="field_branch" class="form-control-readonly" readonly>
+        </div>
+
+        <!-- Status (auto-filled) -->
+        <div class="form-row" id="row_status" style="display:none;">
+            <label>Current Status</label>
+            <span id="field_status" class="status-info"></span>
+        </div>
+
+        <hr class="form-divider">
+
+        <!-- Action Buttons -->
+        <div class="action-bar">
+            <!-- BLOCK form -->
+            <form id="blockForm" method="post" action="{% url 'process_block_user' %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" id="block_user_id">
+                <input type="hidden" name="action" value="block">
+                <button type="submit" class="btn-block" id="blockBtn" disabled onclick="return confirmAction('block')">
+                    BLOCK
+                </button>
+            </form>
+
+            <!-- UNBLOCK form -->
+            <form id="unblockForm" method="post" action="{% url 'process_block_user' %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" id="unblock_user_id">
+                <input type="hidden" name="action" value="unblock">
+                <button type="submit" class="btn-unblock" id="unblockBtn" disabled onclick="return confirmAction('unblock')">
+                    UN-BLOCK
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <a href="{% url 'blocked_staff_list' %}" class="view-blocked-link">
+        <i class="fas fa-list"></i> View Blocked Staff List
+    </a>
+</div>
+
+<script>
+    let selectedStaff = null;
+
+    function onStaffChange(select) {
+        const option = select.options[select.selectedIndex];
+
+        if (!option || !option.value) {
+            selectedStaff = null;
+            hideDetails();
+            disableButtons();
+            return;
+        }
+
+        selectedStaff = {
+            id:     option.value,
+            name:   option.dataset.name,
+            role:   option.dataset.role,
+            branch: option.dataset.branch,
+            active: option.dataset.active === 'true'
+        };
+
+        // Populate auto-fill fields
+        document.getElementById('field_designation').value = selectedStaff.role;
+        document.getElementById('field_branch').value      = selectedStaff.branch;
+
+        const statusEl = document.getElementById('field_status');
+        if (selectedStaff.active) {
+            statusEl.textContent = 'Active';
+            statusEl.className   = 'status-info status-active';
+        } else {
+            statusEl.textContent = 'Blocked';
+            statusEl.className   = 'status-info status-blocked';
+        }
+
+        showDetails();
+
+        // Set hidden user_id fields in both forms
+        document.getElementById('block_user_id').value   = selectedStaff.id;
+        document.getElementById('unblock_user_id').value = selectedStaff.id;
+
+        // Enable/disable buttons based on current status
+        const blockBtn   = document.getElementById('blockBtn');
+        const unblockBtn = document.getElementById('unblockBtn');
+
+        if (selectedStaff.active) {
+            // Can only BLOCK active staff
+            blockBtn.disabled   = false;
+            unblockBtn.disabled = true;
+        } else {
+            // Can only UNBLOCK blocked staff
+            blockBtn.disabled   = true;
+            unblockBtn.disabled = false;
+        }
+    }
+
+    function showDetails() {
+        ['row_designation', 'row_branch', 'row_status'].forEach(id => {
+            document.getElementById(id).style.display = '';
+        });
+    }
+
+    function hideDetails() {
+        ['row_designation', 'row_branch', 'row_status'].forEach(id => {
+            document.getElementById(id).style.display = 'none';
+        });
+    }
+
+    function disableButtons() {
+        document.getElementById('blockBtn').disabled   = true;
+        document.getElementById('unblockBtn').disabled = true;
+    }
+
+    
+
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+        setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+</script>
+{% endblock %}

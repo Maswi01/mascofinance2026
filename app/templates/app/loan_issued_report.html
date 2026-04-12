@@ -1,0 +1,294 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1600px;
+        margin: 20px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .report-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 24px 30px 24px;
+    }
+
+    /* ── Letterhead ── */
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 16px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 76px; height: auto; }
+    .company-name {
+        font-size: 25px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub  { font-size: 12.5px; font-weight: 600; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 3px; }
+    .company-contact { font-size: 11.5px; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 2px; }
+
+    /* ── Headings ── */
+    .branch-heading {
+        font-size: 13.5px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin: 14px 0 4px;
+        text-transform: uppercase;
+    }
+    .report-heading {
+        font-size: 13px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin-bottom: 16px;
+        text-transform: uppercase;
+    }
+
+    /* ── Main table ── */
+    .issued-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 11.5px;
+    }
+    .issued-table thead tr {
+        background: #7de8e0;
+    }
+    .issued-table th {
+        padding: 8px 7px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 11px;
+        border: 1px solid #5dd4cc; white-space: nowrap;
+    }
+    .issued-table th.num { text-align: right; }
+    .issued-table tbody tr { border-bottom: 1px solid #e0e0e0; }
+    .issued-table tbody tr:hover { background: #f5fffe; }
+    .issued-table td {
+        padding: 7px 7px; color: #1a1a1a;
+        border-right: 1px solid #e8e8e8;
+        vertical-align: middle; font-size: 11.5px;
+        white-space: nowrap;
+    }
+    .issued-table td:last-child { border-right: none; }
+    .issued-table td.num { text-align: right; }
+
+    /* Loan ID blue link */
+    .loan-link { color: #2980b9; font-weight: 500; text-decoration: none; }
+    .loan-link:hover { text-decoration: underline; }
+
+    /* Grand total row */
+    .grand-total-row td {
+        background: #d4b97a !important;
+        font-weight: 700; font-size: 12px;
+        padding: 8px 7px;
+        border-top: 2px solid #b89650;
+        border-right: 1px solid #b89650;
+    }
+    .grand-total-row td:last-child { border-right: none; }
+
+    /* No results */
+    .alert-info {
+        background: #e8f4fd; border: 1px solid #b8d9f5; color: #1a5276;
+        padding: 14px 18px; border-radius: 3px; font-size: 13px;
+        font-family: Arial, sans-serif; text-align: center; margin-top: 10px;
+    }
+
+    /* Action row */
+    .action-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding-top: 14px; border-top: 1px solid #ddd; margin-top: 10px;
+    }
+    .back-link {
+        font-size: 13px; color: #2980b9; font-family: Arial, sans-serif;
+        text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .save-pdf-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; color: #333; transition: background 0.15s;
+    }
+    .save-pdf-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row { display: none !important; }
+        .loan-link { color: #000 !important; }
+    }
+</style>
+
+<!-- jsPDF for Save PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+
+<div class="lp-wrapper">
+    <div class="report-card">
+
+        <div class="printable" id="reportContent">
+
+            <!-- Letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="branch-heading">{{ branch_name }} BRANCH</div>
+            <div class="report-heading">
+                Monthly Loan Issued From {{ date_from_display }} To {{ date_to_display }}
+            </div>
+
+            {% if rows %}
+            <table class="issued-table" id="issuedTable">
+                <thead>
+                    <tr>
+                        <th>S/N</th>
+                        <th>Date</th>
+                        <th>Name</th>
+                        <th>Check No.</th>
+                        <th>Mobile No.</th>
+                        <th>Work Station</th>
+                        <th>Loan ID</th>
+                        <th>Rate Type</th>
+                        <th>Starting Month</th>
+                        <th class="num">Loaned Amount<br>(Principal)</th>
+                        <th class="num">Period</th>
+                        <th class="num">Interest Rate %</th>
+                        <th class="num">Interest Amount</th>
+                        <th class="num">Total Amount (P+I)</th>
+                        <th class="num">Monthly Installment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <a href="{% url 'loan_issued_report_edit' row.loan.id %}">
+                                {{ row.date|date:"d/m/Y" }}
+                            </a>
+                        </td>
+                        <td style="text-transform:uppercase;">{{ row.name }}</td>
+                        <td>{{ row.check_no }}</td>
+                        <td>{{ row.mobile }}</td>
+                        <td>{{ row.work_station }}</td>
+                        <td>
+                            <a class="loan-link"
+                               href="{% url 'loan_repayment_schedule' row.loan.id %}">
+                                {{ row.loan_id_label }}
+                            </a>
+                        </td>
+                        <td>{{ row.rate_type }}</td>
+                        <td>{{ row.starting_month }}</td>
+                        <td class="num">{{ row.loan_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.period }}</td>
+                        <td class="num">{{ row.interest_rate|floatformat:0|intcomma }} %</td>
+                        <td class="num">{{ row.interest_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.total_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.monthly_installment|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Grand Total -->
+                    <tr class="grand-total-row">
+                        <td colspan="9"><strong>GRAND TOTAL</strong></td>
+                        <td class="num"><strong>{{ grand_loan_amount|floatformat:0|intcomma }}</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td class="num"><strong>{{ grand_interest_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ grand_total_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ grand_monthly_installment|floatformat:0|intcomma }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {% else %}
+            <div class="alert-info">
+                No loans issued for <strong>{{ branch_name }}</strong>
+                between {{ date_from_display }} and {{ date_to_display }}.
+            </div>
+            {% endif %}
+
+        </div><!-- end printable -->
+
+        <div class="action-row">
+            <a class="back-link" href="{% url 'loan_issued_filter' %}">
+                ← Change date range
+            </a>
+            <button class="save-pdf-btn" onclick="savePDF()">SAVE PDF</button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function savePDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('MASCO FINANCE CO. LTD', doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('P.O.BOX 30474—KIBAHA | TANZANIA', doc.internal.pageSize.getWidth() / 2, 56, { align: 'center' });
+    doc.text('Mobile: +255 718 544 515; Email: mascofinance@gmail.com', doc.internal.pageSize.getWidth() / 2, 68, { align: 'center' });
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('{{ branch_name }} BRANCH', doc.internal.pageSize.getWidth() / 2, 88, { align: 'center' });
+    doc.text('MONTHLY LOAN ISSUED FROM {{ date_from_display }} TO {{ date_to_display }}',
+             doc.internal.pageSize.getWidth() / 2, 104, { align: 'center' });
+
+    const table = document.getElementById('issuedTable');
+    if (!table) return;
+
+    const headers = [];
+    table.querySelectorAll('thead th').forEach(th => headers.push(th.innerText.replace('\n', ' ')));
+
+    const bodyRows = [];
+    table.querySelectorAll('tbody tr:not(.grand-total-row)').forEach(tr => {
+        const cells = [];
+        tr.querySelectorAll('td').forEach(td => cells.push(td.innerText.trim()));
+        bodyRows.push(cells);
+    });
+
+    // Grand total
+    const gtCells = [];
+    const gtRow = table.querySelector('.grand-total-row');
+    if (gtRow) gtRow.querySelectorAll('td').forEach(td => gtCells.push(td.innerText.trim()));
+
+    doc.autoTable({
+        head: [headers],
+        body: [...bodyRows, gtCells],
+        startY: 116,
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [125, 232, 224], textColor: [0,0,0], fontStyle: 'bold' },
+        didParseCell: function(data) {
+            if (data.row.index === bodyRows.length) {
+                data.cell.styles.fillColor = [212, 185, 122];
+                data.cell.styles.fontStyle = 'bold';
+            }
+        },
+        columnStyles: {
+            9:  { halign: 'right' },
+            10: { halign: 'right' },
+            11: { halign: 'right' },
+            12: { halign: 'right' },
+            13: { halign: 'right' },
+            14: { halign: 'right' },
+        }
+    });
+
+    doc.save('loan_issued_report_{{ date_from_display }}_{{ date_to_display }}.pdf');
+}
+</script>
+
+{% endblock %}

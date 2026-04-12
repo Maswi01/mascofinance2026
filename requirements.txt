@@ -1,0 +1,29 @@
+# Django core
+Django==4.2.13
+
+# Database backend (MySQL)
+mysqlclient>=2.1.0
+
+# Social authentication (Google, GitHub OAuth)
+django-allauth>=0.61.0
+
+# HTTP library (required by django-allauth for OAuth)
+requests>=2.31.0
+
+# OTP / Two-factor authentication
+pyotp>=2.9.0
+
+# Date utilities (relativedelta)
+python-dateutil>=2.8.2
+
+# Image handling (required for ImageField in models)
+Pillow>=10.0.0
+
+# JWT (required by django-allauth for Google OAuth)
+PyJWT>=2.6.0
+
+# Cryptography (required by django-allauth/PyJWT for Google OAuth)
+cryptography>=40.0.0
+
+# Excel file handling (for exporting data)
+openpyxl>=3.1.0
