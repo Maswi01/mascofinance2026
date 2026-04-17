@@ -1911,7 +1911,7 @@ def transaction_statement(request):
     return render(request, 'app/transaction_statement.html', context)
 
 # ==========================================================================
-def loan_collection_statement(request):
+def loan_collection_statement2(request):
     # Get filter parameters
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
@@ -1986,6 +1986,7 @@ def loan_collection_statement(request):
     total_collected = sum(item['total'] for item in collection_data)
     
     context = {
+        **get_base_context(request),
         'collection_data': collection_data,
         'total_principal': total_principal,
         'total_interest': total_interest,
@@ -2412,6 +2413,7 @@ def branches_loan_report(request):
         loan_type_summary[loan_type]['outstanding'] += loan['outstanding']
     
     context = {
+        **get_base_context(request),
         'loan_data': loan_data,
         'summary': summary,
         'loan_type_summary': loan_type_summary,
@@ -3856,70 +3858,60 @@ def fomu_mkopo_wa_dharula(request, loan_id=None):
     }
     return render(request, 'app/fomu_mkopo_wa_dharula.html', context)
 
-def bank_transfer_expenses(request):
-    # Get filter parameters
+def bank_transfer_expenses2(request):
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
-    office_id = request.GET.get('office')
+    office_filter = request.GET.get('office')
 
-    # Base queryset - filter only bank payment method expenses
-    expenses = Expense.objects.filter(
-        payment_method='bank'
-    ).select_related('recorded_by', 'transaction_type').order_by('transaction_date', 'id')
+    transactions = HQTransaction.objects.select_related(
+        'from_branch', 'to_branch', 'processed_by'
+    ).order_by('transaction_date', 'id')
 
-    # Apply date filters
     if date_from:
         try:
-            date_from_parsed = datetime.datetime.strptime(date_from, "%Y-%m-%d").date()
-            expenses = expenses.filter(transaction_date__gte=date_from_parsed)
+            transactions = transactions.filter(
+                transaction_date__gte=datetime.datetime.strptime(date_from, "%Y-%m-%d").date()
+            )
         except ValueError:
             pass
 
     if date_to:
         try:
-            date_to_parsed = datetime.datetime.strptime(date_to, "%Y-%m-%d").date()
-            expenses = expenses.filter(transaction_date__lte=date_to_parsed)
+            transactions = transactions.filter(
+                transaction_date__lte=datetime.datetime.strptime(date_to, "%Y-%m-%d").date()
+            )
         except ValueError:
             pass
 
-    # Apply office filter — accepts either office name (from index) or office id (from dropdown)
-    if office_id:
-        if office_id.isdigit():
-            try:
-                office = Office.objects.get(id=int(office_id))
-                expenses = expenses.filter(office=office.name)
-            except Office.DoesNotExist:
-                pass
-        else:
-            # office name passed directly e.g. ?office=HQ
-            expenses = expenses.filter(office=office_id)
+    if office_filter:
+        transactions = transactions.filter(
+            models.Q(from_branch__name=office_filter) | models.Q(to_branch__name=office_filter)
+        )
 
-    # Calculate grand total
-    grand_total = expenses.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    # Offices from Office model via HQTransaction branches
+    offices = Office.objects.filter(
+        models.Q(hq_transactions_from__isnull=False) | models.Q(hq_transactions_to__isnull=False)
+    ).values_list('name', flat=True).distinct().order_by('name')
 
-    # Generate receipt numbers (use expense id padded)
-    expenses_with_receipt = []
-    for expense in expenses:
-        expenses_with_receipt.append({
-            'expense': expense,
-            'receipt_number': str(expense.id).zfill(6),
-        })
+    grand_total = transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    offices = Office.objects.all()
+    transactions_with_receipt = [
+        {'transaction': txn, 'receipt_number': str(txn.id).zfill(6)}
+        for txn in transactions
+    ]
 
     context = {
-        'expenses_with_receipt': expenses_with_receipt,
+        **get_base_context(request),
+        'transactions_with_receipt': transactions_with_receipt,
         'grand_total': grand_total,
         'date_from': date_from or '',
         'date_to': date_to or '',
         'offices': offices,
-        'selected_office': office_id or '',
-        'total_count': len(expenses_with_receipt),
+        'office_filter': office_filter or '',
+        'total_count': len(transactions_with_receipt),
     }
 
     return render(request, 'app/bank_transfer_expenses.html', context)
-
-
 
 
 
@@ -4050,6 +4042,8 @@ def process_loan(request, pk):
         **get_base_context(request),
     })
     
+
+
 def process_loan_partb(request, pk):
     """
     Called by Part A form (POST).
@@ -4106,8 +4100,8 @@ def process_loan_partb(request, pk):
         'existing_dharura':   existing_dharura,
         **get_base_context(request),
     })
-    
-    
+
+
 def loan_application(request):
     if request.method == 'POST':
         client_id             = request.POST.get('client')
@@ -4162,6 +4156,40 @@ def loan_application(request):
                 )
                 return redirect('process_loan_partb', pk=client.id)
 
+            # ── Dharura-specific rules ────────────────────────────────
+            if loan_type == 'Dharura':
+
+                # 1. Maximum loan amount cap
+                DHARURA_MAX = Decimal('200000')
+                if loan_amount_decimal > DHARURA_MAX:
+                    messages.error(
+                        request,
+                        f'Dharura loan cannot exceed TZS {DHARURA_MAX:,.0f}/=. '
+                        f'Requested amount: TZS {loan_amount_decimal:,.0f}/='
+                    )
+                    return redirect('process_loan_partb', pk=client.id)
+
+                # 2. Branch-wide active Dharura loan cap (max 10)
+                # We need branch_office here, so fetch it early for this check
+                branch_office_check = get_selected_office(request)
+                if branch_office_check:
+                    DHARURA_BRANCH_LIMIT = 10
+                    active_dharura_count = LoanApplication.objects.filter(
+                        office=branch_office_check.name,
+                        loan_type='Dharura',
+                        status__in=['Approved', 'Pending'],
+                        repayment_amount_remaining__gt=0,
+                    ).count()
+
+                    if active_dharura_count >= DHARURA_BRANCH_LIMIT:
+                        messages.error(
+                            request,
+                            f'Branch "{branch_office_check.name}" has reached the maximum of '
+                            f'{DHARURA_BRANCH_LIMIT} active Dharura loans. '
+                            'A new Dharura loan cannot be issued until an existing one is fully repaid.'
+                        )
+                        return redirect('process_loan_partb', pk=client.id)
+
             # ── Branch office & balance ───────────────────────────────
             branch_office = get_selected_office(request)
             if not branch_office:
@@ -4209,8 +4237,7 @@ def loan_application(request):
                 loan_type=loan_type,
                 interest_rate=Decimal(interest_rate),
                 payment_period_months=int(payment_period_months),
-                # ← no application_date here
-                application_date = application_date,
+                application_date=application_date,
                 processed_by=processed_by,
                 office=branch_office.name,
                 transaction_method=transaction_method,
@@ -5038,10 +5065,12 @@ def toggle_loan_approve(request, loan_id):
     })
     
 
+from decimal import Decimal, ROUND_CEILING
+
 def loan_repayment_schedule(request, loan_id):
-    loan   = get_object_or_404(LoanApplication, id=loan_id)
-    client = loan.client
-    base_ctx      = get_base_context(request)
+    loan     = get_object_or_404(LoanApplication, id=loan_id)
+    client   = loan.client
+    base_ctx = get_base_context(request)
 
     branch_name     = (loan.office or '—').upper()
     client_fullname = ' '.join(filter(None, [
@@ -5058,29 +5087,30 @@ def loan_repayment_schedule(request, loan_id):
             key = (r.payment_month.year, r.payment_month.month)
             paid_by_month[key] = paid_by_month.get(key, Decimal('0.00')) + (r.repayment_amount or Decimal('0.00'))
 
-    # ── Also include LoanTopup amounts in paid_by_month ──────────────────
+    # ── Build topup_by_month from LoanTopup ──────────────────────────────
     topup_by_month = {}
     for t in topups:
         if t.payment_month:
             key = (t.payment_month.year, t.payment_month.month)
             topup_by_month[key] = topup_by_month.get(key, Decimal('0.00')) + (t.old_balance_cleared or Decimal('0.00'))
 
-    # ── Rounding helper ──────────────────────────────────────────────────
-    def floor_1000(val):
-        return (val / Decimal('1000')).to_integral_value(rounding=ROUND_DOWN) * Decimal('1000')
+    # ── Rounding: ceil to nearest 1,000 ──────────────────────────────────
+    def ceil_1000(val):
+        return (val / Decimal('1000')).to_integral_value(rounding=ROUND_CEILING) * Decimal('1000')
 
     # ── Schedule parameters ──────────────────────────────────────────────
-    periods     = loan.payment_period_months or 1
-    loan_amount = loan.loan_amount or Decimal('0.00')
-    total_int   = loan.total_interest_amount or Decimal('0.00')
+    periods      = loan.payment_period_months or 1
+    loan_amount  = loan.loan_amount or Decimal('0.00')
+    total_int    = loan.total_interest_amount or Decimal('0.00')
+    total_return = loan_amount + total_int
 
-    rounded_principal = floor_1000(loan_amount / periods)
-    rounded_interest  = floor_1000(total_int   / periods)
-    rounded_monthly   = rounded_principal + rounded_interest
+    std_monthly   = ceil_1000(total_return / periods)
+    std_principal = ceil_1000(loan_amount  / periods)
+    std_interest  = std_monthly - std_principal
 
-    first_principal = loan_amount - (rounded_principal * (periods - 1))
-    first_interest  = total_int   - (rounded_interest  * (periods - 1))
-    first_monthly   = first_principal + first_interest
+    last_principal = loan_amount - (std_principal * (periods - 1))
+    last_interest  = total_int   - (std_interest  * (periods - 1))
+    last_monthly   = last_principal + last_interest
 
     month_names = {
         1:'Jan', 2:'Feb', 3:'Mar', 4:'Apr', 5:'May', 6:'Jun',
@@ -5095,94 +5125,123 @@ def loan_repayment_schedule(request, loan_id):
     total_penalty   = Decimal('0.00')
     total_total     = Decimal('0.00')
     total_paid_sum  = Decimal('0.00')
-    total_out_sum   = Decimal('0.00')
 
     schedule_rows    = []
     scheduled_months = set()
 
-    # ── Build scheduled rows ─────────────────────────────────────────────
+    # ── Pass 1: build raw scheduled rows ─────────────────────────────────
+    scheduled_raw   = []
+    running_balance = total_return
+
     for i in range(periods):
         year  = start.year  + (start.month - 1 + i) // 12
         month = (start.month - 1 + i) % 12 + 1
         scheduled_months.add((year, month))
 
         month_label = f"{month_names[month]}/{year}"
-        is_first    = (i == 0)
+        is_last     = (i == periods - 1)
 
-        p = first_principal if is_first else rounded_principal
-        n = first_interest  if is_first else rounded_interest
-        t = first_monthly   if is_first else rounded_monthly
+        p = last_principal if is_last else std_principal
+        n = last_interest  if is_last else std_interest
+        t = last_monthly   if is_last else std_monthly
 
-        penalty = Decimal('0.00')
-        paid    = paid_by_month.get((year, month), Decimal('0.00'))
-        outstanding = max(t - paid, Decimal('0.00'))
+        running_balance -= t
+        if abs(running_balance) < Decimal('0.50'):
+            running_balance = Decimal('0.00')
 
-        schedule_rows.append({
-            'month_label': month_label,
-            'principal':   p,
-            'interest':    n,
-            'penalty':     penalty,
-            'total':       t,
-            'paid':        paid,
-            'outstanding': outstanding,
-            'extra':       False,
-            'is_topup':    False,
+        paid = paid_by_month.get((year, month), Decimal('0.00'))
+
+        scheduled_raw.append({
+            'month_label':  month_label,
+            'principal':    p,
+            'interest':     n,
+            'penalty':      Decimal('0.00'),
+            'total':        t,
+            'paid':         paid,
+            'loan_balance': running_balance,
         })
 
         total_principal += p
         total_interest  += n
-        total_penalty   += penalty
         total_total     += t
         total_paid_sum  += paid
-        total_out_sum   += outstanding
 
-    # ── Extra rows from LoanRepayment outside schedule ───────────────────
+    # ── Pass 2: pool all payments, apply top-down oldest debt first ───────
+    remaining_pool = sum(r['paid'] for r in scheduled_raw)
+
+    for row in scheduled_raw:
+        t = row['total']
+
+        if remaining_pool >= t:
+            remaining_pool -= t
+            outstanding = Decimal('0.00')
+        elif remaining_pool > 0:
+            outstanding    = t - remaining_pool
+            remaining_pool = Decimal('0.00')
+        else:
+            outstanding = t
+
+        schedule_rows.append({
+            'month_label':  row['month_label'],
+            'principal':    row['principal'],
+            'interest':     row['interest'],
+            'penalty':      row['penalty'],
+            'total':        row['total'],
+            'paid':         row['paid'],
+            'outstanding':  outstanding,
+            'loan_balance': row['loan_balance'],
+            'extra':        False,
+            'is_topup':     False,
+        })
+
+    final_outstanding = sum(
+        (r['outstanding'] for r in schedule_rows if not r['extra']),
+        Decimal('0.00')
+    )
+
+    # ── Extra rows: repayments outside schedule ───────────────────────────
     extra_repayment_months = sorted(
         [(y, m) for (y, m) in paid_by_month if (y, m) not in scheduled_months]
     )
-
     for (year, month) in extra_repayment_months:
         paid        = paid_by_month[(year, month)]
         month_label = f"{month_names[month]}/{year}"
-
         schedule_rows.append({
-            'month_label': month_label,
-            'principal':   Decimal('0.00'),
-            'interest':    Decimal('0.00'),
-            'penalty':     Decimal('0.00'),
-            'total':       Decimal('0.00'),
-            'paid':        paid,
-            'outstanding': Decimal('0.00'),
-            'extra':       True,
-            'is_topup':    False,
+            'month_label':  month_label,
+            'principal':    Decimal('0.00'),
+            'interest':     Decimal('0.00'),
+            'penalty':      Decimal('0.00'),
+            'total':        Decimal('0.00'),
+            'paid':         paid,
+            'outstanding':  Decimal('0.00'),
+            'loan_balance': Decimal('0.00'),
+            'extra':        True,
+            'is_topup':     False,
         })
-
         total_paid_sum += paid
 
-    # ── Extra rows from LoanTopup outside schedule ───────────────────────
+    # ── Extra rows: topups outside schedule ──────────────────────────────
     extra_topup_months = sorted(
         [(y, m) for (y, m) in topup_by_month if (y, m) not in scheduled_months]
     )
-
     for (year, month) in extra_topup_months:
         paid        = topup_by_month[(year, month)]
         month_label = f"{month_names[month]}/{year}"
-
         schedule_rows.append({
-            'month_label': month_label,
-            'principal':   Decimal('0.00'),
-            'interest':    Decimal('0.00'),
-            'penalty':     Decimal('0.00'),
-            'total':       Decimal('0.00'),
-            'paid':        paid,
-            'outstanding': Decimal('0.00'),
-            'extra':       True,
-            'is_topup':    True,  # ← flag so template can label it differently
+            'month_label':  month_label,
+            'principal':    Decimal('0.00'),
+            'interest':     Decimal('0.00'),
+            'penalty':      Decimal('0.00'),
+            'total':        Decimal('0.00'),
+            'paid':         paid,
+            'outstanding':  Decimal('0.00'),
+            'loan_balance': Decimal('0.00'),
+            'extra':        True,
+            'is_topup':     True,
         })
-
         total_paid_sum += paid
 
-    # ── Sort all extra rows to the bottom by month ───────────────────────
+    # ── Sort: scheduled first, extras at bottom ───────────────────────────
     scheduled_rows = [r for r in schedule_rows if not r['extra']]
     extra_rows     = sorted(
         [r for r in schedule_rows if r['extra']],
@@ -5196,7 +5255,7 @@ def loan_repayment_schedule(request, loan_id):
         'penalty':     total_penalty,
         'total':       total_total,
         'paid':        total_paid_sum,
-        'outstanding': total_out_sum,
+        'outstanding': final_outstanding,
     }
 
     return render(request, 'app/loan_repayment_schedule.html', {
@@ -5207,9 +5266,9 @@ def loan_repayment_schedule(request, loan_id):
         'branch_name':     branch_name,
         'schedule_rows':   schedule_rows,
         'totals':          totals,
-    })
-    
-    
+        'total_return':    total_return,
+    })   
+ 
     
 
 def customer_statement_select(request):
@@ -5545,7 +5604,6 @@ def branch_transaction_statement(request):
 
 
 
-from django.db.models import Q
 def branch_transaction_statement_report(request):
     if request.method != 'POST':
         return redirect('branch_transaction_statement')
@@ -5572,6 +5630,10 @@ def branch_transaction_statement_report(request):
     from django.utils import timezone as dj_timezone
     from datetime import timezone as py_timezone
 
+    # ── Extend date_to to include the full end day ────────────────────
+    date_from_dt = datetime.datetime.combine(date_from, datetime.time.min)  # 00:00:00
+    date_to_dt   = datetime.datetime.combine(date_to,   datetime.time.max)  # 23:59:59.999999
+
     _epoch = datetime.datetime(2000, 1, 1, tzinfo=py_timezone.utc)
 
     def _aware(dt):
@@ -5585,7 +5647,8 @@ def branch_transaction_statement_report(request):
 
     # ── 1. Loan Repayments (CREDIT) ───────────────────────────────────
     repayments = LoanRepayment.objects.filter(
-        created_at__range=(date_from, date_to),
+        created_at__gte=date_from_dt,
+        created_at__lte=date_to_dt,
     ).select_related('loan_application__client', 'processed_by').order_by('created_at', 'id')
 
     if office_name:
@@ -5610,9 +5673,10 @@ def branch_transaction_statement_report(request):
             'deletable':        True,
         })
 
-    # ── 2. Loan Top-ups (CREDIT clearance + DEBIT disbursement) ───────
+    # ── 2. Loan Top-ups ───────────────────────────────────────────────
     topups = LoanTopup.objects.filter(
-        created_at__range=(date_from, date_to),
+        created_at__gte=date_from_dt,
+        created_at__lte=date_to_dt,
     ).select_related('loan_application__client', 'processed_by').order_by('created_at', 'id')
 
     if office_name:
@@ -5659,12 +5723,13 @@ def branch_transaction_statement_report(request):
             'credit':           None,
             'debit':            t.topup_amount,
             'processed_by':     officer,
-            'deletable':        False,  # shown via clearance row above
+            'deletable':        False,
         })
 
     # ── 3. New Loan Disbursements (DEBIT) ─────────────────────────────
     disbursements = LoanApplication.objects.filter(
-        created_at__date__range=(date_from, date_to),
+        created_at__gte=date_from_dt,
+        created_at__lte=date_to_dt,
     ).select_related('client', 'processed_by').order_by('created_at', 'id')
 
     if office_name:
@@ -5693,7 +5758,8 @@ def branch_transaction_statement_report(request):
 
     # ── 4. Expenses (DEBIT) ───────────────────────────────────────────
     expenses = Expense.objects.filter(
-        created_at__range=(date_from, date_to),
+        created_at__gte=date_from_dt,
+        created_at__lte=date_to_dt,
     ).select_related('recorded_by', 'transaction_type').order_by('created_at', 'id')
 
     if office_name:
@@ -5721,7 +5787,8 @@ def branch_transaction_statement_report(request):
 
     # ── 5. Salaries (DEBIT) ───────────────────────────────────────────
     salaries = Salary.objects.filter(
-        created_at__range=(date_from, date_to),
+        created_at__gte=date_from_dt,
+        created_at__lte=date_to_dt,
     ).select_related('employee', 'processed_by').order_by('created_at', 'id')
 
     if filter_office:
@@ -5749,7 +5816,8 @@ def branch_transaction_statement_report(request):
 
     # ── 6. Bank Charges (DEBIT) ───────────────────────────────────────
     bank_charges = BankCharge.objects.filter(
-        created_at__range=(date_from, date_to),
+        created_at__gte=date_from_dt,
+        created_at__lte=date_to_dt,
     ).select_related('recorded_by').order_by('created_at', 'id')
 
     if office_name:
@@ -5775,7 +5843,8 @@ def branch_transaction_statement_report(request):
 
     # ── 7. HQ Transfers ───────────────────────────────────────────────
     hq_transactions = HQTransaction.objects.filter(
-        created_at__range=(date_from, date_to),
+        created_at__gte=date_from_dt,
+        created_at__lte=date_to_dt,
     ).select_related('from_branch', 'to_branch', 'processed_by').order_by('processed_at', 'id')
 
     if office_name:
@@ -5831,16 +5900,15 @@ def branch_transaction_statement_report(request):
                 'debit':            hq.amount,
                 'processed_by':     officer,
                 'attachment':       hq.attachment.url if getattr(hq, 'attachment', None) else None,
-                'deletable':        False,  # deleted via the received side
+                'deletable':        False,
             })
 
-    # ── Sort by date first, then by exact creation timestamp ──────────
+    # ── Sort ──────────────────────────────────────────────────────────
     raw.sort(key=lambda e: (e['date'], e['created_at'], e['sort_sub']))
 
-    # ── Annotate hide_date for template date grouping ─────────────────
+    # ── Annotate hide_date ────────────────────────────────────────────
     prev_date = None
     for entry in raw:
-        # Normalize to date-only for grouping comparison
         entry_date = entry['date'].date() if hasattr(entry['date'], 'date') else entry['date']
         entry['hide_date'] = (entry_date == prev_date)
         prev_date = entry_date
@@ -5857,8 +5925,6 @@ def branch_transaction_statement_report(request):
         'date_to_display':   date_to_display,
         'branch_name':       branch_name,
     })
- 
- 
  
 @require_POST
 def delete_transaction(request, record_type, record_id):
@@ -7324,24 +7390,35 @@ def financial_statement_report(request):
         return qs
 
     # ── Opening Balance (everything BEFORE start_date) ────────────────────────────
-    rep_b          = rep_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
-    nyo_b          = nyo_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('amount'))['t']           or Decimal('0')
-    transfer_in_b  = transfer_in_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('amount'))['t']   or Decimal('0')
+    # rep_b          = rep_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
+    # nyo_b          = nyo_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('amount'))['t']           or Decimal('0')
+    # transfer_in_b  = transfer_in_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('amount'))['t']   or Decimal('0')
+    rep_b         = rep_qs(Q(created_at__lt=start_dt)).exclude(loan_application__loan_type__iexact='Hazina').aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
+    hazina_rep_b  = rep_qs(Q(created_at__lt=start_dt)).filter(loan_application__loan_type__iexact='Hazina').aggregate(t=Sum('repayment_amount'))['t']  or Decimal('0')
+    nyo_b         = nyo_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('amount'))['t']           or Decimal('0')
+    transfer_in_b = transfer_in_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('amount'))['t']   or Decimal('0')
 
     exp_b          = exp_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('amount'))['t']           or Decimal('0')
     loan_b         = loan_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('loan_amount'))['t']     or Decimal('0')
     transfer_out_b = transfer_out_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('amount'))['t']  or Decimal('0')
     bank_charge_b  = bank_charge_qs(Q(created_at__lt=start_dt)).aggregate(t=Sum('amount'))['t']  or Decimal('0')
 
-    opening_stock = (rep_b + nyo_b + transfer_in_b) - (exp_b + loan_b + transfer_out_b + bank_charge_b)
+    # opening_stock = (rep_b + nyo_b + transfer_in_b) - (exp_b + loan_b + transfer_out_b + bank_charge_b)
+    opening_stock = (rep_b + hazina_rep_b + nyo_b + transfer_in_b) - (exp_b + loan_b + transfer_out_b + bank_charge_b)
 
     # ── Period date filters (all using created_at) ────────────────────────────────
     pq = Q(created_at__gte=start_dt, created_at__lte=end_dt)  # one Q reused for all models
 
-    # ── INCOME (Inflows) ──────────────────────────────────────────────────────────
-    total_mapato       = rep_qs(pq).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
+    # ── INCOME (Inflows) ────────────────────────────────────────────────────────── BEFORE
+    # total_mapato       = rep_qs(pq).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
+    # total_nyongeza     = nyo_qs(pq).aggregate(t=Sum('amount'))['t']           or Decimal('0')
+    # total_hazina       = Decimal('0')
+    # total_transfers_in = transfer_in_qs(pq).aggregate(t=Sum('amount'))['t']  or Decimal('0')
+    
+    # ── INCOME (Inflows) ────────────────────────────────────────────────────────── AFTER
+    total_mapato       = rep_qs(pq).exclude(loan_application__loan_type__iexact='Hazina').aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
     total_nyongeza     = nyo_qs(pq).aggregate(t=Sum('amount'))['t']           or Decimal('0')
-    total_hazina       = Decimal('0')
+    total_hazina       = rep_qs(pq).filter(loan_application__loan_type__iexact='Hazina').aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
     total_transfers_in = transfer_in_qs(pq).aggregate(t=Sum('amount'))['t']  or Decimal('0')
 
     total_income_with_opening = (
@@ -7477,7 +7554,8 @@ def financial_statement_report(request):
         'total_cash':     cash_in_office + cash_in_bank,
     })
     
-    
+ 
+   
     
 def monthly_repayment_filter(request):
     return render(request, 'app/monthly_repayment_filter.html', {
@@ -9113,19 +9191,7 @@ def branch_financial_summary_filter(request):
 
 
 def branch_financial_summary(request):
-    """
-    Columnar financial statement — one column per branch + TOTAL.
-
-    Rows (matching financial_statement_report fields):
-      Income   : Opening Balance, MAPATO, NYONGEZA, FEDHA ZILIZOPOKELEWA
-               → income subtotal (HAZINA)
-      Outflow  : FOMU (loan disbursements),
-                 MATUMIZI OFISINI (expenses only, no loans),
-                 MATUMIZI BENKI-[KITUO],
-                 MATUMIZI BENKI-[MKURUGENZI], MAKATO BANK
-               → outflow subtotal
-      Closing  : BALANCE CASH, BALANCE BENKI → total
-    """
+    
     start_date_str = request.GET.get('start_date', '')
     end_date_str   = request.GET.get('end_date',   '')
 
@@ -9148,20 +9214,21 @@ def branch_financial_summary(request):
 
     # ── Data buckets ──────────────────────────────────────────────────
     summary_data = {
-        'opening_balance':          {},
-        'mapato':                   {},
-        'nyongeza':                 {},
-        'transfers_in':             {},
-        'income_subtotal':          {},
-        'fomu':                     {},   # ← NEW: loan disbursements
-        'matumizi_ofisini':         {},   # ← now expenses ONLY (no loans)
-        'matumizi_kituo':           {},
-        'matumizi_mkurugenzi':      {},
-        'makato_benki':             {},
-        'outflow_subtotal':         {},
-        'balance_cash':             {},
-        'balance_benki':            {},
-        'balance_total':            {},
+        'opening_balance':     {},
+        'mapato':              {},
+        'hazina':              {},
+        'nyongeza':            {},
+        'transfers_in':        {},
+        'income_subtotal':     {},
+        'fomu':                {},
+        'matumizi_ofisini':    {},
+        'matumizi_kituo':      {},
+        'matumizi_mkurugenzi': {},
+        'makato_benki':        {},
+        'outflow_subtotal':    {},
+        'balance_cash':        {},
+        'balance_benki':       {},
+        'balance_total':       {},
     }
 
     totals = {k: Decimal('0.00') for k in summary_data}
@@ -9172,6 +9239,14 @@ def branch_financial_summary(request):
         rep_b = LoanRepayment.objects.filter(
             loan_application__office=office.name,
             repayment_date__lt=start_date,
+        ).exclude(
+            loan_application__loan_type__iexact='Hazina'
+        ).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
+
+        hazina_rep_b = LoanRepayment.objects.filter(
+            loan_application__office=office.name,
+            repayment_date__lt=start_date,
+            loan_application__loan_type__iexact='Hazina',
         ).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
 
         nyo_b = Nyongeza.objects.filter(
@@ -9205,7 +9280,7 @@ def branch_financial_summary(request):
         ).aggregate(t=Sum('amount'))['t'] or Decimal('0')
 
         opening_balance = (
-            rep_b + nyo_b + trx_in_b
+            rep_b + hazina_rep_b + nyo_b + trx_in_b
         ) - (
             exp_b + loan_b + trx_out_b + bank_charge_b
         )
@@ -9213,15 +9288,28 @@ def branch_financial_summary(request):
         summary_data['opening_balance'][office.id] = opening_balance
         totals['opening_balance'] += opening_balance
 
-        # ── MAPATO (loan repayments in period) ───────────────────────
+        # ── MAPATO (non-Hazina repayments only) ──────────────────────
         mapato = LoanRepayment.objects.filter(
             loan_application__office=office.name,
             repayment_date__gte=start_date,
             repayment_date__lte=end_date,
+        ).exclude(
+            loan_application__loan_type__iexact='Hazina'
         ).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
 
         summary_data['mapato'][office.id] = mapato
         totals['mapato'] += mapato
+
+        # ── HAZINA (Hazina repayments only) ──────────────────────────
+        hazina = LoanRepayment.objects.filter(
+            loan_application__office=office.name,
+            repayment_date__gte=start_date,
+            repayment_date__lte=end_date,
+            loan_application__loan_type__iexact='Hazina',
+        ).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
+
+        summary_data['hazina'][office.id] = hazina
+        totals['hazina'] += hazina
 
         # ── NYONGEZA ─────────────────────────────────────────────────
         nyongeza = Nyongeza.objects.filter(
@@ -9244,7 +9332,7 @@ def branch_financial_summary(request):
         totals['transfers_in'] += transfers_in
 
         # ── INCOME SUBTOTAL ──────────────────────────────────────────
-        income_subtotal = opening_balance + mapato + nyongeza + transfers_in
+        income_subtotal = opening_balance + mapato + hazina + nyongeza + transfers_in
         summary_data['income_subtotal'][office.id] = income_subtotal
         totals['income_subtotal'] += income_subtotal
 
@@ -9258,7 +9346,7 @@ def branch_financial_summary(request):
         summary_data['fomu'][office.id] = fomu
         totals['fomu'] += fomu
 
-        # ── MATUMIZI OFISINI (office expenses ONLY — loans removed) ──
+        # ── MATUMIZI OFISINI (office expenses only) ───────────────────
         matumizi_ofisini = Expense.objects.filter(
             office=office.name,
             expense_date__gte=start_date,
@@ -9268,28 +9356,30 @@ def branch_financial_summary(request):
         summary_data['matumizi_ofisini'][office.id] = matumizi_ofisini
         totals['matumizi_ofisini'] += matumizi_ofisini
 
-        # ── MATUMIZI BENKI-[KITUO] (branch-to-branch transfers only) ─
-        # Loans are now in FOMU, so this is transfers to non-HQ branches only
+        # ── MATUMIZI BENKI-[KITUO] (branch-to-branch, excludes HQ) ───
         matumizi_kituo = OfficeTransaction.objects.filter(
             office_from=office,
             transaction_date__gte=start_date,
             transaction_date__lte=end_date,
-        ).exclude(office_to__name__iexact='HQ').aggregate(t=Sum('amount'))['t'] or Decimal('0')
+        ).exclude(
+            office_to__name__iexact='HQ'
+        ).aggregate(t=Sum('amount'))['t'] or Decimal('0')
 
         summary_data['matumizi_kituo'][office.id] = matumizi_kituo
         totals['matumizi_kituo'] += matumizi_kituo
 
-        # ── MATUMIZI BENKI-[MKURUGENZI] (transfers sent to HQ only) ─
+        # ── MATUMIZI BENKI-[MKURUGENZI] (transfers to HQ only) ───────
         matumizi_mkurugenzi = OfficeTransaction.objects.filter(
             office_from=office,
             transaction_date__gte=start_date,
             transaction_date__lte=end_date,
-        ).filter(office_to__name__iexact='HQ').aggregate(t=Sum('amount'))['t'] or Decimal('0')
+            office_to__name__iexact='HQ',
+        ).aggregate(t=Sum('amount'))['t'] or Decimal('0')
 
         summary_data['matumizi_mkurugenzi'][office.id] = matumizi_mkurugenzi
         totals['matumizi_mkurugenzi'] += matumizi_mkurugenzi
 
-        # ── MAKATO BANK (BankCharge model) ───────────────────────────
+        # ── MAKATO BANK ───────────────────────────────────────────────
         makato_benki = BankCharge.objects.filter(
             office=office.name,
             expense_date__gte=start_date,
@@ -9299,9 +9389,9 @@ def branch_financial_summary(request):
         summary_data['makato_benki'][office.id] = makato_benki
         totals['makato_benki'] += makato_benki
 
-        # ── OUTFLOW SUBTOTAL (now includes FOMU) ─────────────────────
+        # ── OUTFLOW SUBTOTAL ──────────────────────────────────────────
         outflow_subtotal = (
-            fomu                   # ← FOMU replaces loans_kituo
+            fomu
             + matumizi_ofisini
             + matumizi_kituo
             + matumizi_mkurugenzi
@@ -9335,7 +9425,6 @@ def branch_financial_summary(request):
         'end_date':   end_date,
     }
     return render(request, 'app/branch_financial_summary_result.html', context)
-
 
 
 

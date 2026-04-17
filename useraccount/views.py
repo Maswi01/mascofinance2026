@@ -153,30 +153,33 @@ def update_staff(request, staff_id):
 
     if request.method == 'POST':
         try:
+            # Update basic fields
             staff.first_name = request.POST.get('first_name', '').strip()
             staff.last_name = request.POST.get('last_name', '').strip()
             staff.phone = request.POST.get('phone', '').strip()
 
+            # ✅ FIX: Handle role properly
             role_id = request.POST.get('role')
             if role_id:
                 staff.role = get_object_or_404(Role, id=role_id)
             else:
                 staff.role = None
 
+            # Optional fields
             if hasattr(staff, 'middlename'):
                 staff.middlename = request.POST.get('middlename', '').strip()
+
             if hasattr(staff, 'nssf_no'):
                 staff.nssf_no = request.POST.get('nssf_no', '').strip()
+
             if hasattr(staff, 'bank_account_name'):
                 staff.bank_account_name = request.POST.get('bank_account_name', '').strip()
+
             if hasattr(staff, 'bank_account_number'):
                 staff.bank_account_number = request.POST.get('bank_account_number', '').strip()
 
-            # Only a superuser can grant/revoke superuser status
-            if request.user.is_superuser:
-                staff.is_superuser = request.POST.get('is_superuser') == '1'
-
             staff.save()
+
             messages.success(request, 'Staff profile updated successfully!')
             return redirect('staff_profile', staff_id=staff.id)
 
@@ -257,7 +260,7 @@ def signin(request):
         password1 = request.POST['password1']
 
         # Check if username exists
-        if not CustomUser.objects.filter(email=username).exists():
+        if not CustomUser.objects.filter(username=username).exists():
             messages.error(request, 'No account found with this username.')
             return redirect('signin')
 

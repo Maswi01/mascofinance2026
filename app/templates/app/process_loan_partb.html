@@ -243,6 +243,7 @@
                 </div>
             </div>
             <div id="amountError" class="alert-error" style="display:none; margin-left:264px; margin-top:-10px; margin-bottom:10px;"></div>
+            <div id="dharuraAmountError" class="alert-error" style="display:none; margin-left:264px; margin-top:-10px; margin-bottom:10px;"></div>
 
             <!-- Interest per annum (I) -->
             <div class="loan-form-row">
@@ -446,26 +447,30 @@ function onLoanTypeChange() {
 }
 
 // ── Warning / topup state ───────────────────────────────────────────
+const DHARURA_MAX_AMOUNT = 200000;
+
 function updateLoanState() {
     const selectedType = document.getElementById('loan_type').value;
     const amount       = getRawAmount();
 
-    const warnMae     = document.getElementById('warningMaendeleo');
-    const warnDharBlk = document.getElementById('warningDharuraBlocked');
-    const topupRow    = document.getElementById('topupDateRow');
-    const errEl       = document.getElementById('amountError');
-    const submitBtn   = document.getElementById('submitBtn');
-    const isTopupFld  = document.getElementById('isTopupField');
-    const origIdFld   = document.getElementById('originalLoanIdField');
+    const warnMae        = document.getElementById('warningMaendeleo');
+    const warnDharBlk    = document.getElementById('warningDharuraBlocked');
+    const topupRow       = document.getElementById('topupDateRow');
+    const errEl          = document.getElementById('amountError');
+    const dharuraErrEl   = document.getElementById('dharuraAmountError');
+    const submitBtn      = document.getElementById('submitBtn');
+    const isTopupFld     = document.getElementById('isTopupField');
+    const origIdFld      = document.getElementById('originalLoanIdField');
 
-    warnMae.style.display     = 'none';
-    warnDharBlk.style.display = 'none';
-    topupRow.style.display    = 'none';
-    errEl.style.display       = 'none';
-    isTopupFld.value          = 'false';
-    origIdFld.value           = '';
-    submitBtn.disabled        = false;
-    submitBtn.textContent     = 'SUBMIT';
+    warnMae.style.display      = 'none';
+    warnDharBlk.style.display  = 'none';
+    topupRow.style.display     = 'none';
+    errEl.style.display        = 'none';
+    dharuraErrEl.style.display = 'none';
+    isTopupFld.value           = 'false';
+    origIdFld.value            = '';
+    submitBtn.disabled         = false;
+    submitBtn.textContent      = 'SUBMIT';
 
     if (!selectedType) return;
 
@@ -489,9 +494,18 @@ function updateLoanState() {
         submitBtn.disabled        = true;
         submitBtn.textContent     = 'BLOCKED';
 
-    } else if (selectedType === 'Dharura' && existingMaendeleo) {
-        isTopupFld.value = 'false';
-        origIdFld.value  = '';
+    } else if (selectedType === 'Dharura') {
+        // ── Dharura amount cap (frontend guard) ──
+        if (amount > 0 && amount > DHARURA_MAX_AMOUNT) {
+            dharuraErrEl.style.display = 'block';
+            dharuraErrEl.textContent   = `❌ Dharura loan cannot exceed ${DHARURA_MAX_AMOUNT.toLocaleString('en-US')} /=`;
+            submitBtn.disabled         = true;
+        }
+
+        if (existingMaendeleo) {
+            isTopupFld.value = 'false';
+            origIdFld.value  = '';
+        }
     }
 }
 

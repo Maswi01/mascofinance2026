@@ -5,4 +5,3 @@ from .models import *
 admin.site.register(CustomUser)
 admin.site.register(OtpToken)
 admin.site.register(Profile)
-admin.site.register(Role)

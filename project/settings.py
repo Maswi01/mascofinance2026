@@ -11,23 +11,25 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
-import os
-from dotenv import load_dotenv
-
-# Load .env file
-load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "fallback-secret-key")
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = 'django-insecure-hr1=jtrr3xp^f$kg6&8f2b)#$5f4^_#c0du9l3m%2-mhvzn-j&'
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
 ALLOWED_HOSTS = ['*']
 
+
 # Application definition
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -38,14 +40,11 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'app',
     'useraccount',
+    'api',
+    'rest_framework',
+    'rest_framework.authtoken',
 
-    # Google login
-    'django.contrib.sites',
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.google',
-    'allauth.socialaccount.providers.github',
+
 ]
 
 MIDDLEWARE = [
@@ -56,9 +55,18 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # google login
-    'allauth.account.middleware.AccountMiddleware',
+   
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+}
 
 ROOT_URLCONF = 'project.urls'
 
@@ -80,8 +88,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'project.wsgi.application'
 
+
 # Database
-# For internal SQLite
+# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+
+
+# ####### DATABASE FOR INTERNAL DB =====================================
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
@@ -89,81 +101,57 @@ WSGI_APPLICATION = 'project.wsgi.application'
 #     }
 # }
 
-# For external MySQL
+# ####### DATABASE SETTING FOR EXTERNAL DB - MYSQL =========================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv("MYSQL_DB", "masco_db"),
-        'USER': os.getenv("MYSQL_USER", "root"),
-        'PASSWORD': os.getenv("MYSQL_PASSWORD", ""),
-        'HOST': os.getenv("MYSQL_HOST", "localhost"),
-        'PORT': os.getenv("MYSQL_PORT", "3306"),
+        'NAME': 'masco_db',
+        'USER': 'root',
+        'PASSWORD': '',
+        'HOST': 'localhost',
+        'PORT': '3306',
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
     }
 }
 
+
 # Password validation
+# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
+
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
 ]
 
-# Google OAuth and GitHub OAuth
-SITE_ID = 1
-
-SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'APP': {
-            'client_id': os.getenv("GOOGLE_CLIENT_ID"),
-            'secret': os.getenv("GOOGLE_CLIENT_SECRET"),
-            'key': ''
-        },
-        'SCOPE': ['profile', 'email'],
-        'AUTH_PARAMS': {'access_type': 'online', 'prompt': 'select_account'}
-    },
-    'github': {
-        'APP': {
-            'client_id': os.getenv("GITHUB_CLIENT_ID"),
-            'secret': os.getenv("GITHUB_CLIENT_SECRET"),
-            'key': ''
-        },
-        'AUTH_PARAMS': {'prompt': 'select_account'}
-    },
-}
-
-# Login URLs
-LOGIN_URL = 'signin'
-LOGIN_REDIRECT_URL = 'dashboard'
-LOGOUT_REDIRECT_URL = 'logout'
-ACCOUNT_LOGOUT_REDIRECT_URL = 'signin'
-
-SOCIALACCOUNT_LOGIN_ON_GET = True
-SOCIALACCOUNT_AUTO_SIGNUP = True
-ACCOUNT_UNIQUE_EMAIL = True
-SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
-SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
-SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
-SOCIALACCOUNT_ADAPTER = 'useraccount.adapters.SocialAccountAdapter'
-
-# Email
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
 # Internationalization
+# https://docs.djangoproject.com/en/4.2/topics/i18n/
+
 LANGUAGE_CODE = 'en-us'
+
 TIME_ZONE = 'Africa/Dar_es_Salaam'
+
 USE_TZ = True
+
 USE_I18N = True
 
-# Static files
+
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/4.2/howto/static-files/
+
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / "static"
 
@@ -171,22 +159,34 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
+# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom user
 AUTH_USER_MODEL = 'useraccount.CustomUser'
 
-AUTHENTICATION_BACKENDS = [
-    'useraccount.backends.EmailBackend',
-    'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
-]
 
-# HTTPS settings for production
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
 
-DEBUG = False
-ALLOWED_HOSTS = ['mascofinancelimited.com', 'www.mascofinancelimited.com']
+LOGIN_URL = 'signin'
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'logout'
+ACCOUNT_LOGOUT_REDIRECT_URL = 'signin'
+
+# ========================================================
+
+# email setting
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'msc@gmail.com'  # Your email
+EMAIL_HOST_PASSWORD = '1234'    # Your email password or app password
+
+# Email Configuration
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'mail.ties.co.tz'       # Outgoing server
+# EMAIL_PORT = 465                     # SMTP port for SSL
+# EMAIL_USE_SSL = True                 # Use SSL (not TLS)
+# EMAIL_HOST_USER = 'info@ties.co.tz'  # Full email address
+# EMAIL_HOST_PASSWORD = ''  # Password for info@ties.co.tz
+# DEFAULT_FROM_EMAIL = 'info@ties.co.tz'       # Default sender

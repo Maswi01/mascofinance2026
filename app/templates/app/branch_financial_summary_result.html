@@ -72,55 +72,55 @@
     }
     .td-total {
         background: #f0f4ff !important; font-weight: 700 !important;
-        color: #0d3880 !important; border-left: 2px solid #1a73c7 !important;
+        color: #000 !important; border-left: 2px solid #000 !important;
     }
 
     /* ── Row types ── */
     .fs-table tr.row-opening td { font-weight: 700; }
 
-    .fs-table tr.row-transfer-in td               { background: #f0fff4; color: #1a6b3a; font-weight: 600; }
-    .fs-table tr.row-transfer-in td.td-particular { background: #d6f5e3; color: #1a6b3a; }
+    .fs-table tr.row-transfer-in td               { background: #fff; color: #000; font-weight: 600; }
+    .fs-table tr.row-transfer-in td.td-particular { background: #fff; color: #000; }
 
     .fs-table tr.row-subtotal td {
         background: #fafafa; font-weight: 700;
-        border-top: 2px solid #999; border-bottom: 2px solid #999; text-decoration: underline;
+        border-top: 2px solid #999; border-bottom: 2px solid #fff; text-decoration: underline;
     }
-    .fs-table tr.row-subtotal td.td-particular { background: #f0f0f0; text-decoration: none; }
+    .fs-table tr.row-subtotal td.td-particular { background: #fff; text-decoration: none; }
 
     /* FOMU — amber/loan tint */
-    .fs-table tr.row-fomu td               { background: #fff8f0; color: #7a3000; font-weight: 600; }
-    .fs-table tr.row-fomu td.td-particular { background: #ffe8d0; color: #7a3000; }
+    .fs-table tr.row-fomu td               { background: #fff; color: #000; font-weight: 600; }
+    .fs-table tr.row-fomu td.td-particular { background: #fff; color: #000; }
 
-    .fs-table tr.row-matumizi-ofisini td               { background: #f5f5f5; color: #333; font-weight: 600; }
-    .fs-table tr.row-matumizi-ofisini td.td-particular { background: #e8e8e8; color: #333; }
+    .fs-table tr.row-matumizi-ofisini td               { background: #fff; color: #000; font-weight: 600; }
+    .fs-table tr.row-matumizi-ofisini td.td-particular { background: #fff; color: #000; }
 
-    .fs-table tr.row-matumizi-kituo td               { background: #f0f6ff; color: #1a3a8a; font-weight: 600; }
-    .fs-table tr.row-matumizi-kituo td.td-particular { background: #d8e8ff; color: #1a3a8a; }
+    .fs-table tr.row-matumizi-kituo td               { background: #fff; color: #000; font-weight: 600; }
+    .fs-table tr.row-matumizi-kituo td.td-particular { background: #fff; color: #000; }
 
-    .fs-table tr.row-matumizi-mkurugenzi td               { background: #fdf0ff; color: #5a006b; font-weight: 600; }
-    .fs-table tr.row-matumizi-mkurugenzi td.td-particular { background: #f0d8ff; color: #5a006b; }
+    .fs-table tr.row-matumizi-mkurugenzi td               { background: #fff; color: #000; font-weight: 600; }
+    .fs-table tr.row-matumizi-mkurugenzi td.td-particular { background: #fff; color: #000; }
 
-    .fs-table tr.row-makato td               { background: #fff0f0; color: #7a0000; font-weight: 600; }
-    .fs-table tr.row-makato td.td-particular { background: #ffd8d8; color: #7a0000; }
+    .fs-table tr.row-makato td               { background: #fff; color: #000; font-weight: 600; }
+    .fs-table tr.row-makato td.td-particular { background: #fff; color: #000; }
 
-    .fs-table tr.row-balance td               { background: #f7f9fb; font-weight: 600; }
-    .fs-table tr.row-balance td.td-particular { background: #eef3fb; }
+    .fs-table tr.row-balance td               { background: #fff; font-weight: 600; }
+    .fs-table tr.row-balance td.td-particular { background: #fff; }
 
     .fs-table tr.row-balance-total td {
         font-weight: 700; font-size: 13px;
-        background: #e8f0fe; border-top: 2px solid #1a73c7;
+        background: #fff; border-top: 2px solid #000;
     }
-    .fs-table tr.row-balance-total td.td-particular { background: #c4d8f8; }
+    .fs-table tr.row-balance-total td.td-particular { background: #fff; }
 
-    .neg  { color: #c62828 !important; font-weight: 600; }
-    .zero { color: #bbb !important; }
+    .neg  { color: #000 !important; font-weight: 600; }
+    .zero { color: #000 !important; }
 
     /* ── Action bar ── */
     .action-row {
         display: flex; justify-content: space-between;
         align-items: center; padding: 14px 30px 4px;
     }
-    .back-link { font-size: 13px; color: #2980b9; text-decoration: none; }
+    .back-link { font-size: 13px; color: #000; text-decoration: none; }
     .back-link:hover { text-decoration: underline; }
     .btn-group { display: flex; gap: 6px; }
     .save-pdf-btn, .print-btn {
@@ -139,6 +139,7 @@
         .fs-table { font-size: 8px !important; }
         .fs-table td, .fs-table th { padding: 3px 5px !important; }
     }
+
 </style>
 
 <div class="fs-page">
@@ -209,12 +210,12 @@
                     </tr>
 
                     <!-- ══ HAZINA ══ -->
-                    <tr>
+                    <tr class="row-hazina">
                         <td class="td-particular">HAZINA</td>
-                        {% for office in offices %}
-                        <td class="zero">0</td>
-                        {% endfor %}
-                        <td class="td-total zero">0</td>
+                        {% for office in offices %}{% with val=summary.hazina|get_item:office.id %}
+                        <td class="{% if val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total">{{ totals.hazina|floatformat:0|intcomma }}</td>
                     </tr>
 
                     <!-- ══ INCOME SUBTOTAL ══ -->

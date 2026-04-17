@@ -131,9 +131,11 @@ urlpatterns = [
     ),
     
     path('loan-collection-statement/', views.loan_collection_statement, name='loan_collection_statement'),
+    path('loan-collection-statement2/', views.loan_collection_statement2, name='loan_collection_statement2'),
     path('loan-collection-statement/report/', views.loan_collection_statement_report, name='loan_collection_statement_report'),
     
     path('bank-transfer-expenses/', views.bank_transfer_expenses, name='bank_transfer_expenses'),
+    path('bank-transfer-expenses2/', views.bank_transfer_expenses2, name='bank_transfer_expenses2'),
     path('bank-transfer-expenses/report/', views.bank_transfer_expenses_report, name='bank_transfer_expenses_report'),
     path('office-transaction/delete/<int:txn_id>/', views.delete_office_transaction, name='delete_office_transaction'),
     
@@ -249,6 +251,7 @@ urlpatterns = [
     path('loans-owed/',          views.loans_owed_summary, name='loans_owed_summary'),
     path('loans-owed/report/',   views.loans_owed_report,  name='loans_owed_report'),
     path('loans-owed/approve/',  views.loans_owed_approve, name='loans_owed_approve'),
+    path('loans-owed/hama-approve/',  views.loans_owed_approve,  name='hama_loans_owed_approve'),
     
     path('check-checkno/', views.check_checkno, name='check_checkno'),
     

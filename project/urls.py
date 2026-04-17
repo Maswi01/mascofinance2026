@@ -22,10 +22,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('masco/', include('app.urls')),
-    path('', include('useraccount.urls')),
-    path('accounts/', include('allauth.urls')),  # google login ===============
-    
     path('api/', include('api.urls')),
+    path('', include('useraccount.urls')),
 ]
 
 if settings.DEBUG:

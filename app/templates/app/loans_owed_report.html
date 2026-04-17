@@ -69,6 +69,16 @@
     .th-select { background:#2471a3; color:#fff; font-weight:700; text-align:center; font-size:10.5px; border:1px solid #bbb; }
     .td-select { text-align:center; vertical-align:middle; background:#eaf4fb; border:1px solid #bbb; padding:3px 6px; }
 
+    /* Select-all button styling */
+    .select-all-btn {
+        padding: 4px 14px; background: #2471a3; border: 1px solid #1a5c8a;
+        border-radius: 2px; font-size: 12px; cursor: pointer; color: #fff;
+        margin-right: 6px;
+    }
+    .select-all-btn:hover { background: #1a5c8a; }
+    .select-all-btn.deselect { background: #fff; color: #333; border-color: #888; }
+    .select-all-btn.deselect:hover { background: #f0f0f0; }
+
     @media print {
         body * { visibility: hidden; }
         .printable, .printable * { visibility: visible; }
@@ -107,12 +117,17 @@
             {% if not forloop.first %}<hr class="gold-divider">{% endif %}
             <div class="lor-month-h">{{ section.label }}</div>
 
+            {# Count how many fully-paid (eligible) rows are in this section #}
+            {% with eligible_count=0 %}
+            {% for row in section.rows %}{% if row.is_fully_paid %}{% with eligible_count=eligible_count|add:1 %}{% endwith %}{% endif %}{% endfor %}
+            {% endwith %}
+
             <form method="POST" action="{% url 'loans_owed_approve' %}">
                 {% csrf_token %}
                 <input type="hidden" name="section_key" value="{{ section.key }}">
 
                 <div class="table-scroll">
-                <table class="lot-table">
+                <table class="lot-table" id="table-{{ forloop.counter }}">
                     <thead>
                         <tr>
                             <th class="th-fixed" rowspan="2" style="min-width:24px;">S/N</th>
@@ -127,7 +142,9 @@
                             <th class="th-fixed" rowspan="2">Total Amount</th>
                             <th class="th-fixed" rowspan="2">Balance</th>
                             <th class="th-fixed" rowspan="2" style="min-width:90px;">Mobile No</th>
+                            {% if can_approve_loans %}
                             <th class="th-select no-print" rowspan="2" style="min-width:55px;">Select</th>
+                            {% endif %}
                         </tr>
                         <tr>
                             {% for mh in section.month_headers %}
@@ -190,12 +207,14 @@
 
     <td>{{ row.mobile }}</td>
 
-    {% if can_approve_loans%}
+    {% if can_approve_loans %}
     <td class="td-select no-print">
         {% if row.is_fully_paid %}
             <input type="checkbox" name="loan_ids" value="{{ row.loan_id }}"
+                   class="row-loan-cb"
                    title="Fully paid — click to approve"
-                   style="width:16px;height:16px;cursor:pointer;">
+                   style="width:16px;height:16px;cursor:pointer;"
+                   onchange="syncSelectAll(this)">
         {% else %}
             <input type="checkbox" disabled
                    title="Cannot approve — loan not fully paid"
@@ -218,13 +237,16 @@
                             <td class="td-num"><strong>{{ section.total_amount|floatformat:0|intcomma }}</strong></td>
                             <td class="td-num"><strong>{{ section.total_balance|floatformat:0|intcomma }}</strong></td>
                             <td></td>
-                            <td class="no-print"></td>
+                            {% if can_approve_loans %}<td class="no-print"></td>{% endif %}
                         </tr>
                     </tbody>
                 </table>
                 </div>
 
                 <div class="approve-row no-print">
+                    <button type="button" class="select-all-btn"
+                            data-table="table-{{ forloop.counter }}"
+                            onclick="handleSelectAll(this)">SELECT ALL</button>
                     <button type="submit" class="approve-btn">APPROVE SELECTED LOANS</button>
                 </div>
             </form>
@@ -242,8 +264,12 @@
                 <hr class="gold-divider">
                 <div class="lor-month-h">{{ hama.label }}</div>
 
+                <form method="POST" action="{% url 'hama_loans_owed_approve' %}">
+                {% csrf_token %}
+                <input type="hidden" name="section_key" value="{{ hama.key }}">
+
                 <div class="table-scroll">
-                <table class="lot-table">
+                <table class="lot-table" id="hama-table-{{ forloop.counter }}">
                     <thead>
                         <tr>
                             <th class="th-fixed" rowspan="2" style="min-width:24px;">S/N</th>
@@ -259,6 +285,9 @@
                             <th class="th-fixed" rowspan="2">Total Amount</th>
                             <th class="th-fixed" rowspan="2">Balance</th>
                             <th class="th-fixed" rowspan="2" style="min-width:90px;">Mobile No</th>
+                            {% if can_approve_loans %}
+                            <th class="th-select no-print" rowspan="2" style="min-width:55px;">Select</th>
+                            {% endif %}
                         </tr>
                         <tr>
                             {% for mh in hama.month_headers %}
@@ -325,6 +354,22 @@
                             {% endif %}
 
                             <td>{{ row.mobile }}</td>
+
+                            {% if can_approve_loans %}
+                            <td class="td-select no-print">
+                                {% if row.balance <= 0 %}
+                                    <input type="checkbox" name="loan_ids" value="{{ row.loan_id }}"
+                                           class="row-loan-cb"
+                                           title="Fully paid — click to approve"
+                                           style="width:16px;height:16px;cursor:pointer;"
+                                           onchange="syncSelectAll(this)">
+                                {% else %}
+                                    <input type="checkbox" disabled
+                                           title="Cannot approve — loan not fully paid"
+                                           style="width:16px;height:16px;opacity:0.3;cursor:not-allowed;">
+                                {% endif %}
+                            </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
 
@@ -340,10 +385,19 @@
                             <td class="td-num"><strong>{{ hama.total_amount|floatformat:0|intcomma }}</strong></td>
                             <td class="td-num"><strong>{{ hama.total_balance|floatformat:0|intcomma }}</strong></td>
                             <td></td>
+                            {% if can_approve_loans %}<td class="no-print"></td>{% endif %}
                         </tr>
                     </tbody>
                 </table>
                 </div>
+
+                <div class="approve-row no-print">
+                    <button type="button" class="select-all-btn"
+                            data-table="hama-table-{{ forloop.counter }}"
+                            onclick="handleSelectAll(this)">SELECT ALL</button>
+                    <button type="submit" class="approve-btn">APPROVE SELECTED LOANS</button>
+                </div>
+                </form>
 
             {% endfor %}
         </div>
@@ -357,4 +411,66 @@
     </div>
 
 </div>
+
+<script>
+/**
+ * SELECT ALL button handler.
+ * Toggles between "SELECT ALL" and "DESELECT ALL" on each click,
+ * checking/unchecking all enabled row checkboxes in the linked table.
+ */
+function handleSelectAll(btn) {
+    const tableId = btn.dataset.table;
+    const table = document.getElementById(tableId);
+    if (!table) return;
+
+    const rowCbs = Array.from(table.querySelectorAll('tbody input.row-loan-cb:not(:disabled)'));
+    const allChecked = rowCbs.every(cb => cb.checked);
+
+    rowCbs.forEach(cb => { cb.checked = !allChecked; });
+
+    if (!allChecked) {
+        btn.textContent = 'DESELECT ALL';
+        btn.classList.add('deselect');
+    } else {
+        btn.textContent = 'SELECT ALL';
+        btn.classList.remove('deselect');
+    }
+}
+
+/**
+ * When an individual row checkbox changes, keep the SELECT ALL button label in sync.
+ */
+function syncSelectAll(rowCb) {
+    const table = rowCb.closest('table');
+    if (!table) return;
+
+    const rowCbs    = Array.from(table.querySelectorAll('tbody input.row-loan-cb:not(:disabled)'));
+    const btn       = document.querySelector(`.select-all-btn[data-table="${table.id}"]`);
+    if (!btn || rowCbs.length === 0) return;
+
+    const allChecked = rowCbs.every(cb => cb.checked);
+    const noneChecked = rowCbs.every(cb => !cb.checked);
+
+    if (allChecked) {
+        btn.textContent = 'DESELECT ALL';
+        btn.classList.add('deselect');
+    } else {
+        btn.textContent = 'SELECT ALL';
+        btn.classList.remove('deselect');
+    }
+}
+
+/**
+ * On page load: hide the SELECT ALL button for tables with fewer than 2 eligible rows.
+ */
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.select-all-btn').forEach(function (btn) {
+        const table = document.getElementById(btn.dataset.table);
+        if (!table) return;
+        const eligible = table.querySelectorAll('tbody input.row-loan-cb:not(:disabled)').length;
+        if (eligible < 2) btn.style.display = 'none';
+    });
+});
+</script>
+
 {% endblock %}

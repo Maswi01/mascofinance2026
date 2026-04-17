@@ -4,9 +4,6 @@ Django==4.2.13
 # Database backend (MySQL)
 mysqlclient>=2.1.0
 
-# Social authentication (Google, GitHub OAuth)
-django-allauth>=0.61.0
-
 # HTTP library (required by django-allauth for OAuth)
 requests>=2.31.0
 

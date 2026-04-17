@@ -168,8 +168,10 @@
                             <td class="num">{{ row.penalty|floatformat:0|intcomma }}</td>
                             <td class="num">{{ row.total|floatformat:0|intcomma }}</td>
                             <td class="num">{{ row.paid|floatformat:0|intcomma }}</td>
-                            <td class="num">
-                                <!-- {% if row.outstanding > 0 %}{{ row.outstanding|floatformat:0|intcomma }}{% endif %} -->
+                            <td class="num {% if row.outstanding > 0 and not row.extra %}out-cell{% endif %}">
+                                {% if row.outstanding > 0 and not row.extra %}
+                                    {{ row.outstanding|floatformat:0|intcomma }}
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}
@@ -181,7 +183,11 @@
                         <td class="num"><strong>{{ totals.penalty|floatformat:0|intcomma }}</strong></td>
                         <td class="num"><strong>{{ totals.total|floatformat:0|intcomma }}</strong></td>
                         <td class="num"><strong>{{ totals.paid|floatformat:0|intcomma }}</strong></td>
-                        <td class="num"><strong></strong></td>
+                        <td class="num {% if totals.outstanding > 0 %}out-cell{% endif %}">
+                            {% if totals.outstanding > 0 %}
+                                <strong>{{ totals.outstanding|floatformat:0|intcomma }}</strong>
+                            {% endif %}
+                        </td>
                     </tr>
                 </tbody>
             </table>

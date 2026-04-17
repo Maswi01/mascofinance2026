@@ -115,14 +115,6 @@
                     <td><input type="text" name="nssf_no" value="{{ staff.nssf_no|default:'' }}"></td>
                 </tr>
                 <tr>
-                    <th>Superuser</th>
-                    <td>
-                        <input type="checkbox" name="is_superuser" value="1"
-                            {% if staff.is_superuser %}checked{% endif %}
-                            style="width:auto; transform:scale(1.4); margin-left:4px;">
-                    </td>
-                </tr>
-                <tr>
                     <th>Role</th>
                     <td>
                         <select name="role" required>
