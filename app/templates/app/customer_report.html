@@ -1,0 +1,522 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 20px 40px 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+    }
+
+    /* ── Blue title bar ── */
+    .page-title-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(90deg, #1a73c7 0%, #2196F3 60%, #64b5f6 100%);
+        border-radius: 4px 4px 0 0;
+        padding: 0 20px;
+        height: 46px;
+    }
+    .page-title-bar h2 {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        margin: 0;
+    }
+    .page-title-bar .record-count {
+        color: rgba(255,255,255,0.85);
+        font-size: 12.5px;
+        font-weight: 500;
+    }
+
+    /* ── Report card ── */
+    .report-card {
+        background: #fff;
+        border-radius: 0 0 6px 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 24px 30px 28px;
+    }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        margin-bottom: 16px;
+        padding: 16px 18px;
+        background: #f7f9fb;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+    }
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+        min-width: 160px;
+    }
+    .filter-group label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .filter-group input,
+    .filter-group select {
+        padding: 7px 10px;
+        border: 1px solid #d0d7de;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        height: 36px;
+    }
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: #1a73c7;
+        box-shadow: 0 0 0 2px rgba(26,115,199,0.12);
+    }
+    .filter-group input.is-filtering {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 2px rgba(245,158,11,0.15);
+    }
+    .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+    }
+    .btn-filter-reset {
+        padding: 7px 16px;
+        height: 36px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.18s;
+        text-decoration: none;
+        white-space: nowrap;
+        background: #fff;
+        color: #555;
+        border: 1px solid #cdd4da;
+    }
+    .btn-filter-reset:hover { background: #f0f6ff; color: #1a73c7; border-color: #1a73c7; }
+
+    /* ── Per-page + results info ── */
+    .table-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .per-page-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        color: #555;
+    }
+    .per-page-group select {
+        padding: 4px 8px;
+        border: 1px solid #d0d7de;
+        border-radius: 4px;
+        font-size: 12.5px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        cursor: pointer;
+    }
+    .per-page-group select:focus { outline: none; border-color: #1a73c7; }
+    .results-info { font-size: 12.5px; color: #777; }
+
+    /* ── Active filter badges ── */
+    .active-filters {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+    .filter-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #e8f0fe;
+        color: #1a73c7;
+        border: 1px solid #b8d0f5;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 3px 10px;
+    }
+
+    #printArea { max-width: 100%; margin: 0 auto; }
+
+    /* ── Letterhead ── */
+    .company-header {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 10px 0 12px;
+        border-bottom: 2px solid #8b0000;
+        margin-bottom: 16px;
+        justify-content: center;
+        text-align: center;
+    }
+    .company-logo img { width: 76px; height: auto; }
+    .company-name {
+        font-size: 25px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub     { font-size: 12.5px; font-weight: 600; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 3px; }
+    .company-contact { font-size: 11.5px; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 2px; }
+
+    .report-title {
+        text-align: center; font-size: 14px; font-weight: 700; color: #1a2a4a;
+        text-decoration: underline; text-transform: uppercase;
+        letter-spacing: 0.5px; margin-bottom: 20px;
+    }
+
+    /* ── Main table ── */
+    .report-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .report-table thead tr { background: #1a73c7; }
+    .report-table th {
+        padding: 10px 12px; text-align: left; font-weight: 600;
+        color: #fff; font-size: 12px; border: 1px solid #1557a0; white-space: nowrap;
+    }
+    .report-table th.col-num    { text-align: center; width: 50px; }
+    .report-table th.col-right  { text-align: right; }
+    .report-table th.col-center { text-align: center; }
+    .report-table tbody tr { border-bottom: 1px solid #eef1f5; transition: background 0.1s; }
+    .report-table tbody tr:nth-child(even) { background: #f9fbfd; }
+    .report-table tbody tr:hover { background: #e8f0fe; }
+    .report-table td {
+        padding: 8px 12px; color: #333; font-size: 12.5px;
+        border: 1px solid #eef1f5; vertical-align: middle;
+    }
+    .report-table td.col-num    { text-align: center; color: #777; }
+    .report-table td.col-right  { text-align: right; font-weight: 500; }
+    .report-table td.col-center { text-align: center; }
+
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .badge-active    { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-completed { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+
+    .amount-remaining { font-weight: 600; }
+    .amount-danger { color: #b91c1c; }
+    .amount-safe   { color: #15803d; }
+
+    .report-hr { border: none; border-top: 1.5px solid #c09a40; margin: 20px 0 16px; }
+
+    /* ── Pagination ── */
+    .pagination-row {
+        display: flex; align-items: center; justify-content: center;
+        gap: 4px; margin-top: 18px; flex-wrap: wrap;
+    }
+    .page-link {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 32px; height: 32px; padding: 0 8px; border-radius: 4px;
+        font-size: 12.5px; font-family: 'Poppins', sans-serif; font-weight: 500;
+        text-decoration: none; border: 1px solid #d0d7de;
+        background: #fff; color: #333; transition: all 0.15s; cursor: pointer;
+    }
+    .page-link:hover   { background: #f0f6ff; border-color: #1a73c7; color: #1a73c7; }
+    .page-link.active  { background: #1a73c7; border-color: #1a73c7; color: #fff; cursor: default; pointer-events: none; }
+    .page-link.disabled{ opacity: 0.4; pointer-events: none; cursor: default; }
+    .page-ellipsis     { font-size: 13px; color: #888; padding: 0 4px; }
+
+    /* ── Bottom actions ── */
+    .action-bar {
+        display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;
+    }
+    .btn-action {
+        padding: 7px 18px; border-radius: 4px; font-size: 13px; font-weight: 500;
+        font-family: 'Poppins', sans-serif; cursor: pointer; border: 1px solid #cdd4da;
+        background: #fff; color: #333; display: inline-flex; align-items: center;
+        gap: 6px; transition: all 0.18s; text-decoration: none;
+    }
+    .btn-action:hover { background: #f0f6ff; border-color: #1a73c7; color: #1a73c7; }
+
+    .empty-state { text-align: center; padding: 50px 20px; color: #aaa; font-size: 14px; }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; display: block; }
+
+    @media print {
+        body * { visibility: hidden; }
+        #printArea, #printArea * { visibility: visible; }
+        #printArea { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+        .no-print { display: none !important; }
+        .report-table tbody tr:hover { background: none; }
+    }
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 16px; margin-top: 60px; }
+        .report-card  { padding: 16px; }
+        .filter-bar   { flex-direction: column; }
+        .report-table { display: block; overflow-x: auto; }
+        .table-controls { flex-direction: column; align-items: flex-start; }
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="page-title-bar">
+        <h2><i class="fas fa-users"></i> Customer Loan Report</h2>
+        <span class="record-count">{{ total_loans }} record{{ total_loans|pluralize }}</span>
+    </div>
+
+    <div class="report-card">
+
+        <!-- ── FILTER BAR ── -->
+        <form method="get" id="filterForm" class="filter-bar no-print">
+            <input type="hidden" name="page"     value="1"          id="pageInput">
+            <input type="hidden" name="per_page" value="{{ per_page }}" id="perPageHidden">
+
+            <div class="filter-group">
+                <label><i class="fas fa-search"></i> Search Name</label>
+                <input type="text" name="name" id="nameInput"
+                       value="{{ search_name }}"
+                       placeholder="First, middle or last name…"
+                       autocomplete="off">
+            </div>
+            <div class="filter-group">
+                <label><i class="fas fa-code-branch"></i> Branch</label>
+                <select name="branch" id="branchSelect">
+                    <option value="">All Branches</option>
+                    {% for b in branches %}
+                    <option value="{{ b }}" {% if b == branch_filter %}selected{% endif %}>{{ b }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label><i class="fas fa-toggle-on"></i> Loan Status</label>
+                <select name="status" id="statusSelect">
+                    <option value=""          {% if status_filter == '' %}selected{% endif %}>All Loans</option>
+                    <option value="active"    {% if status_filter == 'active' %}selected{% endif %}>Active (Balance Remaining)</option>
+                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Fully Repaid</option>
+                </select>
+            </div>
+            <div class="filter-actions">
+                <a href="{% url 'customer_report' %}" class="btn-filter-reset">
+                    <i class="fas fa-times"></i> Reset
+                </a>
+            </div>
+        </form>
+
+        <!-- Active filter badges -->
+        {% if search_name or branch_filter or status_filter %}
+        <div class="active-filters no-print">
+            {% if search_name %}<span class="filter-badge"><i class="fas fa-user"></i> Name: {{ search_name }}</span>{% endif %}
+            {% if branch_filter %}<span class="filter-badge"><i class="fas fa-building"></i> Branch: {{ branch_filter }}</span>{% endif %}
+            {% if status_filter %}<span class="filter-badge"><i class="fas fa-circle"></i> Status: {{ status_filter|capfirst }}</span>{% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ── TABLE CONTROLS ── -->
+        <div class="table-controls no-print">
+            <div class="per-page-group">
+                <span>Show</span>
+                <select id="perPageSelect">
+                    {% for val in valid_per_page %}
+                    <option value="{{ val }}" {% if val == per_page %}selected{% endif %}>{{ val }}</option>
+                    {% endfor %}
+                </select>
+                <span>entries per page</span>
+            </div>
+            {% if total_loans > 0 %}
+            <div class="results-info">
+                Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_loans }} records
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ==================== PRINTABLE AREA ==================== -->
+        <div id="printArea">
+
+            <!-- Letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="report-title">Customer Loan Report</div>
+
+            {% if loans %}
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th class="col-num">S/N.</th>
+                        <th>Full Name</th>
+                        <th>Branch</th>
+                        <th class="col-right">Amount Loaned</th>
+                        <th class="col-right">Total Return</th>
+                        <th class="col-right">Amount Remaining</th>
+                        <th class="col-center">Date Loaned</th>
+                        <th class="col-center">1st Repayment / Period</th>
+                        <th class="col-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in loans %}
+                    {% with remaining=loan.repayment_amount_remaining %}
+                    <tr>
+                        <td class="col-num">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                        <td><strong>{{ loan.client.firstname }} {{ loan.client.middlename }} {{ loan.client.lastname }}</strong></td>
+                        <td>{{ loan.office|default:"—" }}</td>
+                        <td class="col-right">{{ loan.loan_amount|floatformat:0|intcomma }}</td>
+                        <td class="col-right">{{ loan.total_repayment_amount|floatformat:0|intcomma }}</td>
+                        <td class="col-right">
+                            <span class="amount-remaining {% if remaining > 0 %}amount-danger{% else %}amount-safe{% endif %}">
+                                {{ remaining|floatformat:0|intcomma }}
+                            </span>
+                        </td>
+                        <td class="col-center">{{ loan.application_date|date:"d/m/Y" }}</td>
+                        <td class="col-center">
+                            {% if loan.first_repayment_date %}
+                                {{ loan.first_repayment_date|date:"d/m/Y" }}<br>
+                                <small style="color:#888;font-size:11px;">{{ loan.payment_period_months }} month{{ loan.payment_period_months|pluralize }}</small>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="col-center">
+                            {% if remaining > 0 %}
+                                <span class="badge badge-active">Active</span>
+                            {% else %}
+                                <span class="badge badge-completed">Completed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-file-invoice-dollar"></i>
+                No loan records found{% if search_name or branch_filter or status_filter %} for the selected filters{% endif %}.
+            </div>
+            {% endif %}
+
+            <hr class="report-hr">
+        </div>
+        <!-- END printArea -->
+
+        <!-- ── PAGINATION ── -->
+        {% if paginator.num_pages > 1 %}
+        <div class="pagination-row no-print">
+            {% if page_obj.has_previous %}
+            <a class="page-link" href="?{{ query_string }}&page={{ page_obj.previous_page_number }}&per_page={{ per_page }}">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            {% else %}
+            <span class="page-link disabled"><i class="fas fa-chevron-left"></i></span>
+            {% endif %}
+
+            {% with current=page_obj.number total=paginator.num_pages %}
+                {% for p in paginator.page_range %}
+                    {% if p == current %}
+                        <span class="page-link active">{{ p }}</span>
+                    {% elif p == 1 or p == total or p >= current|add:"-2" and p <= current|add:"2" %}
+                        <a class="page-link" href="?{{ query_string }}&page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
+                    {% elif p == current|add:"-3" or p == current|add:"3" %}
+                        <span class="page-ellipsis">…</span>
+                    {% endif %}
+                {% endfor %}
+            {% endwith %}
+
+            {% if page_obj.has_next %}
+            <a class="page-link" href="?{{ query_string }}&page={{ page_obj.next_page_number }}&per_page={{ per_page }}">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+            {% else %}
+            <span class="page-link disabled"><i class="fas fa-chevron-right"></i></span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Bottom Buttons -->
+        <div class="action-bar no-print">
+            <button class="btn-action" onclick="savePDF()">
+                <i class="fas fa-file-pdf"></i> Save PDF
+            </button>
+            <button class="btn-action" onclick="window.print()">
+                <i class="fas fa-print"></i> Print
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let debounceTimer = null;
+    const form          = document.getElementById('filterForm');
+    const nameInput     = document.getElementById('nameInput');
+    const perPageHidden = document.getElementById('perPageHidden');
+
+    function submitFilter() {
+        document.getElementById('pageInput').value = 1;
+        form.submit();
+    }
+
+    // Name input — debounced 400 ms
+    nameInput.addEventListener('input', function () {
+        this.classList.add('is-filtering');
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            this.classList.remove('is-filtering');
+            submitFilter();
+        }, 400);
+    });
+
+    // Selects — instant
+    document.getElementById('branchSelect').addEventListener('change', submitFilter);
+    document.getElementById('statusSelect').addEventListener('change', submitFilter);
+
+    // Per-page selector
+    document.getElementById('perPageSelect').addEventListener('change', function () {
+        perPageHidden.value = this.value;
+        submitFilter();
+    });
+
+    function savePDF() {
+        if (typeof html2pdf !== 'undefined') {
+            const element = document.getElementById('printArea');
+            const opt = {
+                margin:      [10, 10, 10, 10],
+                filename:    'customer_loan_report.pdf',
+                image:       { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF:       { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            html2pdf().set(opt).from(element).save();
+        } else {
+            window.print();
+        }
+    }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+        integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+{% endblock %}

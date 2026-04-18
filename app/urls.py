@@ -265,6 +265,8 @@ urlpatterns = [
     
     path('repayment/edit/<str:repayment_type>/<int:repayment_id>/', views.edit_repayment, name='edit_repayment'),
     path('repayment/bulk-update-month/', views.bulk_update_payment_month, name='bulk_update_payment_month'),
+    
+    path('customer_report', views.customer_report, name='customer_report'),
 
     # Excel import
     path('clients/import-excel/', views.client_import_excel, name='client_import_excel'),

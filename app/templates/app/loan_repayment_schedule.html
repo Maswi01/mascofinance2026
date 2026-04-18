@@ -136,6 +136,7 @@
                 <span>Customer Name: <strong>{{ client_fullname }}</strong></span>
                 <span>NIDA : <strong>{{ client.checkno|default:client.employmentcardno|default:'—' }}</strong></span>
                 <span>Branch : <strong>{{ branch_name }}</strong></span>
+                <span>Work Station : <strong>{{ client.employername }}</strong></span>
             </div>
 
             <table class="schedule-table">

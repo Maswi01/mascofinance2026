@@ -282,7 +282,7 @@
                 </div>
                 <div class="office-list">
                     {% for item in loans_by_office %}
-                    <a href="{% url 'branches_loan_report' %}?start_date={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&end_date={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&office={{ item.office }}">
+                    <a href="{% url 'branches_loan_report' %}?start_date={{ display_date|date:'Y-m-d' }}&end_date={{ display_date|date:'Y-m-d' }}&office={{ item.office }}">
                         <div class="office-item {% if item.amount %}has-value{% endif %}">
                             <span class="office-name">{{ item.office }}</span>
                             <span class="office-value">
@@ -356,7 +356,7 @@
                 </div>
                 <div class="office-list">
                     {% for item in repayments_by_office %}
-                    <a href="{% url 'loan_collection_statement2' %}?start_date={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&end_date={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&office={{ item.office }}">
+                    <a href="{% url 'loan_collection_statement2' %}?start_date={{ display_date|date:'Y-m-d' }}&end_date={{ display_date|date:'Y-m-d' }}&office={{ item.office }}">
                         <div class="office-item {% if item.amount %}has-value{% endif %}">
                             <span class="office-name">{{ item.office }}</span>
                             <span class="office-value">
@@ -393,7 +393,7 @@
                 </div>
                 <div class="office-list">
                     {% for item in transactions_by_office %}
-                    <a href="{% url 'bank_transfer_expenses2' %}?date_from={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&date_to={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&office={{ item.office }}">
+                    <a href="{% url 'bank_transfer_expenses2' %}?date_from={{ display_date|date:'Y-m-d' }}&date_to={{ display_date|date:'Y-m-d' }}&office={{ item.office }}">
                         <div class="office-item {% if item.amount %}has-value{% endif %}">
                             <span class="office-name">{{ item.office }}</span>
                             <span class="office-value">

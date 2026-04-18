@@ -1913,92 +1913,96 @@ def transaction_statement(request):
 # ==========================================================================
 def loan_collection_statement2(request):
     # Get filter parameters
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
+    start_date    = request.GET.get('start_date')
+    end_date      = request.GET.get('end_date')
     office_filter = request.GET.get('office')
-    
-    # Get all loan repayments with related data
+
+    # Base queryset
     repayments = LoanRepayment.objects.all().select_related(
         'loan_application',
         'loan_application__client',
         'processed_by'
-    ).order_by('repayment_date')
-    
-    # Apply date filters
+    ).order_by('-created_at')
+
+    # Apply date filters on created_at (DateTimeField → use __date__ lookup)
     if start_date:
         start_date_obj = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-        repayments = repayments.filter(repayment_date__gte=start_date_obj)
+        repayments = repayments.filter(created_at__date__gte=start_date_obj)
     if end_date:
         end_date_obj = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-        repayments = repayments.filter(repayment_date__lte=end_date_obj)
-    
-    # ← ADD: office filter (office lives on LoanApplication)
-    if office_filter:
-        repayments = repayments.filter(loan_application__office=office_filter)
+        repayments = repayments.filter(created_at__date__lte=end_date_obj)
 
-    # ← ADD: unique offices for dropdown
-    offices = LoanApplication.objects.values_list('office', flat=True) \
-        .exclude(office__isnull=True).exclude(office='') \
+    # Office filter (office lives on LoanApplication)
+    if office_filter:
+        repayments = repayments.filter(loan_application__office__iexact=office_filter)
+
+    # Unique offices for dropdown
+    offices = (
+        LoanApplication.objects
+        .exclude(office__isnull=True).exclude(office='')
+        .values_list('office', flat=True)
         .distinct().order_by('office')
-        
-    # Calculate collection data
+    )
+
+    # Build collection data
     collection_data = []
     running_balance = Decimal('0.00')
-    
+
     for index, repayment in enumerate(repayments, 1):
-        # Get loan details
         loan = repayment.loan_application
-        
-        # Calculate interest portion (assuming equal distribution)
-        monthly_interest_rate = (loan.interest_rate / Decimal('100')) / Decimal('12')
-        total_interest = loan.loan_amount * monthly_interest_rate * loan.payment_period_months
-        interest_per_payment = total_interest / loan.payment_period_months if loan.payment_period_months > 0 else 0
-        
-        # Calculate principal portion
-        principal_per_payment = (loan.loan_amount / loan.payment_period_months) if loan.payment_period_months > 0 else 0
-        
-        # For simplicity in this example, we'll use these calculations
-        # You can adjust based on your actual business logic
-        interest_amount = repayment.repayment_amount * Decimal('0.2')  # 20% as interest
+
+        # Interest / principal split based on loan terms
+        if loan.payment_period_months and loan.payment_period_months > 0:
+            interest_per_payment  = (loan.total_interest_amount or Decimal('0.00')) / loan.payment_period_months
+            principal_per_payment = loan.loan_amount / loan.payment_period_months
+        else:
+            interest_per_payment  = Decimal('0.00')
+            principal_per_payment = repayment.repayment_amount
+
+        # Cap at actual repayment amount to avoid rounding drift
+        interest_amount  = min(interest_per_payment,  repayment.repayment_amount)
         principal_amount = repayment.repayment_amount - interest_amount
-        
-        # Update running balance (optional)
+
         running_balance += repayment.repayment_amount
-        
+
         collection_data.append({
-            'sn': index,
-            'date': repayment.repayment_date,
-            'receipt_no': f'RCP-{repayment.id:06d}',
-            'name': f"{loan.client.firstname} {loan.client.lastname}",
+            'sn':          index,
+            'date':        repayment.created_at.date(),   # show creation date
+            'created_at':  repayment.created_at,
+            'receipt_no':  f'RCP-{repayment.id:06d}',
+            'name':        f"{loan.client.firstname} {loan.client.lastname}",
             'description': f"Loan Repayment - {loan.loan_type} (LON-{loan.id:06d})",
-            'rate': loan.interest_rate,
-            'principal': principal_amount,
-            'interest': interest_amount,
-            'total': repayment.repayment_amount,
-            'created_by': repayment.processed_by.get_full_name() or repayment.processed_by.username,
-            'loan_id': loan.id,
-            'client_id': loan.client.id
+            'rate':        loan.interest_rate,
+            'principal':   principal_amount,
+            'interest':    interest_amount,
+            'total':       repayment.repayment_amount,
+            'running_balance': running_balance,
+            'created_by':  repayment.processed_by.get_full_name() or repayment.processed_by.username,
+            'loan_id':     loan.id,
+            'client_id':   loan.client.id,
+            'office':      loan.office or 'N/A',
         })
-    
-    # Calculate totals
-    total_principal = sum(item['principal'] for item in collection_data)
-    total_interest = sum(item['interest'] for item in collection_data)
-    total_collected = sum(item['total'] for item in collection_data)
-    
+
+    # Totals
+    total_principal  = sum(item['principal'] for item in collection_data)
+    total_interest   = sum(item['interest']  for item in collection_data)
+    total_collected  = sum(item['total']     for item in collection_data)
+
     context = {
         **get_base_context(request),
-        'collection_data': collection_data,
-        'total_principal': total_principal,
-        'total_interest': total_interest,
-        'total_collected': total_collected,
+        'collection_data':    collection_data,
+        'total_principal':    total_principal,
+        'total_interest':     total_interest,
+        'total_collected':    total_collected,
         'total_transactions': len(collection_data),
-        'start_date': start_date,
-        'end_date': end_date,
-        'office_filter': office_filter,   # ← ADD
-        'offices': offices,               # ← ADD
+        'start_date':         start_date,
+        'end_date':           end_date,
+        'office_filter':      office_filter,
+        'offices':            offices,
     }
-    
+
     return render(request, 'app/loan_collection_statement.html', context)
+
 
 # ===========================================================================================
 
@@ -2239,33 +2243,33 @@ def branches_loan_report(request):
     search_query = request.GET.get('search')
     office_filter = request.GET.get('office')
     region_filter = request.GET.get('region')
-    
+
     # Base queryset with related data
     loans = LoanApplication.objects.all().select_related(
-        'client', 
+        'client',
         'processed_by'
-    ).order_by('-application_date')
-    
+    ).order_by('-created_at')
+
     # Apply filters
     if start_date:
         start_date_obj = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-        loans = loans.filter(application_date__gte=start_date_obj)
+        loans = loans.filter(created_at__date__gte=start_date_obj)
     if end_date:
         end_date_obj = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-        loans = loans.filter(application_date__lte=end_date_obj)
-    
+        loans = loans.filter(created_at__date__lte=end_date_obj)
+
     if status_filter:
         loans = loans.filter(status=status_filter)
-    
+
     if loan_type_filter:
         loans = loans.filter(loan_type=loan_type_filter)
-    
+
     if office_filter:
-        loans = loans.filter(office=office_filter)
-    
+        loans = loans.filter(office__iexact=office_filter)
+
     if region_filter:
         loans = loans.filter(client__region=region_filter)
-    
+
     if search_query:
         loans = loans.filter(
             Q(client__firstname__icontains=search_query) |
@@ -2274,166 +2278,174 @@ def branches_loan_report(request):
             Q(client__checkno__icontains=search_query) |
             Q(client__employmentcardno__icontains=search_query)
         )
-    
-    # Calculate loan data with repayment information
+
+    # Build loan_data list with repayment calculations
     loan_data = []
-    
-    # Summary totals
+
     total_loan_amount = Decimal('0.00')
     total_paid_amount = Decimal('0.00')
     total_outstanding = Decimal('0.00')
-    total_interest = Decimal('0.00')
-    
+    total_interest    = Decimal('0.00')
+
     for index, loan in enumerate(loans, 1):
-        # Get client information
         client = loan.client
-        
-        # Calculate total paid amount from repayments
+
+        # Total paid from repayments
         paid_amount = loan.repayments.aggregate(
             total=Coalesce(Sum('repayment_amount'), Decimal('0.00'))
         )['total']
-        
-        # Calculate outstanding amount
-        # Use repayment_amount_remaining if available, otherwise calculate
-        if hasattr(loan, 'repayment_amount_remaining') and loan.repayment_amount_remaining:
-            outstanding = loan.repayment_amount_remaining
-        else:
-            outstanding = loan.total_repayment_amount - paid_amount if loan.total_repayment_amount else loan.loan_amount - paid_amount
-        
-        # Calculate payment progress
+
+        # Outstanding balance — trust repayment_amount_remaining if it's set
+        outstanding = (
+            loan.repayment_amount_remaining
+            if loan.repayment_amount_remaining is not None
+            else (
+                (loan.total_repayment_amount - paid_amount)
+                if loan.total_repayment_amount
+                else (loan.loan_amount - paid_amount)
+            )
+        )
+
+        # Payment progress %
         if loan.total_repayment_amount and loan.total_repayment_amount > 0:
             payment_percentage = (paid_amount / loan.total_repayment_amount) * 100
         else:
             payment_percentage = 0
-        
-        # Determine loan status based on payment
+
+        # Derive a meaningful status
         if loan.status.lower() == 'approved':
             if outstanding <= 0:
                 current_status = 'Completed'
-                status_color = 'success'
+                status_color   = 'success'
             elif paid_amount > 0:
                 current_status = 'Active'
-                status_color = 'primary'
+                status_color   = 'primary'
             else:
                 current_status = 'Approved'
-                status_color = 'info'
+                status_color   = 'info'
         else:
             current_status = loan.status
-            status_color = 'warning' if loan.status == 'Pending' else 'secondary'
-        
-        # Calculate next payment due date (if applicable)
+            status_color   = 'warning' if loan.status == 'Pending' else 'secondary'
+
+        # Next payment due date
         next_payment_date = None
         if loan.status.lower() == 'approved' and outstanding > 0 and loan.first_repayment_date:
-            # Calculate how many payments have been made
             payments_made = loan.repayments.count()
             if payments_made < loan.payment_period_months:
-                # Next payment date = first_repayment_date + (payments_made * 1 month)
                 next_payment_date = loan.first_repayment_date + relativedelta(months=payments_made)
-        
+
+        # Last repayment date
+        last_repayment = loan.repayments.order_by('-repayment_date').first()
+
         loan_data.append({
-            'sn': index,
-            'loan_id': loan.id,
-            'application_date': loan.application_date,
+            'sn':           index,
+            'loan_id':      loan.id,
+            'created_at':   loan.created_at,
+            'application_date': loan.created_at.date(),   # date portion of created_at
             'client': {
-                'id': client.id,
-                'full_name': f"{client.firstname} {client.middlename or ''} {client.lastname}".strip(),
-                'firstname': client.firstname,
-                'middlename': client.middlename,
-                'lastname': client.lastname,
-                'phonenumber': client.phonenumber or 'N/A',
-                'region': client.region or 'N/A',
-                'district': client.district or 'N/A',
-                'checkno': client.checkno or 'N/A',
+                'id':               client.id,
+                'full_name':        f"{client.firstname} {client.middlename or ''} {client.lastname}".strip(),
+                'firstname':        client.firstname,
+                'middlename':       client.middlename,
+                'lastname':         client.lastname,
+                'phonenumber':      client.phonenumber or 'N/A',
+                'region':           client.region or 'N/A',
+                'district':         client.district or 'N/A',
+                'checkno':          client.checkno or 'N/A',
                 'employmentcardno': client.employmentcardno or 'N/A',
-                'employername': client.employername or 'N/A',
+                'employername':     client.employername or 'N/A',
             },
-            'loan_type': loan.loan_type,
-            'loan_amount': loan.loan_amount,
-            'interest_rate': loan.interest_rate,
-            'interest_amount': loan.interest_amount or 0,
-            'total_interest': loan.total_interest_amount or 0,
+            'loan_type':             loan.loan_type,
+            'loan_amount':           loan.loan_amount,
+            'interest_rate':         loan.interest_rate,
+            'interest_amount':       loan.interest_amount or 0,
+            'total_interest':        loan.total_interest_amount or 0,
             'total_repayment_amount': loan.total_repayment_amount or loan.loan_amount,
             'payment_period_months': loan.payment_period_months,
-            'monthly_installment': loan.monthly_installment or 0,
-            'paid_amount': paid_amount,
-            'outstanding': outstanding,
-            'payment_percentage': round(payment_percentage, 2),
-            'status': current_status,
-            'status_color': status_color,
-            'original_status': loan.status,
-            'office': loan.office or 'N/A',
-            'processed_by': loan.processed_by.get_full_name() or loan.processed_by.username,
-            'first_repayment_date': loan.first_repayment_date,
-            'next_payment_date': next_payment_date,
-            'last_repayment_date': loan.repayments.order_by('-repayment_date').first().repayment_date if loan.repayments.exists() else None,
-            'repayments_count': loan.repayments.count(),
+            'monthly_installment':   loan.monthly_installment or 0,
+            'paid_amount':           paid_amount,
+            'outstanding':           outstanding,
+            'payment_percentage':    round(payment_percentage, 2),
+            'status':                current_status,
+            'status_color':          status_color,
+            'original_status':       loan.status,
+            'office':                loan.office or 'N/A',
+            'processed_by':          loan.processed_by.get_full_name() or loan.processed_by.username,
+            'first_repayment_date':  loan.first_repayment_date,
+            'next_payment_date':     next_payment_date,
+            'last_repayment_date':   last_repayment.repayment_date if last_repayment else None,
+            'repayments_count':      loan.repayments.count(),
         })
-        
-        # Update totals
+
         total_loan_amount += loan.loan_amount
         total_paid_amount += paid_amount
         total_outstanding += outstanding
-        total_interest += (loan.total_interest_amount or 0)
-    
-    # Get unique values for filter dropdowns
+        total_interest    += (loan.total_interest_amount or 0)
+
+    # Dropdown options
     loan_types = LoanApplication.objects.values_list('loan_type', flat=True).distinct().order_by('loan_type')
-    offices = LoanApplication.objects.values_list('office', flat=True).exclude(office__isnull=True).exclude(office='').distinct().order_by('office')
-    regions = Client.objects.values_list('region', flat=True).exclude(region__isnull=True).exclude(region='').distinct().order_by('region')
-    statuses = ['Pending', 'Approved', 'Rejected', 'Completed', 'Active']
-    
-    # Calculate summary statistics
+    offices    = (LoanApplication.objects
+                  .exclude(office__isnull=True).exclude(office='')
+                  .values_list('office', flat=True).distinct().order_by('office'))
+    regions    = (Client.objects
+                  .exclude(region__isnull=True).exclude(region='')
+                  .values_list('region', flat=True).distinct().order_by('region'))
+    statuses   = ['Pending', 'Approved', 'Rejected', 'Completed', 'Active']
+
+    today = timezone.now().date()
+
     summary = {
-        'total_loans': len(loan_data),
+        'total_loans':      len(loan_data),
         'total_loan_amount': total_loan_amount,
         'total_paid_amount': total_paid_amount,
         'total_outstanding': total_outstanding,
-        'total_interest': total_interest,
+        'total_interest':    total_interest,
         'average_loan_amount': total_loan_amount / len(loan_data) if loan_data else 0,
-        'collection_rate': (total_paid_amount / total_loan_amount * 100) if total_loan_amount > 0 else 0,
-        'active_loans': sum(1 for loan in loan_data if loan['status'] in ['Active', 'Approved']),
-        'completed_loans': sum(1 for loan in loan_data if loan['status'] == 'Completed'),
-        'pending_loans': sum(1 for loan in loan_data if loan['status'] == 'Pending'),
-        'overdue_loans': sum(1 for loan in loan_data if loan['status'] == 'Active' and loan['next_payment_date'] and loan['next_payment_date'] < datetime.datetime.now().date()),
+        'collection_rate':  (total_paid_amount / total_loan_amount * 100) if total_loan_amount > 0 else 0,
+        'active_loans':     sum(1 for l in loan_data if l['status'] in ['Active', 'Approved']),
+        'completed_loans':  sum(1 for l in loan_data if l['status'] == 'Completed'),
+        'pending_loans':    sum(1 for l in loan_data if l['status'] == 'Pending'),
+        'overdue_loans':    sum(1 for l in loan_data if l['status'] == 'Active' and l['next_payment_date'] and l['next_payment_date'] < today),
     }
-    
-    # Group by loan type for chart data
+
     loan_type_summary = {}
     for loan in loan_data:
-        loan_type = loan['loan_type']
-        if loan_type not in loan_type_summary:
-            loan_type_summary[loan_type] = {
+        lt = loan['loan_type']
+        if lt not in loan_type_summary:
+            loan_type_summary[lt] = {
                 'count': 0,
                 'total_amount': Decimal('0.00'),
-                'paid_amount': Decimal('0.00'),
-                'outstanding': Decimal('0.00'),
+                'paid_amount':  Decimal('0.00'),
+                'outstanding':  Decimal('0.00'),
             }
-        loan_type_summary[loan_type]['count'] += 1
-        loan_type_summary[loan_type]['total_amount'] += loan['loan_amount']
-        loan_type_summary[loan_type]['paid_amount'] += loan['paid_amount']
-        loan_type_summary[loan_type]['outstanding'] += loan['outstanding']
-    
+        loan_type_summary[lt]['count']        += 1
+        loan_type_summary[lt]['total_amount'] += loan['loan_amount']
+        loan_type_summary[lt]['paid_amount']  += loan['paid_amount']
+        loan_type_summary[lt]['outstanding']  += loan['outstanding']
+
     context = {
         **get_base_context(request),
-        'loan_data': loan_data,
-        'summary': summary,
-        'loan_type_summary': loan_type_summary,
-        'loan_types': loan_types,
-        'offices': offices,
-        'regions': regions,
-        'statuses': statuses,
+        'loan_data':          loan_data,
+        'summary':            summary,
+        'loan_type_summary':  loan_type_summary,
+        'loan_types':         loan_types,
+        'offices':            offices,
+        'regions':            regions,
+        'statuses':           statuses,
         'filters': {
             'start_date': start_date,
-            'end_date': end_date,
-            'status': status_filter,
-            'loan_type': loan_type_filter,
-            'search': search_query,
-            'office': office_filter,
-            'region': region_filter,
+            'end_date':   end_date,
+            'status':     status_filter,
+            'loan_type':  loan_type_filter,
+            'search':     search_query,
+            'office':     office_filter,
+            'region':     region_filter,
         },
-        'today': timezone.now().date(),
+        'today': today,
     }
-    
+
     return render(request, 'app/branches_loan_report.html', context)
+
 
 
 from django.db.models import Sum, Q, F, DecimalField
@@ -3859,18 +3871,19 @@ def fomu_mkopo_wa_dharula(request, loan_id=None):
     return render(request, 'app/fomu_mkopo_wa_dharula.html', context)
 
 def bank_transfer_expenses2(request):
-    date_from = request.GET.get('date_from')
-    date_to = request.GET.get('date_to')
+    date_from     = request.GET.get('date_from')
+    date_to       = request.GET.get('date_to')
     office_filter = request.GET.get('office')
 
     transactions = HQTransaction.objects.select_related(
         'from_branch', 'to_branch', 'processed_by'
-    ).order_by('transaction_date', 'id')
+    ).order_by('-created_at', '-id')
 
+    # Filter on created_at (DateTimeField → __date__ lookup)
     if date_from:
         try:
             transactions = transactions.filter(
-                transaction_date__gte=datetime.datetime.strptime(date_from, "%Y-%m-%d").date()
+                created_at__date__gte=datetime.datetime.strptime(date_from, "%Y-%m-%d").date()
             )
         except ValueError:
             pass
@@ -3878,41 +3891,46 @@ def bank_transfer_expenses2(request):
     if date_to:
         try:
             transactions = transactions.filter(
-                transaction_date__lte=datetime.datetime.strptime(date_to, "%Y-%m-%d").date()
+                created_at__date__lte=datetime.datetime.strptime(date_to, "%Y-%m-%d").date()
             )
         except ValueError:
             pass
 
     if office_filter:
         transactions = transactions.filter(
-            models.Q(from_branch__name=office_filter) | models.Q(to_branch__name=office_filter)
+            models.Q(from_branch__name__iexact=office_filter) |
+            models.Q(to_branch__name__iexact=office_filter)
         )
 
     # Offices from Office model via HQTransaction branches
     offices = Office.objects.filter(
-        models.Q(hq_transactions_from__isnull=False) | models.Q(hq_transactions_to__isnull=False)
+        models.Q(hq_transactions_from__isnull=False) |
+        models.Q(hq_transactions_to__isnull=False)
     ).values_list('name', flat=True).distinct().order_by('name')
 
     grand_total = transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     transactions_with_receipt = [
-        {'transaction': txn, 'receipt_number': str(txn.id).zfill(6)}
+        {
+            'transaction':     txn,
+            'receipt_number':  str(txn.id).zfill(6),
+            'date':            txn.created_at.date(),   # use created_at date in template
+        }
         for txn in transactions
     ]
 
     context = {
         **get_base_context(request),
         'transactions_with_receipt': transactions_with_receipt,
-        'grand_total': grand_total,
-        'date_from': date_from or '',
-        'date_to': date_to or '',
-        'offices': offices,
-        'office_filter': office_filter or '',
-        'total_count': len(transactions_with_receipt),
+        'grand_total':    grand_total,
+        'date_from':      date_from or '',
+        'date_to':        date_to or '',
+        'offices':        offices,
+        'office_filter':  office_filter or '',
+        'total_count':    len(transactions_with_receipt),
     }
 
     return render(request, 'app/bank_transfer_expenses.html', context)
-
 
 
 
@@ -5925,6 +5943,7 @@ def branch_transaction_statement_report(request):
         'date_to_display':   date_to_display,
         'branch_name':       branch_name,
     })
+ 
  
 @require_POST
 def delete_transaction(request, record_type, record_id):
@@ -11230,7 +11249,93 @@ def loan_edit(request, loan_id):
     })
     
     
-    
+
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+
+VALID_PER_PAGE = [10, 50, 100]
+
+
+def customer_report(request):
+    # ── Filters from GET params ──────────────────────────────────────────────
+    search_name   = request.GET.get('name', '').strip()
+    branch_filter = request.GET.get('branch', '').strip()
+    status_filter = request.GET.get('status', '').strip()   # 'active' | 'completed' | '' (all)
+
+    # ── Pagination params ────────────────────────────────────────────────────
+    try:
+        per_page = int(request.GET.get('per_page', 10))
+    except (ValueError, TypeError):
+        per_page = 10
+    if per_page not in VALID_PER_PAGE:
+        per_page = 10
+
+    page_number = request.GET.get('page', 1)
+
+    # ── Base queryset ────────────────────────────────────────────────────────
+    loans = LoanApplication.objects.select_related('client').order_by('-application_date')
+
+    # Filter by client name (firstname, middlename, or lastname)
+    if search_name:
+        loans = loans.filter(
+            Q(client__firstname__icontains=search_name) |
+            Q(client__middlename__icontains=search_name) |
+            Q(client__lastname__icontains=search_name)
+        )
+
+    # Filter by branch (office field on LoanApplication is a CharField)
+    if branch_filter:
+        loans = loans.filter(office__icontains=branch_filter)
+
+    # Filter by status
+    if status_filter == 'active':
+        loans = loans.filter(repayment_amount_remaining__gt=0)
+    elif status_filter == 'completed':
+        loans = loans.filter(repayment_amount_remaining__lte=0)
+
+    total_loans = loans.count()
+
+    # ── Paginate ─────────────────────────────────────────────────────────────
+    paginator = Paginator(loans, per_page)
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    # ── Distinct branch list for the dropdown ────────────────────────────────
+    branches = (
+        LoanApplication.objects
+        .exclude(office__isnull=True)
+        .exclude(office='')
+        .values_list('office', flat=True)
+        .distinct()
+        .order_by('office')
+    )
+
+    # Build query string without 'page' for pagination links
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    query_string = query_params.urlencode()
+
+    context = {
+        'page_obj':      page_obj,
+        'loans':         page_obj.object_list,
+        'paginator':     paginator,
+        'branches':      branches,
+        'search_name':   search_name,
+        'branch_filter': branch_filter,
+        'status_filter': status_filter,
+        'total_loans':   total_loans,
+        'per_page':      per_page,
+        'query_string':  query_string,
+        'valid_per_page': VALID_PER_PAGE,
+        **get_base_context(request),
+    }
+    return render(request, 'app/customer_report.html', context) 
+
+ 
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  CLIENT EXCEL IMPORT
