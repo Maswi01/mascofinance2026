@@ -215,6 +215,7 @@ def base(request):
 def index(request):
     import datetime
     from decimal import Decimal
+    from django.utils import timezone
 
     today = date.today()
 
@@ -229,6 +230,10 @@ def index(request):
         selected_date = None
 
     display_date = selected_date or today
+
+    # Timezone-aware datetime range for display_date (EAT = UTC+3)
+    start_dt = timezone.make_aware(datetime.datetime.combine(display_date, datetime.time.min))
+    end_dt   = timezone.make_aware(datetime.datetime.combine(display_date, datetime.time.max))
 
     # ── Base context & office filter ──────────────────────────────────────────
     base_ctx      = get_base_context(request)
@@ -262,12 +267,14 @@ def index(request):
         clients_qs    = clients_qs.filter(registered_office=filter_office)
 
     total_repayments = repayments_qs.aggregate(
-        total=Sum('repayment_amount'))['total'] or Decimal('0.00')
+        total=Sum('repayment_amount')
+    )['total'] or Decimal('0.00')
 
     total_clients = clients_qs.count()
 
     total_due_loan = loans_qs.aggregate(
-        total=Sum('repayment_amount_remaining'))['total'] or Decimal('0.00')
+        total=Sum('repayment_amount_remaining')
+    )['total'] or Decimal('0.00')
 
     repayment_rate = (
         (total_repayments / (total_repayments + total_due_loan)) * Decimal('100')
@@ -276,16 +283,12 @@ def index(request):
 
     # ── Target offices for per-office summary cards ───────────────────────────
     if is_hq_allocated:
-        # HQ / superuser / null allocation → always show all branches
         target_offices = Office.objects.exclude(name__iexact='HQ').order_by('name')
     elif filter_office:
-        # Branch staff with a session office selected
         target_offices = Office.objects.filter(pk=filter_office.pk).exclude(name__iexact='HQ')
     elif user_primary_office:
-        # Fallback: no session office yet, use their allocation
         target_offices = Office.objects.filter(pk=user_primary_office.pk).exclude(name__iexact='HQ')
     else:
-        # Last resort: show all (better than showing nothing)
         target_offices = Office.objects.exclude(name__iexact='HQ').order_by('name')
 
     # ── Per-office summary data ───────────────────────────────────────────────
@@ -295,10 +298,11 @@ def index(request):
     transactions_by_office = []
 
     for office in target_offices:
-        # Loans
+
+        # Loans — created_at is DateTimeField, use aware range
         r = LoanApplication.objects.filter(
             office=office.name,
-            created_at__date=display_date,
+            created_at__range=(start_dt, end_dt),
         ).aggregate(total_amount=Sum('loan_amount'), count=Count('id'))
         loans_by_office.append({
             'office': office.name,
@@ -306,7 +310,7 @@ def index(request):
             'count':  r['count'] or 0,
         })
 
-        # Expenses
+        # Expenses — expense_date is DateField, plain date comparison is fine
         r = Expense.objects.filter(
             office=office.name,
             expense_date=display_date,
@@ -317,10 +321,10 @@ def index(request):
             'count':  r['count'] or 0,
         })
 
-        # Repayments
+        # Repayments — created_at is DateTimeField, use aware range
         r = LoanRepayment.objects.filter(
             loan_application__office__iexact=office.name,
-            created_at__date=display_date,
+            created_at__range=(start_dt, end_dt),
         ).aggregate(total_amount=Sum('repayment_amount'), count=Count('id'))
         repayments_by_office.append({
             'office': office.name,
@@ -328,7 +332,7 @@ def index(request):
             'count':  r['count'] or 0,
         })
 
-        # Transactions (both incoming and outgoing)
+        # Transactions — transaction_date is DateField, plain date comparison is fine
         to_ = OfficeTransaction.objects.filter(
             office_to=office,
             transaction_date=display_date,
@@ -352,23 +356,22 @@ def index(request):
 
     return render(request, 'app/index.html', {
         **base_ctx,
-        'total_repayments':        total_repayments,
-        'total_clients':           total_clients,
-        'total_due_loan':          total_due_loan,
-        'repayment_rate':          repayment_rate,
-        'loans_by_office':         loans_by_office,
-        'expenses_by_office':      expenses_by_office,
-        'repayments_by_office':    repayments_by_office,
-        'transactions_by_office':  transactions_by_office,
-        'loans_total':             loans_total,
-        'expenses_total':          expenses_total,
-        'repayments_total':        repayments_total,
-        'transactions_total':      transactions_total,
-        'today':                   today,
-        'selected_date':           selected_date,
-        'display_date':            display_date,
-    })
-    
+        'total_repayments':       total_repayments,
+        'total_clients':          total_clients,
+        'total_due_loan':         total_due_loan,
+        'repayment_rate':         repayment_rate,
+        'loans_by_office':        loans_by_office,
+        'expenses_by_office':     expenses_by_office,
+        'repayments_by_office':   repayments_by_office,
+        'transactions_by_office': transactions_by_office,
+        'loans_total':            loans_total,
+        'expenses_total':         expenses_total,
+        'repayments_total':       repayments_total,
+        'transactions_total':     transactions_total,
+        'today':                  today,
+        'selected_date':          selected_date,
+        'display_date':           display_date,
+    })  
     
 def office_transactions(request):
     offices = Office.objects.all()
@@ -1514,88 +1517,101 @@ def expense_add(request):
 def expense_report(request):
     offices = Office.objects.all()
     default_start_date = timezone.now().date() - timedelta(days=28)
-    default_end_date = timezone.now().date()
+    default_end_date   = timezone.now().date()
 
     start_date_str = request.GET.get('start_date', default_start_date.strftime('%Y-%m-%d'))
-    end_date_str = request.GET.get('end_date', default_end_date.strftime('%Y-%m-%d'))
-    office_filter = request.GET.get('office', '')
-    recorded_by_filter = request.GET.get('recorded_by', '')
+    end_date_str   = request.GET.get('end_date',   default_end_date.strftime('%Y-%m-%d'))
+    office_filter        = request.GET.get('office', '')
+    recorded_by_filter   = request.GET.get('recorded_by', '')
 
     try:
         start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d').date()
-        end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        end_date   = datetime.datetime.strptime(end_date_str,   '%Y-%m-%d').date()
     except (ValueError, TypeError):
-        start_date = default_start_date
-        end_date = default_end_date
+        start_date     = default_start_date
+        end_date       = default_end_date
         start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        end_date_str   = end_date.strftime('%Y-%m-%d')
 
-    # Filter on transaction_date (user-entered), fall back to expense_date for nulls
-    expenses = Expense.objects.filter(
-        transaction_date__range=[start_date, end_date]  # ← was expense_date
-    ).select_related('recorded_by', 'transaction_type').order_by('-transaction_date')
+    # transaction_date is a DateField — plain range is correct, no timezone needed
+    # 'recorded_by' removed from select_related — user rows missing from dump
+    expenses = (
+        Expense.objects
+        .filter(transaction_date__range=[start_date, end_date])
+        .select_related('transaction_type')   # ← recorded_by removed
+        .order_by('-transaction_date')
+    )
 
     if office_filter:
-        expenses = expenses.filter(office=office_filter)  # ← exact match, not icontains
+        expenses = expenses.filter(office=office_filter)
 
     if recorded_by_filter:
-        expenses = expenses.filter(recorded_by__username=recorded_by_filter)  # ← exact match
+        expenses = expenses.filter(recorded_by__username=recorded_by_filter)
 
     total_expenses = expenses.count()
-    total_amount = expenses.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    avg_expense = expenses.aggregate(avg=Avg('amount'))['avg'] or Decimal('0.00')
+    total_amount   = expenses.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    avg_expense    = expenses.aggregate(avg=Avg('amount'))['avg']     or Decimal('0.00')
 
-    unique_offices = Expense.objects.exclude(
-        office__isnull=True
-    ).exclude(office='').values_list('office', flat=True).distinct().order_by('office')
+    unique_offices = (
+        Expense.objects
+        .exclude(office__isnull=True).exclude(office='')
+        .values_list('office', flat=True)
+        .distinct().order_by('office')
+    )
 
-    unique_users = CustomUser.objects.filter(
-        recorded_expenses__in=expenses
-    ).distinct().order_by('username')
+    # unique_users removed — CustomUser rows missing from dump, would return empty
+    # If you restore users later, add it back
 
     highest_expense = expenses.order_by('-amount').first()
-    lowest_expense = expenses.order_by('amount').first()
+    lowest_expense  = expenses.order_by('amount').first()
+
+    # Safe recorded_by access per expense
+    rows = []
+    for e in expenses:
+        try:
+            recorder = e.recorded_by
+            recorded_by_name = (
+                recorder.get_full_name() or recorder.username
+            ) if recorder else 'N/A'
+        except Exception:
+            recorded_by_name = 'N/A'
+
+        rows.append({
+            'date':          e.transaction_date or e.expense_date,
+            'receipt_no':    '—',
+            'category':      e.transaction_type.name if e.transaction_type else '—',
+            'description':   e.description or '',
+            'amount':        e.amount,
+            'attachment':    e.attachment.url if e.attachment else None,
+            'recorded_by':   recorded_by_name,
+            'hide_date':     False,
+        })
 
     context = {
         **get_base_context(request),
-        'start_date':          start_date,
-        'end_date':            end_date,
-        'start_date_str':      start_date_str,
-        'end_date_str':        end_date_str,
-        'office_filter':       office_filter,
-        'recorded_by_filter':  recorded_by_filter,
-        'expenses':            expenses,
-        'total_expenses':      total_expenses,
-        'total_amount':        total_amount,
-        'avg_expense':         avg_expense,
-        'unique_offices':      unique_offices,
-        'unique_users':        unique_users,
-        'highest_expense':     highest_expense,
-        'lowest_expense':      lowest_expense,
-        'offices':             offices,
-
-        # ── Add these to match the template ──
-        'branch_name':         office_filter.upper() if office_filter else 'ALL BRANCHES',
-        'date_from_display':   start_date.strftime('%d %b %Y'),
-        'date_to_display':     end_date.strftime('%d %b %Y'),
-        'grand_total':         total_amount,
-        'rows': [
-            {
-                'date':        e.transaction_date or e.expense_date,
-                'receipt_no':  '—',
-                'category':    e.transaction_type.name if e.transaction_type else '—',
-                'description': e.description or '',
-                'amount':      e.amount,
-                'attachment':  e.attachment.url if e.attachment else None,
-                'hide_date':   False,  # handled below
-            }
-            for e in expenses
-        ],
+        'start_date':         start_date,
+        'end_date':           end_date,
+        'start_date_str':     start_date_str,
+        'end_date_str':       end_date_str,
+        'office_filter':      office_filter,
+        'recorded_by_filter': recorded_by_filter,
+        'expenses':           expenses,
+        'total_expenses':     total_expenses,
+        'total_amount':       total_amount,
+        'avg_expense':        avg_expense,
+        'unique_offices':     unique_offices,
+        'unique_users':       [],             # empty until users restored
+        'highest_expense':    highest_expense,
+        'lowest_expense':     lowest_expense,
+        'offices':            offices,
+        'branch_name':        office_filter.upper() if office_filter else 'ALL BRANCHES',
+        'date_from_display':  start_date.strftime('%d %b %Y'),
+        'date_to_display':    end_date.strftime('%d %b %Y'),
+        'grand_total':        total_amount,
+        'rows':               rows,
     }
 
     return render(request, 'app/expenses_report.html', context)
-
-
 
 
 
@@ -1912,31 +1928,50 @@ def transaction_statement(request):
 
 # ==========================================================================
 def loan_collection_statement2(request):
-    # Get filter parameters
+    from django.utils import timezone
+
+    # ── Filter parameters ─────────────────────────────────────────────────────
     start_date    = request.GET.get('start_date')
     end_date      = request.GET.get('end_date')
     office_filter = request.GET.get('office')
 
-    # Base queryset
-    repayments = LoanRepayment.objects.all().select_related(
-        'loan_application',
-        'loan_application__client',
-        'processed_by'
-    ).order_by('-created_at')
+    # ── Base queryset ─────────────────────────────────────────────────────────
+    # 'processed_by' excluded from select_related — user rows missing from dump
+    repayments = (
+        LoanRepayment.objects
+        .select_related(
+            'loan_application',
+            'loan_application__client',
+        )
+        .order_by('-created_at')
+    )
 
-    # Apply date filters on created_at (DateTimeField → use __date__ lookup)
+    # ── Date filters (timezone-aware, EAT = UTC+3) ────────────────────────────
     if start_date:
-        start_date_obj = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-        repayments = repayments.filter(created_at__date__gte=start_date_obj)
-    if end_date:
-        end_date_obj = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-        repayments = repayments.filter(created_at__date__lte=end_date_obj)
+        try:
+            start_date_obj = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            start_dt = timezone.make_aware(
+                datetime.datetime.combine(start_date_obj, datetime.time.min)
+            )
+            repayments = repayments.filter(created_at__gte=start_dt)
+        except (ValueError, TypeError):
+            start_date = None
 
-    # Office filter (office lives on LoanApplication)
+    if end_date:
+        try:
+            end_date_obj = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+            end_dt = timezone.make_aware(
+                datetime.datetime.combine(end_date_obj, datetime.time.max)
+            )
+            repayments = repayments.filter(created_at__lte=end_dt)
+        except (ValueError, TypeError):
+            end_date = None
+
+    # ── Office filter ─────────────────────────────────────────────────────────
     if office_filter:
         repayments = repayments.filter(loan_application__office__iexact=office_filter)
 
-    # Unique offices for dropdown
+    # ── Unique offices for dropdown ───────────────────────────────────────────
     offices = (
         LoanApplication.objects
         .exclude(office__isnull=True).exclude(office='')
@@ -1944,49 +1979,61 @@ def loan_collection_statement2(request):
         .distinct().order_by('office')
     )
 
-    # Build collection data
+    # ── Build collection data ─────────────────────────────────────────────────
     collection_data = []
     running_balance = Decimal('0.00')
 
     for index, repayment in enumerate(repayments, 1):
-        loan = repayment.loan_application
+        loan   = repayment.loan_application
+        client = loan.client
 
-        # Interest / principal split based on loan terms
+        # Interest / principal split
         if loan.payment_period_months and loan.payment_period_months > 0:
-            interest_per_payment  = (loan.total_interest_amount or Decimal('0.00')) / loan.payment_period_months
+            interest_per_payment  = (
+                loan.total_interest_amount or Decimal('0.00')
+            ) / loan.payment_period_months
             principal_per_payment = loan.loan_amount / loan.payment_period_months
         else:
             interest_per_payment  = Decimal('0.00')
             principal_per_payment = repayment.repayment_amount
 
-        # Cap at actual repayment amount to avoid rounding drift
-        interest_amount  = min(interest_per_payment,  repayment.repayment_amount)
+        # Cap to avoid rounding drift
+        interest_amount  = min(interest_per_payment, repayment.repayment_amount)
         principal_amount = repayment.repayment_amount - interest_amount
 
         running_balance += repayment.repayment_amount
 
+        # Safe processed_by access — user may not exist in db
+        try:
+            processor = repayment.processed_by
+            created_by = (
+                processor.get_full_name() or processor.username
+            ) if processor else 'N/A'
+        except Exception:
+            created_by = 'N/A'
+
         collection_data.append({
-            'sn':          index,
-            'date':        repayment.created_at.date(),   # show creation date
-            'created_at':  repayment.created_at,
-            'receipt_no':  f'RCP-{repayment.id:06d}',
-            'name':        f"{loan.client.firstname} {loan.client.lastname}",
-            'description': f"Loan Repayment - {loan.loan_type} (LON-{loan.id:06d})",
-            'rate':        loan.interest_rate,
-            'principal':   principal_amount,
-            'interest':    interest_amount,
-            'total':       repayment.repayment_amount,
+            'sn':              index,
+            'date':            repayment.created_at.date(),
+            'created_at':      repayment.created_at,
+            'receipt_no':      f'RCP-{repayment.id:06d}',
+            'name':            f"{client.firstname} {client.lastname}",
+            'description':     f"Loan Repayment - {loan.loan_type} (LON-{loan.id:06d})",
+            'rate':            loan.interest_rate,
+            'principal':       principal_amount,
+            'interest':        interest_amount,
+            'total':           repayment.repayment_amount,
             'running_balance': running_balance,
-            'created_by':  repayment.processed_by.get_full_name() or repayment.processed_by.username,
-            'loan_id':     loan.id,
-            'client_id':   loan.client.id,
-            'office':      loan.office or 'N/A',
+            'created_by':      created_by,
+            'loan_id':         loan.id,
+            'client_id':       client.id,
+            'office':          loan.office or 'N/A',
         })
 
-    # Totals
-    total_principal  = sum(item['principal'] for item in collection_data)
-    total_interest   = sum(item['interest']  for item in collection_data)
-    total_collected  = sum(item['total']     for item in collection_data)
+    # ── Totals ────────────────────────────────────────────────────────────────
+    total_principal = sum(item['principal'] for item in collection_data)
+    total_interest  = sum(item['interest']  for item in collection_data)
+    total_collected = sum(item['total']     for item in collection_data)
 
     context = {
         **get_base_context(request),
@@ -2002,7 +2049,6 @@ def loan_collection_statement2(request):
     }
 
     return render(request, 'app/loan_collection_statement.html', context)
-
 
 # ===========================================================================================
 
@@ -2235,29 +2281,51 @@ from django.shortcuts import render
 from .models import LoanApplication, Office
 
 def branches_loan_report(request):
-    # Get filter parameters
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
-    status_filter = request.GET.get('status')
+    from django.db.models import Prefetch
+    from django.utils import timezone
+
+    # ── Filter parameters ─────────────────────────────────────────────────────
+    start_date       = request.GET.get('start_date')
+    end_date         = request.GET.get('end_date')
+    status_filter    = request.GET.get('status')
     loan_type_filter = request.GET.get('loan_type')
-    search_query = request.GET.get('search')
-    office_filter = request.GET.get('office')
-    region_filter = request.GET.get('region')
+    search_query     = request.GET.get('search')
+    office_filter    = request.GET.get('office')
+    region_filter    = request.GET.get('region')
 
-    # Base queryset with related data
-    loans = LoanApplication.objects.all().select_related(
-        'client',
-        'processed_by'
-    ).order_by('-created_at')
+    # ── Base queryset ─────────────────────────────────────────────────────────
+    # NOTE: 'processed_by' intentionally excluded from select_related
+    # because useraccount_customuser rows are missing from the imported dump.
+    # Accessing loan.processed_by is guarded safely in the loop below.
+    loans = (
+        LoanApplication.objects
+        .select_related('client')
+        .prefetch_related('repayments')
+        .order_by('-created_at')
+    )
 
-    # Apply filters
+    # ── Date filters (timezone-aware, EAT = UTC+3) ────────────────────────────
     if start_date:
-        start_date_obj = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-        loans = loans.filter(created_at__date__gte=start_date_obj)
-    if end_date:
-        end_date_obj = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-        loans = loans.filter(created_at__date__lte=end_date_obj)
+        try:
+            start_date_obj = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            start_dt = timezone.make_aware(
+                datetime.datetime.combine(start_date_obj, datetime.time.min)
+            )
+            loans = loans.filter(created_at__gte=start_dt)
+        except (ValueError, TypeError):
+            start_date = None
 
+    if end_date:
+        try:
+            end_date_obj = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+            end_dt = timezone.make_aware(
+                datetime.datetime.combine(end_date_obj, datetime.time.max)
+            )
+            loans = loans.filter(created_at__lte=end_dt)
+        except (ValueError, TypeError):
+            end_date = None
+
+    # ── Other filters ─────────────────────────────────────────────────────────
     if status_filter:
         loans = loans.filter(status=status_filter)
 
@@ -2272,14 +2340,14 @@ def branches_loan_report(request):
 
     if search_query:
         loans = loans.filter(
-            Q(client__firstname__icontains=search_query) |
-            Q(client__lastname__icontains=search_query) |
-            Q(client__phonenumber__icontains=search_query) |
-            Q(client__checkno__icontains=search_query) |
+            Q(client__firstname__icontains=search_query)        |
+            Q(client__lastname__icontains=search_query)         |
+            Q(client__phonenumber__icontains=search_query)      |
+            Q(client__checkno__icontains=search_query)          |
             Q(client__employmentcardno__icontains=search_query)
         )
 
-    # Build loan_data list with repayment calculations
+    # ── Build loan_data ───────────────────────────────────────────────────────
     loan_data = []
 
     total_loan_amount = Decimal('0.00')
@@ -2287,15 +2355,26 @@ def branches_loan_report(request):
     total_outstanding = Decimal('0.00')
     total_interest    = Decimal('0.00')
 
+    today = timezone.now().date()
+
     for index, loan in enumerate(loans, 1):
         client = loan.client
 
-        # Total paid from repayments
-        paid_amount = loan.repayments.aggregate(
-            total=Coalesce(Sum('repayment_amount'), Decimal('0.00'))
-        )['total']
+        # Repayments from prefetch — no extra DB queries
+        prefetched_repayments = sorted(
+            loan.repayments.all(),
+            key=lambda r: r.repayment_date,
+            reverse=True,
+        )
+        repayment_count = len(prefetched_repayments)
+        last_repayment  = prefetched_repayments[0] if prefetched_repayments else None
 
-        # Outstanding balance — trust repayment_amount_remaining if it's set
+        paid_amount = sum(
+            (r.repayment_amount for r in prefetched_repayments),
+            Decimal('0.00'),
+        )
+
+        # Outstanding
         outstanding = (
             loan.repayment_amount_remaining
             if loan.repayment_amount_remaining is not None
@@ -2310,9 +2389,9 @@ def branches_loan_report(request):
         if loan.total_repayment_amount and loan.total_repayment_amount > 0:
             payment_percentage = (paid_amount / loan.total_repayment_amount) * 100
         else:
-            payment_percentage = 0
+            payment_percentage = Decimal('0.00')
 
-        # Derive a meaningful status
+        # Status
         if loan.status.lower() == 'approved':
             if outstanding <= 0:
                 current_status = 'Completed'
@@ -2330,51 +2409,57 @@ def branches_loan_report(request):
         # Next payment due date
         next_payment_date = None
         if loan.status.lower() == 'approved' and outstanding > 0 and loan.first_repayment_date:
-            payments_made = loan.repayments.count()
-            if payments_made < loan.payment_period_months:
-                next_payment_date = loan.first_repayment_date + relativedelta(months=payments_made)
+            if repayment_count < (loan.payment_period_months or 0):
+                next_payment_date = loan.first_repayment_date + relativedelta(months=repayment_count)
 
-        # Last repayment date
-        last_repayment = loan.repayments.order_by('-repayment_date').first()
+        # Safe processed_by access — user may not exist in db
+        try:
+            processor = loan.processed_by
+            if processor:
+                processed_by_name = processor.get_full_name() or processor.username
+            else:
+                processed_by_name = 'N/A'
+        except Exception:
+            processed_by_name = 'N/A'
 
         loan_data.append({
-            'sn':           index,
-            'loan_id':      loan.id,
-            'created_at':   loan.created_at,
-            'application_date': loan.created_at.date(),   # date portion of created_at
+            'sn':                    index,
+            'loan_id':               loan.id,
+            'created_at':            loan.created_at,
+            'application_date':      loan.created_at.date(),
             'client': {
                 'id':               client.id,
                 'full_name':        f"{client.firstname} {client.middlename or ''} {client.lastname}".strip(),
                 'firstname':        client.firstname,
                 'middlename':       client.middlename,
                 'lastname':         client.lastname,
-                'phonenumber':      client.phonenumber or 'N/A',
-                'region':           client.region or 'N/A',
-                'district':         client.district or 'N/A',
-                'checkno':          client.checkno or 'N/A',
+                'phonenumber':      client.phonenumber      or 'N/A',
+                'region':           client.region           or 'N/A',
+                'district':         client.district         or 'N/A',
+                'checkno':          client.checkno          or 'N/A',
                 'employmentcardno': client.employmentcardno or 'N/A',
-                'employername':     client.employername or 'N/A',
+                'employername':     client.employername      or 'N/A',
             },
-            'loan_type':             loan.loan_type,
-            'loan_amount':           loan.loan_amount,
-            'interest_rate':         loan.interest_rate,
-            'interest_amount':       loan.interest_amount or 0,
-            'total_interest':        loan.total_interest_amount or 0,
+            'loan_type':              loan.loan_type,
+            'loan_amount':            loan.loan_amount,
+            'interest_rate':          loan.interest_rate,
+            'interest_amount':        loan.interest_amount        or 0,
+            'total_interest':         loan.total_interest_amount  or 0,
             'total_repayment_amount': loan.total_repayment_amount or loan.loan_amount,
-            'payment_period_months': loan.payment_period_months,
-            'monthly_installment':   loan.monthly_installment or 0,
-            'paid_amount':           paid_amount,
-            'outstanding':           outstanding,
-            'payment_percentage':    round(payment_percentage, 2),
-            'status':                current_status,
-            'status_color':          status_color,
-            'original_status':       loan.status,
-            'office':                loan.office or 'N/A',
-            'processed_by':          loan.processed_by.get_full_name() or loan.processed_by.username,
-            'first_repayment_date':  loan.first_repayment_date,
-            'next_payment_date':     next_payment_date,
-            'last_repayment_date':   last_repayment.repayment_date if last_repayment else None,
-            'repayments_count':      loan.repayments.count(),
+            'payment_period_months':  loan.payment_period_months,
+            'monthly_installment':    loan.monthly_installment    or 0,
+            'paid_amount':            paid_amount,
+            'outstanding':            outstanding,
+            'payment_percentage':     round(float(payment_percentage), 2),
+            'status':                 current_status,
+            'status_color':           status_color,
+            'original_status':        loan.status,
+            'office':                 loan.office or 'N/A',
+            'processed_by':           processed_by_name,
+            'first_repayment_date':   loan.first_repayment_date,
+            'next_payment_date':      next_payment_date,
+            'last_repayment_date':    last_repayment.repayment_date if last_repayment else None,
+            'repayments_count':       repayment_count,
         })
 
         total_loan_amount += loan.loan_amount
@@ -2382,38 +2467,57 @@ def branches_loan_report(request):
         total_outstanding += outstanding
         total_interest    += (loan.total_interest_amount or 0)
 
-    # Dropdown options
-    loan_types = LoanApplication.objects.values_list('loan_type', flat=True).distinct().order_by('loan_type')
-    offices    = (LoanApplication.objects
-                  .exclude(office__isnull=True).exclude(office='')
-                  .values_list('office', flat=True).distinct().order_by('office'))
-    regions    = (Client.objects
-                  .exclude(region__isnull=True).exclude(region='')
-                  .values_list('region', flat=True).distinct().order_by('region'))
-    statuses   = ['Pending', 'Approved', 'Rejected', 'Completed', 'Active']
+    # ── Dropdown options ──────────────────────────────────────────────────────
+    loan_types = (
+        LoanApplication.objects
+        .values_list('loan_type', flat=True)
+        .distinct().order_by('loan_type')
+    )
+    offices = (
+        LoanApplication.objects
+        .exclude(office__isnull=True).exclude(office='')
+        .values_list('office', flat=True)
+        .distinct().order_by('office')
+    )
+    regions = (
+        Client.objects
+        .exclude(region__isnull=True).exclude(region='')
+        .values_list('region', flat=True)
+        .distinct().order_by('region')
+    )
+    statuses = ['Pending', 'Approved', 'Rejected', 'Completed', 'Active']
 
-    today = timezone.now().date()
-
+    # ── Summary ───────────────────────────────────────────────────────────────
+    total_loans = len(loan_data)
     summary = {
-        'total_loans':      len(loan_data),
-        'total_loan_amount': total_loan_amount,
-        'total_paid_amount': total_paid_amount,
-        'total_outstanding': total_outstanding,
-        'total_interest':    total_interest,
-        'average_loan_amount': total_loan_amount / len(loan_data) if loan_data else 0,
-        'collection_rate':  (total_paid_amount / total_loan_amount * 100) if total_loan_amount > 0 else 0,
-        'active_loans':     sum(1 for l in loan_data if l['status'] in ['Active', 'Approved']),
-        'completed_loans':  sum(1 for l in loan_data if l['status'] == 'Completed'),
-        'pending_loans':    sum(1 for l in loan_data if l['status'] == 'Pending'),
-        'overdue_loans':    sum(1 for l in loan_data if l['status'] == 'Active' and l['next_payment_date'] and l['next_payment_date'] < today),
+        'total_loans':         total_loans,
+        'total_loan_amount':   total_loan_amount,
+        'total_paid_amount':   total_paid_amount,
+        'total_outstanding':   total_outstanding,
+        'total_interest':      total_interest,
+        'average_loan_amount': (total_loan_amount / total_loans) if total_loans else 0,
+        'collection_rate':     (
+            (total_paid_amount / total_loan_amount * 100)
+            if total_loan_amount > 0 else 0
+        ),
+        'active_loans':    sum(1 for l in loan_data if l['status'] in ['Active', 'Approved']),
+        'completed_loans': sum(1 for l in loan_data if l['status'] == 'Completed'),
+        'pending_loans':   sum(1 for l in loan_data if l['status'] == 'Pending'),
+        'overdue_loans':   sum(
+            1 for l in loan_data
+            if l['status'] == 'Active'
+            and l['next_payment_date']
+            and l['next_payment_date'] < today
+        ),
     }
 
+    # ── Loan-type breakdown ───────────────────────────────────────────────────
     loan_type_summary = {}
     for loan in loan_data:
         lt = loan['loan_type']
         if lt not in loan_type_summary:
             loan_type_summary[lt] = {
-                'count': 0,
+                'count':        0,
                 'total_amount': Decimal('0.00'),
                 'paid_amount':  Decimal('0.00'),
                 'outstanding':  Decimal('0.00'),
@@ -2423,15 +2527,16 @@ def branches_loan_report(request):
         loan_type_summary[lt]['paid_amount']  += loan['paid_amount']
         loan_type_summary[lt]['outstanding']  += loan['outstanding']
 
+    # ── Context ───────────────────────────────────────────────────────────────
     context = {
         **get_base_context(request),
-        'loan_data':          loan_data,
-        'summary':            summary,
-        'loan_type_summary':  loan_type_summary,
-        'loan_types':         loan_types,
-        'offices':            offices,
-        'regions':            regions,
-        'statuses':           statuses,
+        'loan_data':         loan_data,
+        'summary':           summary,
+        'loan_type_summary': loan_type_summary,
+        'loan_types':        loan_types,
+        'offices':           offices,
+        'regions':           regions,
+        'statuses':          statuses,
         'filters': {
             'start_date': start_date,
             'end_date':   end_date,
@@ -2445,8 +2550,6 @@ def branches_loan_report(request):
     }
 
     return render(request, 'app/branches_loan_report.html', context)
-
-
 
 from django.db.models import Sum, Q, F, DecimalField
 def expired_loans_report(request):
@@ -3871,68 +3974,97 @@ def fomu_mkopo_wa_dharula(request, loan_id=None):
     return render(request, 'app/fomu_mkopo_wa_dharula.html', context)
 
 def bank_transfer_expenses2(request):
+    from django.utils import timezone
+
+    # ── Filter parameters ─────────────────────────────────────────────────────
     date_from     = request.GET.get('date_from')
     date_to       = request.GET.get('date_to')
     office_filter = request.GET.get('office')
 
-    transactions = HQTransaction.objects.select_related(
-        'from_branch', 'to_branch', 'processed_by'
-    ).order_by('-created_at', '-id')
+    # ── Base queryset ─────────────────────────────────────────────────────────
+    # 'processed_by' excluded from select_related — user rows missing from dump
+    transactions = (
+        HQTransaction.objects
+        .select_related('from_branch', 'to_branch')
+        .order_by('-created_at', '-id')
+    )
 
-    # Filter on created_at (DateTimeField → __date__ lookup)
+    # ── Date filters (timezone-aware, EAT = UTC+3) ────────────────────────────
     if date_from:
         try:
-            transactions = transactions.filter(
-                created_at__date__gte=datetime.datetime.strptime(date_from, "%Y-%m-%d").date()
+            date_from_obj = datetime.datetime.strptime(date_from, '%Y-%m-%d').date()
+            start_dt = timezone.make_aware(
+                datetime.datetime.combine(date_from_obj, datetime.time.min)
             )
-        except ValueError:
-            pass
+            transactions = transactions.filter(created_at__gte=start_dt)
+        except (ValueError, TypeError):
+            date_from = None
 
     if date_to:
         try:
-            transactions = transactions.filter(
-                created_at__date__lte=datetime.datetime.strptime(date_to, "%Y-%m-%d").date()
+            date_to_obj = datetime.datetime.strptime(date_to, '%Y-%m-%d').date()
+            end_dt = timezone.make_aware(
+                datetime.datetime.combine(date_to_obj, datetime.time.max)
             )
-        except ValueError:
-            pass
+            transactions = transactions.filter(created_at__lte=end_dt)
+        except (ValueError, TypeError):
+            date_to = None
 
+    # ── Office filter ─────────────────────────────────────────────────────────
     if office_filter:
         transactions = transactions.filter(
             models.Q(from_branch__name__iexact=office_filter) |
             models.Q(to_branch__name__iexact=office_filter)
         )
 
-    # Offices from Office model via HQTransaction branches
-    offices = Office.objects.filter(
-        models.Q(hq_transactions_from__isnull=False) |
-        models.Q(hq_transactions_to__isnull=False)
-    ).values_list('name', flat=True).distinct().order_by('name')
+    # ── Offices dropdown ──────────────────────────────────────────────────────
+    offices = (
+        Office.objects
+        .filter(
+            models.Q(hq_transactions_from__isnull=False) |
+            models.Q(hq_transactions_to__isnull=False)
+        )
+        .values_list('name', flat=True)
+        .distinct().order_by('name')
+    )
 
-    grand_total = transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    # ── Grand total ───────────────────────────────────────────────────────────
+    grand_total = (
+        transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    )
 
-    transactions_with_receipt = [
-        {
-            'transaction':     txn,
-            'receipt_number':  str(txn.id).zfill(6),
-            'date':            txn.created_at.date(),   # use created_at date in template
-        }
-        for txn in transactions
-    ]
+    # ── Build transactions list ───────────────────────────────────────────────
+    transactions_with_receipt = []
+    for txn in transactions:
+
+        # Safe processed_by access — user may not exist in db
+        try:
+            processor = txn.processed_by
+            processed_by_name = (
+                processor.get_full_name() or processor.username
+            ) if processor else 'N/A'
+        except Exception:
+            processed_by_name = 'N/A'
+
+        transactions_with_receipt.append({
+            'transaction':    txn,
+            'receipt_number': str(txn.id).zfill(6),
+            'date':           txn.created_at.date(),
+            'processed_by':   processed_by_name,
+        })
 
     context = {
         **get_base_context(request),
         'transactions_with_receipt': transactions_with_receipt,
-        'grand_total':    grand_total,
-        'date_from':      date_from or '',
-        'date_to':        date_to or '',
-        'offices':        offices,
-        'office_filter':  office_filter or '',
-        'total_count':    len(transactions_with_receipt),
+        'grand_total':   grand_total,
+        'date_from':     date_from or '',
+        'date_to':       date_to   or '',
+        'offices':       offices,
+        'office_filter': office_filter or '',
+        'total_count':   len(transactions_with_receipt),
     }
 
     return render(request, 'app/bank_transfer_expenses.html', context)
-
-
 
 
 
@@ -4318,9 +4450,10 @@ def loan_payment_page(request):
         **base_ctx,
         'client_loan_list': client_loan_list,
     })
-
-
-
+    
+    
+    
+    
 def loan_payment_select(request):
     """
     Handles the POST from Page 1 (customer selection).

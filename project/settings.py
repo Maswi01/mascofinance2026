@@ -142,7 +142,6 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'Africa/Dar_es_Salaam'
-
 USE_TZ = True
 
 USE_I18N = True
@@ -179,8 +178,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'mccolntanzania@gmail.com'  # Your email
-EMAIL_HOST_PASSWORD = 'eskiwgbdwhfanjym'    # Your email password or app password
+EMAIL_HOST_USER = 'uremail@gmail.com'  # Your email
+EMAIL_HOST_PASSWORD = ''    # Your email password or app password
 
 # Email Configuration
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

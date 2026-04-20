@@ -100,6 +100,7 @@ urlpatterns = [
     path('loan-payment/select/',         views.loan_payment_select, name='loan_payment_select'),
     path('loan-repayment/<int:loan_id>/', views.loan_repayment,      name='loan_repayment'),
     
+    
     path('bank-cash-transaction/',    views.bank_cash_transaction_add, name='bank_cash_transaction'),
     path('branches-transaction/add/', views.branches_transaction_add,  name='branches_transaction_add'),
     
@@ -107,6 +108,7 @@ urlpatterns = [
     path('loan-receipt/list/',             views.loan_receipt_list,     name='loan_receipt_list'),
     path('loan-receipt/receipt/<int:pk>/', views.loan_repayment_receipt, name='loan_repayment_receipt'),
     path('repayment/<int:repayment_id>/delete/', views.delete_repayment, name='delete_repayment'),
+    
     
     path('loan-outstanding/',                        views.loan_outstanding_select, name='loan_outstanding_select'),
     path('loan-outstanding/report/',                 views.loan_outstanding_report, name='loan_outstanding_report'),
