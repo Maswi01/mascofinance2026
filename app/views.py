@@ -6916,6 +6916,8 @@ def loan_issued_filter(request):
 
 
 def loan_issued_report(request):
+    from django.utils import timezone
+
     if request.method != 'POST':
         return redirect('loan_issued_filter')
 
@@ -6936,9 +6938,21 @@ def loan_issued_report(request):
     date_from_display = date_from.strftime('%d/%m/%Y')
     date_to_display   = date_to.strftime('%d/%m/%Y')
 
-    loans = LoanApplication.objects.filter(
-        created_at__date__range=(date_from, date_to),
-    ).select_related('client', 'processed_by').order_by('created_at', 'id')
+    # ── Timezone-aware range (EAT = UTC+3) ────────────────────────────────────
+    start_dt = timezone.make_aware(
+        datetime.datetime.combine(date_from, datetime.time.min)
+    )
+    end_dt = timezone.make_aware(
+        datetime.datetime.combine(date_to, datetime.time.max)
+    )
+
+    # ── 'processed_by' removed — user rows missing from dump ─────────────────
+    loans = (
+        LoanApplication.objects
+        .filter(created_at__gte=start_dt, created_at__lte=end_dt)
+        .select_related('client')
+        .order_by('created_at', 'id')
+    )
 
     if filter_office:
         loans = loans.filter(office=filter_office.name)
@@ -6950,7 +6964,10 @@ def loan_issued_report(request):
     grand_monthly_installment = Decimal('0.00')
 
     for loan in loans:
-        client = loan.client
+        try:
+            client = loan.client
+        except Exception:
+            continue   # skip loans with missing client
 
         if loan.first_repayment_date:
             m = loan.first_repayment_date
@@ -6965,11 +6982,11 @@ def loan_issued_report(request):
 
         rows.append({
             'loan':                loan,
-            'date':                loan.application_date,
+            'date':                loan.created_at.date(),
             'name':                f"{client.firstname} {client.middlename or ''} {client.lastname}".strip(),
             'check_no':            client.checkno or client.employmentcardno or '—',
             'mobile':              client.phonenumber or '—',
-            'work_station':        client.kaziyako or client.idara or client.employername or '—',
+            'work_station':        client.employername or '—',
             'loan_id_label':       f"{(loan.office or 'loan').lower()}-{loan.id}",
             'rate_type':           'Flat',
             'starting_month':      starting_month,
@@ -6996,8 +7013,7 @@ def loan_issued_report(request):
         'date_from_display':         date_from_display,
         'date_to_display':           date_to_display,
         'branch_name':               branch_name,
-    })
-    
+    })  
 
 def loan_issued_report_edit(request, loan_id):
     from decimal import Decimal

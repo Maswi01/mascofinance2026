@@ -183,9 +183,9 @@ EMAIL_HOST_PASSWORD = ''    # Your email password or app password
 
 # Email Configuration
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'mail.ties.co.tz'       # Outgoing server
+# EMAIL_HOST = 'mail.masco.co.tz'       # Outgoing server
 # EMAIL_PORT = 465                     # SMTP port for SSL
 # EMAIL_USE_SSL = True                 # Use SSL (not TLS)
-# EMAIL_HOST_USER = 'info@ties.co.tz'  # Full email address
-# EMAIL_HOST_PASSWORD = ''  # Password for info@ties.co.tz
-# DEFAULT_FROM_EMAIL = 'info@ties.co.tz'       # Default sender
+# EMAIL_HOST_USER = 'info@masco.co.tz'  # Full email address
+# EMAIL_HOST_PASSWORD = ''  # Password for info@masco.co.tz
+# DEFAULT_FROM_EMAIL = 'info@masco.co.tz'       # Default sender
