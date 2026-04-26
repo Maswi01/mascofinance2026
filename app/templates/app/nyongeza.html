@@ -7,39 +7,53 @@
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap');
 
     :root {
-        --ny-amber:      #f59e0b;
-        --ny-amber-dark: #d97706;
-        --ny-amber-pale: rgba(245, 158, 11, 0.08);
-        --ny-amber-rim:  rgba(245, 158, 11, 0.18);
-        --ny-blue:       #2d6ae3;
-        --ny-blue-pale:  rgba(45, 106, 227, 0.08);
-        --ny-green:      #10b981;
-        --ny-green-pale: rgba(16, 185, 129, 0.08);
-        --ny-red:        #ef4444;
-        --ny-red-pale:   rgba(239, 68, 68, 0.08);
-        --ny-ink:        #1a1f2e;
-        --ny-slate:      #334155;
-        --ny-muted:      #64748b;
-        --ny-border:     #e2e8f0;
-        --ny-surface:    #ffffff;
-        --ny-bg:         #f1f5f9;
-        --ny-radius:     10px;
-        --ny-radius-lg:  14px;
-        --ny-shadow:     0 2px 12px rgba(0,0,0,0.07);
-        --ny-shadow-lg:  0 8px 32px rgba(0,0,0,0.11);
-        --ff-body:       'DM Sans', sans-serif;
-        --ff-head:       'Playfair Display', serif;
-        --ff-mono:       'DM Mono', monospace;
+        /* ── Masco Finance Brand Palette ── */
+        --masco-navy:        #1a3f6f;
+        --masco-navy-dark:   #122d52;
+        --masco-navy-mid:    #1e4a82;
+        --masco-navy-pale:   rgba(26, 63, 111, 0.07);
+        --masco-navy-rim:    rgba(26, 63, 111, 0.18);
+
+        --masco-gold:        #c9a845;
+        --masco-gold-dark:   #a8882e;
+        --masco-gold-light:  #d4b85a;
+        --masco-gold-pale:   rgba(201, 168, 69, 0.10);
+        --masco-gold-rim:    rgba(201, 168, 69, 0.25);
+        --masco-gold-bg:     rgba(201, 168, 69, 0.13);   /* grand-total row bg */
+
+        --masco-green:       #198754;
+        --masco-green-pale:  rgba(25, 135, 84, 0.08);
+        --masco-red:         #dc3545;
+        --masco-red-pale:    rgba(220, 53, 69, 0.08);
+
+        --masco-ink:         #162038;
+        --masco-slate:       #2c3e5a;
+        --masco-muted:       #6b7a99;
+        --masco-border:      #dce3ef;
+        --masco-surface:     #ffffff;
+        --masco-bg:          #eef1f7;        /* light blue-gray page bg */
+        --masco-bg-alt:      #f5f7fb;
+
+        --masco-radius:      8px;
+        --masco-radius-lg:   12px;
+        --masco-shadow:      0 2px 10px rgba(26,63,111,0.08);
+        --masco-shadow-lg:   0 8px 28px rgba(26,63,111,0.13);
+
+        --ff-body:  'DM Sans', sans-serif;
+        --ff-head:  'Playfair Display', serif;
+        --ff-mono:  'DM Mono', monospace;
     }
 
+    /* ══════════════════════════════
+       PAGE WRAPPER
+    ══════════════════════════════ */
     .ny-page {
         font-family: var(--ff-body);
+        background: var(--masco-bg);
+        min-height: 100vh;
         padding: 32px 28px 60px;
-        margin-top: 140px;
-        max-width: auto;
+        margin-top: 20px;
         animation: ny-rise 0.5s ease both;
-        
-        align-items: center;
     }
 
     @keyframes ny-rise {
@@ -47,7 +61,9 @@
         to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Page Header */
+    /* ══════════════════════════════
+       PAGE HEADER
+    ══════════════════════════════ */
     .ny-page-header {
         display: flex;
         align-items: flex-start;
@@ -60,27 +76,29 @@
     .ny-page-title {
         font-family: var(--ff-head);
         font-size: 28px;
-        color: var(--ny-ink);
+        color: var(--masco-ink);
         line-height: 1.2;
         margin: 0;
     }
 
-    .ny-page-title span { color: var(--ny-amber); }
+    .ny-page-title span { color: var(--masco-gold); }
 
     .ny-page-sub {
         font-size: 13px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         margin-top: 4px;
         font-weight: 400;
     }
 
-    /* Office Banner */
+    /* ══════════════════════════════
+       OFFICE BANNER
+    ══════════════════════════════ */
     .ny-office-banner {
         display: flex;
         align-items: center;
         gap: 10px;
         padding: 10px 18px;
-        border-radius: var(--ny-radius);
+        border-radius: var(--masco-radius);
         font-size: 13px;
         font-weight: 500;
         margin-bottom: 24px;
@@ -88,20 +106,20 @@
     }
 
     .ny-office-banner.filtered {
-        background: var(--ny-blue-pale);
-        border-color: rgba(45,106,227,0.2);
-        color: var(--ny-blue);
+        background: var(--masco-navy-pale);
+        border-color: rgba(26,63,111,0.18);
+        color: var(--masco-navy);
     }
 
     .ny-office-banner.all {
-        background: var(--ny-green-pale);
-        border-color: rgba(16,185,129,0.2);
-        color: var(--ny-green);
+        background: var(--masco-green-pale);
+        border-color: rgba(25,135,84,0.2);
+        color: var(--masco-green);
     }
 
     .ny-office-banner a {
         margin-left: auto;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         text-decoration: none;
         font-size: 12px;
         display: flex;
@@ -110,9 +128,11 @@
         transition: color 0.2s;
     }
 
-    .ny-office-banner a:hover { color: var(--ny-red); }
+    .ny-office-banner a:hover { color: var(--masco-red); }
 
-    /* Summary Cards */
+    /* ══════════════════════════════
+       SUMMARY CARDS
+    ══════════════════════════════ */
     .ny-summary-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -121,11 +141,11 @@
     }
 
     .ny-card {
-        background: var(--ny-surface);
-        border-radius: var(--ny-radius-lg);
+        background: var(--masco-surface);
+        border-radius: var(--masco-radius-lg);
         padding: 20px 22px;
-        box-shadow: var(--ny-shadow);
-        border: 1px solid var(--ny-border);
+        box-shadow: var(--masco-shadow);
+        border: 1px solid var(--masco-border);
         position: relative;
         overflow: hidden;
         transition: transform 0.22s, box-shadow 0.22s;
@@ -133,7 +153,7 @@
 
     .ny-card:hover {
         transform: translateY(-3px);
-        box-shadow: var(--ny-shadow-lg);
+        box-shadow: var(--masco-shadow-lg);
     }
 
     .ny-card::after {
@@ -141,13 +161,14 @@
         position: absolute;
         bottom: 0; left: 0; right: 0;
         height: 3px;
-        border-radius: 0 0 var(--ny-radius-lg) var(--ny-radius-lg);
+        border-radius: 0 0 var(--masco-radius-lg) var(--masco-radius-lg);
     }
 
-    .ny-card.total::after { background: var(--ny-green); }
-    .ny-card.bank::after  { background: var(--ny-blue); }
-    .ny-card.cash::after  { background: var(--ny-amber); }
-    .ny-card.avg::after   { background: #8b5cf6; }
+    /* Accent bars — navy for totals, gold for cash/avg */
+    .ny-card.total::after { background: var(--masco-navy); }
+    .ny-card.bank::after  { background: var(--masco-navy-mid); }
+    .ny-card.cash::after  { background: var(--masco-gold); }
+    .ny-card.avg::after   { background: var(--masco-gold-dark); }
 
     .ny-card-icon {
         width: 42px; height: 42px;
@@ -158,23 +179,23 @@
         margin-bottom: 14px;
     }
 
-    .ny-card.total .ny-card-icon { background: var(--ny-green); }
-    .ny-card.bank  .ny-card-icon { background: var(--ny-blue); }
-    .ny-card.cash  .ny-card-icon { background: var(--ny-amber); }
-    .ny-card.avg   .ny-card-icon { background: #8b5cf6; }
+    .ny-card.total .ny-card-icon { background: var(--masco-navy); }
+    .ny-card.bank  .ny-card-icon { background: var(--masco-navy-mid); }
+    .ny-card.cash  .ny-card-icon { background: var(--masco-gold); }
+    .ny-card.avg   .ny-card-icon { background: var(--masco-gold-dark); }
 
     .ny-card-value {
         font-family: var(--ff-mono);
         font-size: 22px;
         font-weight: 500;
-        color: var(--ny-ink);
+        color: var(--masco-ink);
         line-height: 1.1;
         margin-bottom: 4px;
     }
 
     .ny-card-label {
         font-size: 12px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -182,18 +203,20 @@
 
     .ny-card-sub {
         font-size: 11px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         margin-top: 6px;
     }
 
-    /* Toolbar */
+    /* ══════════════════════════════
+       TOOLBAR
+    ══════════════════════════════ */
     .ny-toolbar {
-        background: var(--ny-surface);
-        border-radius: var(--ny-radius-lg);
+        background: var(--masco-surface);
+        border-radius: var(--masco-radius-lg);
         padding: 16px 20px;
         margin-bottom: 18px;
-        box-shadow: var(--ny-shadow);
-        border: 1px solid var(--ny-border);
+        box-shadow: var(--masco-shadow);
+        border: 1px solid var(--masco-border);
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
@@ -211,7 +234,7 @@
         left: 13px;
         top: 50%;
         transform: translateY(-50%);
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         font-size: 13px;
         pointer-events: none;
     }
@@ -219,30 +242,30 @@
     .ny-search {
         width: 100%;
         padding: 10px 16px 10px 38px;
-        border: 1.5px solid var(--ny-border);
-        border-radius: var(--ny-radius);
+        border: 1.5px solid var(--masco-border);
+        border-radius: var(--masco-radius);
         font-family: var(--ff-body);
         font-size: 13px;
-        color: var(--ny-ink);
-        background: var(--ny-bg);
+        color: var(--masco-ink);
+        background: var(--masco-bg-alt);
         transition: border-color 0.2s, box-shadow 0.2s;
     }
 
     .ny-search:focus {
         outline: none;
-        border-color: var(--ny-amber);
-        box-shadow: 0 0 0 3px var(--ny-amber-rim);
+        border-color: var(--masco-navy);
+        box-shadow: 0 0 0 3px var(--masco-navy-rim);
         background: #fff;
     }
 
     .ny-select {
         padding: 10px 14px;
-        border: 1.5px solid var(--ny-border);
-        border-radius: var(--ny-radius);
+        border: 1.5px solid var(--masco-border);
+        border-radius: var(--masco-radius);
         font-family: var(--ff-body);
         font-size: 13px;
-        color: var(--ny-slate);
-        background: var(--ny-bg);
+        color: var(--masco-slate);
+        background: var(--masco-bg-alt);
         cursor: pointer;
         min-width: 150px;
         transition: border-color 0.2s;
@@ -250,8 +273,8 @@
 
     .ny-select:focus {
         outline: none;
-        border-color: var(--ny-amber);
-        box-shadow: 0 0 0 3px var(--ny-amber-rim);
+        border-color: var(--masco-navy);
+        box-shadow: 0 0 0 3px var(--masco-navy-rim);
     }
 
     .ny-toolbar-right {
@@ -262,13 +285,15 @@
         flex-wrap: wrap;
     }
 
-    /* Buttons */
+    /* ══════════════════════════════
+       BUTTONS
+    ══════════════════════════════ */
     .ny-btn {
         display: inline-flex;
         align-items: center;
         gap: 7px;
         padding: 10px 18px;
-        border-radius: var(--ny-radius);
+        border-radius: var(--masco-radius);
         font-family: var(--ff-body);
         font-size: 13px;
         font-weight: 500;
@@ -280,36 +305,39 @@
     }
 
     .ny-btn-ghost {
-        background: var(--ny-bg);
-        color: var(--ny-slate);
-        border: 1.5px solid var(--ny-border);
+        background: var(--masco-bg-alt);
+        color: var(--masco-slate);
+        border: 1.5px solid var(--masco-border);
     }
 
     .ny-btn-ghost:hover {
         background: #fff;
-        border-color: var(--ny-amber);
-        color: var(--ny-amber-dark);
+        border-color: var(--masco-navy);
+        color: var(--masco-navy);
         transform: translateY(-1px);
     }
 
+    /* Primary CTA — navy with gold hover accent */
     .ny-btn-amber {
-        background: var(--ny-amber);
+        background: var(--masco-navy);
         color: #fff;
     }
 
     .ny-btn-amber:hover {
-        background: var(--ny-amber-dark);
+        background: var(--masco-navy-dark);
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(245,158,11,0.3);
+        box-shadow: 0 4px 14px rgba(26,63,111,0.3);
     }
 
-    /* Table */
+    /* ══════════════════════════════
+       TABLE
+    ══════════════════════════════ */
     .ny-table-wrap {
-        background: var(--ny-surface);
-        border-radius: var(--ny-radius-lg);
+        background: var(--masco-surface);
+        border-radius: var(--masco-radius-lg);
         overflow: hidden;
-        box-shadow: var(--ny-shadow);
-        border: 1px solid var(--ny-border);
+        box-shadow: var(--masco-shadow);
+        border: 1px solid var(--masco-border);
         margin-bottom: 18px;
     }
 
@@ -318,12 +346,13 @@
         border-collapse: collapse;
     }
 
-    .ny-table thead { background: var(--ny-ink); }
+    /* Navy header — matches Masco navbar */
+    .ny-table thead { background: var(--masco-navy); }
 
     .ny-table thead th {
         padding: 14px 18px;
         text-align: left;
-        color: rgba(255,255,255,0.75);
+        color: rgba(255,255,255,0.80);
         font-size: 11px;
         font-weight: 600;
         text-transform: uppercase;
@@ -335,18 +364,20 @@
     .ny-table thead th:first-child { padding-left: 22px; }
 
     .ny-table tbody tr {
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid #eef1f7;
         transition: background 0.15s;
         cursor: pointer;
     }
 
     .ny-table tbody tr:last-child { border-bottom: none; }
-    .ny-table tbody tr:hover { background: var(--ny-amber-pale); }
+
+    /* Gold-tinted hover — mirrors grand total row in image */
+    .ny-table tbody tr:hover { background: var(--masco-gold-pale); }
 
     .ny-table td {
         padding: 14px 18px;
         font-size: 13px;
-        color: var(--ny-slate);
+        color: var(--masco-slate);
         vertical-align: middle;
     }
 
@@ -357,15 +388,16 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: var(--ny-ink);
+        color: var(--masco-ink);
         font-weight: 500;
     }
 
+    /* Gold amount text — matches grand total in image */
     .ny-amount {
         font-family: var(--ff-mono);
         font-size: 14px;
-        font-weight: 500;
-        color: var(--ny-amber-dark);
+        font-weight: 600;
+        color: var(--masco-gold-dark);
     }
 
     .ny-method-pill {
@@ -379,22 +411,34 @@
         letter-spacing: 0.3px;
     }
 
-    .ny-method-pill.bank { background: var(--ny-blue-pale); color: var(--ny-blue); }
-    .ny-method-pill.cash { background: var(--ny-amber-pale); color: var(--ny-amber-dark); }
+    /* Bank pill — navy tones */
+    .ny-method-pill.bank {
+        background: var(--masco-navy-pale);
+        color: var(--masco-navy);
+        border: 1px solid rgba(26,63,111,0.15);
+    }
+
+    /* Cash pill — gold tones */
+    .ny-method-pill.cash {
+        background: var(--masco-gold-pale);
+        color: var(--masco-gold-dark);
+        border: 1px solid var(--masco-gold-rim);
+    }
 
     .ny-date-chip {
         font-family: var(--ff-mono);
         font-size: 12px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         white-space: nowrap;
     }
 
     .ny-user-cell { display: flex; align-items: center; gap: 10px; }
 
+    /* Avatar — navy gradient (brand consistent) */
     .ny-avatar {
         width: 34px; height: 34px;
         border-radius: 50%;
-        background: linear-gradient(135deg, var(--ny-amber), var(--ny-amber-dark));
+        background: linear-gradient(135deg, var(--masco-navy-mid), var(--masco-navy-dark));
         color: #fff;
         display: flex; align-items: center; justify-content: center;
         font-size: 13px;
@@ -402,8 +446,8 @@
         flex-shrink: 0;
     }
 
-    .ny-user-name { font-weight: 600; color: var(--ny-ink); font-size: 13px; }
-    .ny-user-id   { font-size: 11px; color: var(--ny-muted); font-family: var(--ff-mono); }
+    .ny-user-name { font-weight: 600; color: var(--masco-ink); font-size: 13px; }
+    .ny-user-id   { font-size: 11px; color: var(--masco-muted); font-family: var(--ff-mono); }
 
     .ny-action-cell { display: flex; gap: 6px; }
 
@@ -412,22 +456,35 @@
         border-radius: 8px;
         display: flex; align-items: center; justify-content: center;
         font-size: 13px;
-        background: var(--ny-bg);
-        border: 1px solid var(--ny-border);
+        background: var(--masco-bg-alt);
+        border: 1px solid var(--masco-border);
         cursor: pointer;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         transition: all 0.18s;
+        text-decoration: none;
     }
 
     .ny-icon-btn:hover { transform: translateY(-2px); }
-    .ny-icon-btn.view:hover { color: var(--ny-blue); border-color: var(--ny-blue); background: var(--ny-blue-pale); }
-    .ny-icon-btn.del:hover  { color: var(--ny-red);  border-color: var(--ny-red);  background: var(--ny-red-pale); }
 
-    /* Empty states */
+    .ny-icon-btn.view:hover {
+        color: var(--masco-navy);
+        border-color: var(--masco-navy);
+        background: var(--masco-navy-pale);
+    }
+
+    .ny-icon-btn.del:hover {
+        color: var(--masco-red);
+        border-color: var(--masco-red);
+        background: var(--masco-red-pale);
+    }
+
+    /* ══════════════════════════════
+       EMPTY STATES
+    ══════════════════════════════ */
     .ny-empty-cell {
         text-align: center;
         padding: 56px 20px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         font-size: 14px;
     }
 
@@ -441,13 +498,15 @@
     .ny-empty-cell p  { margin: 0; }
     .ny-empty-cell span { font-size: 12px; display: block; margin-top: 4px; opacity: 0.7; }
 
-    /* Pagination */
+    /* ══════════════════════════════
+       PAGINATION
+    ══════════════════════════════ */
     .ny-pagination {
-        background: var(--ny-surface);
-        border-radius: var(--ny-radius-lg);
+        background: var(--masco-surface);
+        border-radius: var(--masco-radius-lg);
         padding: 14px 20px;
-        box-shadow: var(--ny-shadow);
-        border: 1px solid var(--ny-border);
+        box-shadow: var(--masco-shadow);
+        border: 1px solid var(--masco-border);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -458,26 +517,26 @@
         width: 34px; height: 34px;
         border-radius: 8px;
         display: flex; align-items: center; justify-content: center;
-        background: var(--ny-bg);
-        border: 1px solid var(--ny-border);
+        background: var(--masco-bg-alt);
+        border: 1px solid var(--masco-border);
         cursor: pointer;
         font-size: 13px;
-        color: var(--ny-slate);
+        color: var(--masco-slate);
         font-family: var(--ff-body);
         font-weight: 500;
         transition: all 0.18s;
     }
 
     .ny-pg-btn:hover:not(:disabled) {
-        background: var(--ny-amber);
+        background: var(--masco-navy);
         color: #fff;
-        border-color: var(--ny-amber);
+        border-color: var(--masco-navy);
     }
 
     .ny-pg-btn.active {
-        background: var(--ny-amber);
+        background: var(--masco-navy);
         color: #fff;
-        border-color: var(--ny-amber);
+        border-color: var(--masco-navy);
     }
 
     .ny-pg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -485,15 +544,17 @@
     .ny-pg-info {
         margin-left: auto;
         font-size: 12px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         font-family: var(--ff-mono);
     }
 
-    /* Modals */
+    /* ══════════════════════════════
+       MODALS
+    ══════════════════════════════ */
     .ny-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(10,14,26,0.55);
+        background: rgba(10,20,45,0.55);
         backdrop-filter: blur(5px);
         display: none;
         align-items: center;
@@ -505,9 +566,9 @@
     .ny-overlay.open { display: flex; }
 
     .ny-modal {
-        background: var(--ny-surface);
-        border-radius: var(--ny-radius-lg);
-        box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+        background: var(--masco-surface);
+        border-radius: var(--masco-radius-lg);
+        box-shadow: 0 24px 64px rgba(26,63,111,0.2);
         width: 480px;
         max-width: 95vw;
         max-height: 90vh;
@@ -527,36 +588,41 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-bottom: 1px solid var(--ny-border);
+        border-bottom: 1px solid var(--masco-border);
         flex-shrink: 0;
     }
 
+    /* Navy header with gold accent stripe */
     .ny-modal-head.amber {
-        background: linear-gradient(135deg, var(--ny-amber), var(--ny-amber-dark));
+        background: var(--masco-navy);
+        border-bottom: 3px solid var(--masco-gold);
     }
 
-    .ny-modal-head.amber .ny-modal-title,
+    .ny-modal-head.amber .ny-modal-title { color: #fff; }
     .ny-modal-head.amber .ny-close { color: #fff; }
 
     .ny-modal-title {
         font-family: var(--ff-head);
         font-size: 18px;
-        color: var(--ny-ink);
+        color: var(--masco-ink);
     }
 
     .ny-close {
         width: 32px; height: 32px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.15);
         border: none;
-        color: var(--ny-ink);
+        color: var(--masco-ink);
         cursor: pointer;
         display: flex; align-items: center; justify-content: center;
         font-size: 14px;
         transition: all 0.2s;
     }
 
-    .ny-close:hover { background: rgba(255,255,255,0.35); transform: rotate(90deg); }
+    .ny-close:hover {
+        background: rgba(255,255,255,0.28);
+        transform: rotate(90deg);
+    }
 
     .ny-modal-body {
         flex: 1;
@@ -566,28 +632,30 @@
 
     .ny-modal-foot {
         padding: 16px 22px;
-        background: var(--ny-bg);
-        border-top: 1px solid var(--ny-border);
+        background: var(--masco-bg-alt);
+        border-top: 1px solid var(--masco-border);
         display: flex;
         justify-content: flex-end;
         gap: 10px;
         flex-shrink: 0;
     }
 
-    /* Detail modal content */
+    /* ══════════════════════════════
+       DETAIL MODAL CONTENT
+    ══════════════════════════════ */
     .ny-detail-hero {
         display: flex;
         align-items: center;
         gap: 16px;
         margin-bottom: 22px;
         padding-bottom: 20px;
-        border-bottom: 1px solid var(--ny-border);
+        border-bottom: 1px solid var(--masco-border);
     }
 
     .ny-detail-avatar {
         width: 64px; height: 64px;
         border-radius: 16px;
-        background: linear-gradient(135deg, var(--ny-amber), var(--ny-amber-dark));
+        background: linear-gradient(135deg, var(--masco-navy-mid), var(--masco-navy-dark));
         color: #fff;
         display: flex; align-items: center; justify-content: center;
         font-size: 24px;
@@ -597,7 +665,7 @@
     .ny-detail-id {
         font-family: var(--ff-mono);
         font-size: 11px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -605,22 +673,23 @@
     .ny-detail-name {
         font-family: var(--ff-head);
         font-size: 20px;
-        color: var(--ny-ink);
+        color: var(--masco-ink);
         margin: 2px 0 0;
     }
 
+    /* Amount hero — gold-tinted, mirrors grand total in image */
     .ny-amount-hero {
         text-align: center;
         padding: 18px;
-        background: var(--ny-amber-pale);
-        border-radius: var(--ny-radius);
-        border: 1px solid var(--ny-amber-rim);
+        background: var(--masco-gold-bg);
+        border-radius: var(--masco-radius);
+        border: 1px solid var(--masco-gold-rim);
         margin-bottom: 20px;
     }
 
     .ny-amount-hero .label {
         font-size: 11px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         font-weight: 600;
@@ -629,8 +698,8 @@
     .ny-amount-hero .value {
         font-family: var(--ff-mono);
         font-size: 30px;
-        color: var(--ny-amber-dark);
-        font-weight: 500;
+        color: var(--masco-gold-dark);
+        font-weight: 600;
     }
 
     .ny-detail-grid {
@@ -641,14 +710,14 @@
     }
 
     .ny-detail-cell {
-        background: var(--ny-bg);
-        border-radius: var(--ny-radius);
+        background: var(--masco-bg-alt);
+        border-radius: var(--masco-radius);
         padding: 14px;
     }
 
     .ny-detail-cell .dlabel {
         font-size: 10px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         font-weight: 600;
@@ -657,20 +726,21 @@
 
     .ny-detail-cell .dvalue {
         font-size: 14px;
-        color: var(--ny-ink);
+        color: var(--masco-ink);
         font-weight: 500;
     }
 
+    /* Description box — left border in navy */
     .ny-desc-box {
-        background: var(--ny-bg);
-        border-radius: var(--ny-radius);
+        background: var(--masco-bg-alt);
+        border-radius: var(--masco-radius);
         padding: 14px;
-        border-left: 3px solid var(--ny-amber);
+        border-left: 3px solid var(--masco-navy);
     }
 
     .ny-desc-box .dlabel {
         font-size: 10px;
-        color: var(--ny-muted);
+        color: var(--masco-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         font-weight: 600;
@@ -679,11 +749,13 @@
 
     .ny-desc-box .dvalue {
         font-size: 13px;
-        color: var(--ny-slate);
+        color: var(--masco-slate);
         line-height: 1.6;
     }
 
-    /* Form */
+    /* ══════════════════════════════
+       FORM
+    ══════════════════════════════ */
     .ny-form-group { margin-bottom: 18px; }
 
     .ny-form-label {
@@ -691,31 +763,33 @@
         margin-bottom: 6px;
         font-size: 13px;
         font-weight: 600;
-        color: var(--ny-slate);
+        color: var(--masco-slate);
     }
 
     .ny-form-control {
         width: 100%;
         padding: 11px 14px;
-        border: 1.5px solid var(--ny-border);
-        border-radius: var(--ny-radius);
+        border: 1.5px solid var(--masco-border);
+        border-radius: var(--masco-radius);
         font-family: var(--ff-body);
         font-size: 13px;
-        color: var(--ny-ink);
-        background: var(--ny-bg);
+        color: var(--masco-ink);
+        background: var(--masco-bg-alt);
         transition: all 0.2s;
     }
 
     .ny-form-control:focus {
         outline: none;
-        border-color: var(--ny-amber);
-        box-shadow: 0 0 0 3px var(--ny-amber-rim);
+        border-color: var(--masco-navy);
+        box-shadow: 0 0 0 3px var(--masco-navy-rim);
         background: #fff;
     }
 
     textarea.ny-form-control { resize: vertical; min-height: 90px; }
 
-    /* Responsive */
+    /* ══════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════ */
     @media (max-width: 900px) {
         .ny-page { padding: 20px 16px 40px; }
         .ny-detail-grid { grid-template-columns: 1fr; }
@@ -874,7 +948,7 @@
                     data-uinit="{{ nyongeza.recorded_by.get_full_name|default:nyongeza.recorded_by.username|slice:':1'|upper }}"
                     onclick="handleRowClick(event, this)">
 
-                    <td style="color:var(--ny-muted); font-family:var(--ff-mono); font-size:12px;">
+                    <td style="color:var(--masco-muted); font-family:var(--ff-mono); font-size:12px;">
                         {{ forloop.counter }}
                     </td>
 
@@ -898,7 +972,7 @@
                             <i class="fas fa-coins"></i> Cash
                         </span>
                         {% else %}
-                        <span style="color:var(--ny-muted);">—</span>
+                        <span style="color:var(--masco-muted);">—</span>
                         {% endif %}
                     </td>
 
@@ -1002,7 +1076,7 @@
 
                 <div class="ny-form-group">
                     <label class="ny-form-label">
-                        Description <span style="color:var(--ny-red)">*</span>
+                        Description <span style="color:var(--masco-red)">*</span>
                     </label>
                     <textarea name="description" class="ny-form-control"
                               placeholder="Enter allowance or bonus description…"
@@ -1011,19 +1085,17 @@
 
                 <div class="ny-form-group">
                     <label class="ny-form-label">
-                        Amount (Tsh) <span style="color:var(--ny-red)">*</span>
+                        Amount (Tsh) <span style="color:var(--masco-red)">*</span>
                     </label>
-                    <!-- Display input (formatted with commas) -->
                     <input type="text" id="amountDisplay" class="ny-form-control"
                         placeholder="0" autocomplete="off"
                         oninput="formatAmountInput(this)">
-                    <!-- Hidden input carries the raw numeric value for form submission -->
                     <input type="hidden" name="amount" id="amountHidden">
                 </div>
 
                 <div class="ny-form-group">
                     <label class="ny-form-label">
-                        Deposit Method <span style="color:var(--ny-red)">*</span>
+                        Deposit Method <span style="color:var(--masco-red)">*</span>
                     </label>
                     <select name="deposit_method" class="ny-form-control" required>
                         <option value="">— Select method —</option>
@@ -1111,21 +1183,15 @@ function renderTable() {
     const end      = start + PER_PAGE;
     const pageRows = filteredRows.slice(start, end);
 
-    /* Hide all data rows first */
     ALL_ROWS.forEach(r => r.style.display = 'none');
-
-    /* Show only current page rows */
     pageRows.forEach(r => r.style.display = '');
 
- 
     const emptyRow = document.querySelector('tr.ny-row-empty');
     if (emptyRow) emptyRow.style.display = 'none';
 
-    /* Dynamic no-results row — shown when filters return nothing but records exist */
     let noResultsRow = document.getElementById('nyNoResults');
 
     if (filteredRows.length === 0 && ALL_ROWS.length > 0) {
-        /* Create once, reuse */
         if (!noResultsRow) {
             noResultsRow = document.createElement('tr');
             noResultsRow.id = 'nyNoResults';
@@ -1144,7 +1210,6 @@ function renderTable() {
         if (noResultsRow) noResultsRow.style.display = 'none';
     }
 
-    /* Pagination info */
     document.getElementById('pgStart').textContent = filteredRows.length ? start + 1 : 0;
     document.getElementById('pgEnd').textContent   = Math.min(end, filteredRows.length);
     document.getElementById('pgTotal').textContent = filteredRows.length;
@@ -1205,7 +1270,7 @@ function overlayClick(e, id) {
 
 function openAddModal() {
     document.getElementById('addForm').reset();
-    document.getElementById('amountDisplay').value = '';  // ← add this
+    document.getElementById('amountDisplay').value = '';
     openModal('addOverlay');
 }
 
@@ -1215,12 +1280,6 @@ function handleRowClick(event, row) {
 
 function openDetailModal(row) {
     const d = row.dataset;
-
-    /*
-     * data-amount-fmt  → dataset.amountFmt   (browser camelCase conversion)
-     * data-date-fmt    → dataset.dateFmt
-     * These are accessed correctly via camelCase — no fallback tricks needed.
-     */
     const amountFmt = d.amountFmt || d.amount;
     const dateFmt   = d.dateFmt   || d.date;
 
@@ -1228,7 +1287,7 @@ function openDetailModal(row) {
         ? `<span class="ny-method-pill bank"><i class="fas fa-university"></i> Bank</span>`
         : d.method === 'cash'
         ? `<span class="ny-method-pill cash"><i class="fas fa-coins"></i> Cash</span>`
-        : '<span style="color:var(--ny-muted)">—</span>';
+        : '<span style="color:var(--masco-muted)">—</span>';
 
     document.getElementById('detailBody').innerHTML = `
         <div class="ny-detail-hero">
@@ -1264,8 +1323,8 @@ function openDetailModal(row) {
                         ${d.uinit}
                     </div>
                     <div>
-                        <div style="font-weight:600; color:var(--ny-ink)">${d.uname}</div>
-                        <div style="font-size:11px; color:var(--ny-muted); font-family:var(--ff-mono)">
+                        <div style="font-weight:600; color:var(--masco-ink)">${d.uname}</div>
+                        <div style="font-size:11px; color:var(--masco-muted); font-family:var(--ff-mono)">
                             ID: ${d.uid}
                         </div>
                     </div>
@@ -1292,8 +1351,8 @@ function confirmDelete(id) {
         text: 'This action cannot be undone.',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#64748b',
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6b7a99',
         confirmButtonText: 'Yes, delete it'
     }).then(result => {
         if (!result.isConfirmed) return;
@@ -1315,7 +1374,6 @@ function confirmDelete(id) {
                     row.style.transform  = 'translateX(20px)';
                     setTimeout(() => {
                         row.remove();
-                        /* Sync ALL_ROWS array */
                         const idx = ALL_ROWS.findIndex(r => r.dataset.id == id);
                         if (idx > -1) ALL_ROWS.splice(idx, 1);
                         applyFilters();
@@ -1367,19 +1425,15 @@ document.getElementById('addForm').addEventListener('submit', function(e) {
 });
 
 
-
 function formatAmountInput(el) {
-    // Strip everything except digits and one decimal point
     let raw = el.value.replace(/[^0-9.]/g, '');
-    // Allow only one decimal point
     const parts = raw.split('.');
     if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
-    // Format integer part with commas
     const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     el.value = parts.length === 2 ? intPart + '.' + parts[1] : intPart;
-    // Sync hidden field with raw numeric value
     document.getElementById('amountHidden').value = raw;
 }
+
 
 /* ════════════════════════════════════════
    KEYBOARD + INIT

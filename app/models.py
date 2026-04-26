@@ -85,7 +85,7 @@ class OfficeTransaction(models.Model):
     office_from        = models.ForeignKey(Office, on_delete=models.CASCADE, related_name='transactions')
     office_to          = models.ForeignKey(Office, on_delete=models.CASCADE, related_name='received_transactions')
     transaction_type   = models.CharField(max_length=100)
-    transaction_method = models.CharField(max_length=100, null=True, blank=True)  # cash or bank
+    transaction_method = models.CharField(max_length=100, null=True, blank=True)
     amount             = models.DecimalField(max_digits=50, decimal_places=2)
     transaction_date   = models.DateField(auto_now_add=True)
     attachment         = models.FileField(upload_to='office_transaction_attachments/', blank=True, null=True)

@@ -218,14 +218,14 @@
                     <tr class="row-opening">
                         <td>Opening Balance</td>
                         <td class="col-amt {% if opening_balance < 0 %}neg{% endif %}">
-                            <!-- {{ opening_balance|floatformat:2|intcomma }} -->
-                              {{ total_nyongeza|floatformat:2|intcomma }}
+                            {{ opening_balance|floatformat:2|intcomma }}
                         </td>
                     </tr>
 
-                    <!-- Row 2: Posted Amount -->
+                    <!-- Row 2: Posted Amount (non-Hazina repayments) -->
                     <tr>
-                        <td>Posted Amount</td>
+                        <!-- <td>Posted Amount</td> -->
+                        <td>External Sources</td>
                         <td class="col-amt {% if total_repayments == 0 %}zero{% endif %}">
                             {{ total_repayments|floatformat:2|intcomma }}
                         </td>
@@ -234,20 +234,28 @@
                     <!-- Row 3: Hazina -->
                     <tr>
                         <td>Hazina</td>
-                        <td class="col-amt {% if total_nyongeza == 0 %}zero{% endif %}">
-                            0
+                        <td class="col-amt {% if total_hazina == 0 %}zero{% endif %}">
+                            {{ total_hazina|floatformat:2|intcomma }}
                         </td>
                     </tr>
 
-                    <!-- Row 4: External Sources -->
-                    <tr>
+                    <!-- Row 4: Nyongeza -->
+                    <!-- <tr>
+                        <td>Nyongeza</td>
+                        <td class="col-amt {% if total_nyongeza == 0 %}zero{% endif %}">
+                            {{ total_nyongeza|floatformat:2|intcomma }}
+                        </td>
+                    </tr> -->
+
+                    <!-- Row 5: External Sources (HQ transfers) -->
+                    <!-- <tr>
                         <td>External Sources</td>
                         <td class="col-amt {% if total_external == 0 %}zero{% endif %}">
                             {{ total_external|floatformat:2|intcomma }}
                         </td>
-                    </tr>
+                    </tr> -->
 
-                    <!-- Row 5: Income Subtotal -->
+                    <!-- Row 6: Income Subtotal -->
                     <tr class="row-subtotal">
                         <td></td>
                         <td class="col-amt {% if income_subtotal < 0 %}neg{% endif %}">
@@ -255,15 +263,23 @@
                         </td>
                     </tr>
 
-                    <!-- Row 6: Money to Branch -->
+                    <!-- Row 7: Loans Disbursed -->
                     <tr>
-                        <td>Money to Branch</td>
-                        <td class="col-amt {% if total_money_to_branch == 0 %}zero{% endif %}">
-                            {{ total_money_to_branch|floatformat:2|intcomma }}
+                        <td>Loans Disbursed (Fomu)</td>
+                        <td class="col-amt {% if total_loans_disbursed == 0 %}zero{% endif %}">
+                            {{ total_loans_disbursed|floatformat:2|intcomma }}
                         </td>
                     </tr>
 
-                    <!-- Row 7: Expenses -->
+                    <!-- Row 8: Money to Branch / HQ Transfers Out -->
+                    <tr>
+                        <td>Money to Branch</td>
+                        <td class="col-amt {% if total_hq_transfers_out == 0 %}zero{% endif %}">
+                            {{ total_hq_transfers_out|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 9: Expenses + Salaries -->
                     <tr>
                         <td>Expenses</td>
                         <td class="col-amt {% if total_expenses == 0 %}zero{% endif %}">
@@ -271,7 +287,15 @@
                         </td>
                     </tr>
 
-                    <!-- Row 8: Outflow Subtotal -->
+                    <!-- Row 10: Bank Charges -->
+                    <tr>
+                        <td>Bank Charges</td>
+                        <td class="col-amt {% if total_bank_charges == 0 %}zero{% endif %}">
+                            {{ total_bank_charges|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+
+                    <!-- Row 11: Outflow Subtotal -->
                     <tr class="row-subtotal">
                         <td></td>
                         <td class="col-amt {% if outflow_subtotal < 0 %}neg{% endif %}">
@@ -279,7 +303,7 @@
                         </td>
                     </tr>
 
-                    <!-- Row 9: Closing Balance -->
+                    <!-- Row 12: Closing Balance -->
                     <tr class="row-closing">
                         <td>Closing Balance</td>
                         <td class="col-amt {% if closing_balance < 0 %}neg{% endif %}">

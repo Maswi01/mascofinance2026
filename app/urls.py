@@ -274,4 +274,8 @@ urlpatterns = [
     path('clients/import-excel/', views.client_import_excel, name='client_import_excel'),
     path('clients/import-excel/sample/', views.client_excel_sample, name='client_excel_sample'),
     path('clients/export-excel/', views.client_export_excel, name='client_export_excel'),
+    
+    
+    path('bank-charges/filter/', views.bank_charges_filter, name='bank_charges_filter'),
+    path('bank-charges/report/', views.bank_charges_report, name='bank_charges_report'),
 ]

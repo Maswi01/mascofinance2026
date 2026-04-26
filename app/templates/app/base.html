@@ -617,14 +617,7 @@
         <!-- Right controls -->
         <div class="header-right">
 
-            <!-- ================================================================
-                 BRANCH / OFFICE DROPDOWN
-                 Rules:
-                 - Superuser OR staff assigned to HQ: dropdown with all their offices.
-                   Selecting HQ shows all-branches data (HQ replaces "All Branches").
-                 - Regular staff with multiple offices: dropdown, no "All Branches".
-                 - Regular staff with exactly one office: static label, no dropdown.
-                 ================================================================ -->
+            
             <div class="hdr-dropdown" id="branchDropdownWrap">
                 {% if user_allowed_offices|length > 1 %}
                     <button class="hdr-btn" id="branchBtn">
@@ -725,7 +718,7 @@
                     <a href="{% url 'expense_category_list' %}" class="submenu-item"><i class="fas fa-building"></i> Office Expenses Registration</a>
                     <a href="{% url 'staff_salary_list' %}" class="submenu-item"><i class="fas fa-money-bill-wave"></i> Staff Salary</a>
                     <a href="{% url 'salary_advance_list' %}" class="submenu-item"><i class="fas fa-money-bill-wave"></i> Staff Specific Deduction</a>
-                    <a href="{% url 'nyongeza' %}" class="submenu-item"><i class="fas fa-percentage"></i> Nyongeza</a>
+                    <a href="{% url 'nyongeza' %}" class="submenu-item"><i class="fas fa-percentage"></i> Capital</a>
                     <a href="{% url 'transfer_staff' %}" class="submenu-item"><i class="fas fa-exchange-alt"></i> Transfer Staff</a>
                     <a href="{% url 'manage_admin_branches' %}" class="submenu-item"><i class="fas fa-tags"></i> Manage Staff Branch</a>
                     <a href="{% url 'block_user' %}" class="submenu-item"><i class="fas fa-ban"></i> Block User</a>
@@ -838,6 +831,7 @@
                     {% if can_view_reports_expenses%}
                     <a href="{% url 'expenses_filter' %}" class="submenu-item"><i class="fas fa-receipt"></i> Expenses Statement</a>
                     {% endif %}
+                    <a href="{% url 'bank_charges_filter' %}" class="submenu-item"><i class="fas fa-receipt"></i> Bank Charges Statement</a>
                     {% if can_view_financial_statement %}
                     <a href="{% url 'financial_statement_filter' %}" class="submenu-item"><i class="fas fa-balance-scale"></i> Financial Statement</a>
                     {% endif %}
