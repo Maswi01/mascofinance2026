@@ -1,0 +1,1400 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap');
+
+    :root {
+        --ny-amber:      #f59e0b;
+        --ny-amber-dark: #d97706;
+        --ny-amber-pale: rgba(245, 158, 11, 0.08);
+        --ny-amber-rim:  rgba(245, 158, 11, 0.18);
+        --ny-blue:       #2d6ae3;
+        --ny-blue-pale:  rgba(45, 106, 227, 0.08);
+        --ny-green:      #10b981;
+        --ny-green-pale: rgba(16, 185, 129, 0.08);
+        --ny-red:        #ef4444;
+        --ny-red-pale:   rgba(239, 68, 68, 0.08);
+        --ny-ink:        #1a1f2e;
+        --ny-slate:      #334155;
+        --ny-muted:      #64748b;
+        --ny-border:     #e2e8f0;
+        --ny-surface:    #ffffff;
+        --ny-bg:         #f1f5f9;
+        --ny-radius:     10px;
+        --ny-radius-lg:  14px;
+        --ny-shadow:     0 2px 12px rgba(0,0,0,0.07);
+        --ny-shadow-lg:  0 8px 32px rgba(0,0,0,0.11);
+        --ff-body:       'DM Sans', sans-serif;
+        --ff-head:       'Playfair Display', serif;
+        --ff-mono:       'DM Mono', monospace;
+    }
+
+    .ny-page {
+        font-family: var(--ff-body);
+        padding: 32px 28px 60px;
+        margin-top: 140px;
+        max-width: auto;
+        animation: ny-rise 0.5s ease both;
+        
+        align-items: center;
+    }
+
+    @keyframes ny-rise {
+        from { opacity: 0; transform: translateY(18px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Page Header */
+    .ny-page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .ny-page-title {
+        font-family: var(--ff-head);
+        font-size: 28px;
+        color: var(--ny-ink);
+        line-height: 1.2;
+        margin: 0;
+    }
+
+    .ny-page-title span { color: var(--ny-amber); }
+
+    .ny-page-sub {
+        font-size: 13px;
+        color: var(--ny-muted);
+        margin-top: 4px;
+        font-weight: 400;
+    }
+
+    /* Office Banner */
+    .ny-office-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 18px;
+        border-radius: var(--ny-radius);
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 24px;
+        border: 1px solid;
+    }
+
+    .ny-office-banner.filtered {
+        background: var(--ny-blue-pale);
+        border-color: rgba(45,106,227,0.2);
+        color: var(--ny-blue);
+    }
+
+    .ny-office-banner.all {
+        background: var(--ny-green-pale);
+        border-color: rgba(16,185,129,0.2);
+        color: var(--ny-green);
+    }
+
+    .ny-office-banner a {
+        margin-left: auto;
+        color: var(--ny-muted);
+        text-decoration: none;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: color 0.2s;
+    }
+
+    .ny-office-banner a:hover { color: var(--ny-red); }
+
+    /* Summary Cards */
+    .ny-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .ny-card {
+        background: var(--ny-surface);
+        border-radius: var(--ny-radius-lg);
+        padding: 20px 22px;
+        box-shadow: var(--ny-shadow);
+        border: 1px solid var(--ny-border);
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.22s, box-shadow 0.22s;
+    }
+
+    .ny-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--ny-shadow-lg);
+    }
+
+    .ny-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 3px;
+        border-radius: 0 0 var(--ny-radius-lg) var(--ny-radius-lg);
+    }
+
+    .ny-card.total::after { background: var(--ny-green); }
+    .ny-card.bank::after  { background: var(--ny-blue); }
+    .ny-card.cash::after  { background: var(--ny-amber); }
+    .ny-card.avg::after   { background: #8b5cf6; }
+
+    .ny-card-icon {
+        width: 42px; height: 42px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px;
+        color: #fff;
+        margin-bottom: 14px;
+    }
+
+    .ny-card.total .ny-card-icon { background: var(--ny-green); }
+    .ny-card.bank  .ny-card-icon { background: var(--ny-blue); }
+    .ny-card.cash  .ny-card-icon { background: var(--ny-amber); }
+    .ny-card.avg   .ny-card-icon { background: #8b5cf6; }
+
+    .ny-card-value {
+        font-family: var(--ff-mono);
+        font-size: 22px;
+        font-weight: 500;
+        color: var(--ny-ink);
+        line-height: 1.1;
+        margin-bottom: 4px;
+    }
+
+    .ny-card-label {
+        font-size: 12px;
+        color: var(--ny-muted);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .ny-card-sub {
+        font-size: 11px;
+        color: var(--ny-muted);
+        margin-top: 6px;
+    }
+
+    /* Toolbar */
+    .ny-toolbar {
+        background: var(--ny-surface);
+        border-radius: var(--ny-radius-lg);
+        padding: 16px 20px;
+        margin-bottom: 18px;
+        box-shadow: var(--ny-shadow);
+        border: 1px solid var(--ny-border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .ny-search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 260px;
+    }
+
+    .ny-search-wrap i {
+        position: absolute;
+        left: 13px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--ny-muted);
+        font-size: 13px;
+        pointer-events: none;
+    }
+
+    .ny-search {
+        width: 100%;
+        padding: 10px 16px 10px 38px;
+        border: 1.5px solid var(--ny-border);
+        border-radius: var(--ny-radius);
+        font-family: var(--ff-body);
+        font-size: 13px;
+        color: var(--ny-ink);
+        background: var(--ny-bg);
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .ny-search:focus {
+        outline: none;
+        border-color: var(--ny-amber);
+        box-shadow: 0 0 0 3px var(--ny-amber-rim);
+        background: #fff;
+    }
+
+    .ny-select {
+        padding: 10px 14px;
+        border: 1.5px solid var(--ny-border);
+        border-radius: var(--ny-radius);
+        font-family: var(--ff-body);
+        font-size: 13px;
+        color: var(--ny-slate);
+        background: var(--ny-bg);
+        cursor: pointer;
+        min-width: 150px;
+        transition: border-color 0.2s;
+    }
+
+    .ny-select:focus {
+        outline: none;
+        border-color: var(--ny-amber);
+        box-shadow: 0 0 0 3px var(--ny-amber-rim);
+    }
+
+    .ny-toolbar-right {
+        display: flex;
+        gap: 10px;
+        margin-left: auto;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .ny-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 18px;
+        border-radius: var(--ny-radius);
+        font-family: var(--ff-body);
+        font-size: 13px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .ny-btn-ghost {
+        background: var(--ny-bg);
+        color: var(--ny-slate);
+        border: 1.5px solid var(--ny-border);
+    }
+
+    .ny-btn-ghost:hover {
+        background: #fff;
+        border-color: var(--ny-amber);
+        color: var(--ny-amber-dark);
+        transform: translateY(-1px);
+    }
+
+    .ny-btn-amber {
+        background: var(--ny-amber);
+        color: #fff;
+    }
+
+    .ny-btn-amber:hover {
+        background: var(--ny-amber-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(245,158,11,0.3);
+    }
+
+    /* Table */
+    .ny-table-wrap {
+        background: var(--ny-surface);
+        border-radius: var(--ny-radius-lg);
+        overflow: hidden;
+        box-shadow: var(--ny-shadow);
+        border: 1px solid var(--ny-border);
+        margin-bottom: 18px;
+    }
+
+    .ny-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .ny-table thead { background: var(--ny-ink); }
+
+    .ny-table thead th {
+        padding: 14px 18px;
+        text-align: left;
+        color: rgba(255,255,255,0.75);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-family: var(--ff-body);
+        white-space: nowrap;
+    }
+
+    .ny-table thead th:first-child { padding-left: 22px; }
+
+    .ny-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.15s;
+        cursor: pointer;
+    }
+
+    .ny-table tbody tr:last-child { border-bottom: none; }
+    .ny-table tbody tr:hover { background: var(--ny-amber-pale); }
+
+    .ny-table td {
+        padding: 14px 18px;
+        font-size: 13px;
+        color: var(--ny-slate);
+        vertical-align: middle;
+    }
+
+    .ny-table td:first-child { padding-left: 22px; }
+
+    .ny-desc {
+        max-width: 260px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--ny-ink);
+        font-weight: 500;
+    }
+
+    .ny-amount {
+        font-family: var(--ff-mono);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--ny-amber-dark);
+    }
+
+    .ny-method-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    .ny-method-pill.bank { background: var(--ny-blue-pale); color: var(--ny-blue); }
+    .ny-method-pill.cash { background: var(--ny-amber-pale); color: var(--ny-amber-dark); }
+
+    .ny-date-chip {
+        font-family: var(--ff-mono);
+        font-size: 12px;
+        color: var(--ny-muted);
+        white-space: nowrap;
+    }
+
+    .ny-user-cell { display: flex; align-items: center; gap: 10px; }
+
+    .ny-avatar {
+        width: 34px; height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--ny-amber), var(--ny-amber-dark));
+        color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .ny-user-name { font-weight: 600; color: var(--ny-ink); font-size: 13px; }
+    .ny-user-id   { font-size: 11px; color: var(--ny-muted); font-family: var(--ff-mono); }
+
+    .ny-action-cell { display: flex; gap: 6px; }
+
+    .ny-icon-btn {
+        width: 32px; height: 32px;
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px;
+        background: var(--ny-bg);
+        border: 1px solid var(--ny-border);
+        cursor: pointer;
+        color: var(--ny-muted);
+        transition: all 0.18s;
+    }
+
+    .ny-icon-btn:hover { transform: translateY(-2px); }
+    .ny-icon-btn.view:hover { color: var(--ny-blue); border-color: var(--ny-blue); background: var(--ny-blue-pale); }
+    .ny-icon-btn.del:hover  { color: var(--ny-red);  border-color: var(--ny-red);  background: var(--ny-red-pale); }
+
+    /* Empty states */
+    .ny-empty-cell {
+        text-align: center;
+        padding: 56px 20px;
+        color: var(--ny-muted);
+        font-size: 14px;
+    }
+
+    .ny-empty-cell i {
+        font-size: 40px;
+        display: block;
+        margin-bottom: 14px;
+        opacity: 0.25;
+    }
+
+    .ny-empty-cell p  { margin: 0; }
+    .ny-empty-cell span { font-size: 12px; display: block; margin-top: 4px; opacity: 0.7; }
+
+    /* Pagination */
+    .ny-pagination {
+        background: var(--ny-surface);
+        border-radius: var(--ny-radius-lg);
+        padding: 14px 20px;
+        box-shadow: var(--ny-shadow);
+        border: 1px solid var(--ny-border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .ny-pg-btn {
+        width: 34px; height: 34px;
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--ny-bg);
+        border: 1px solid var(--ny-border);
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--ny-slate);
+        font-family: var(--ff-body);
+        font-weight: 500;
+        transition: all 0.18s;
+    }
+
+    .ny-pg-btn:hover:not(:disabled) {
+        background: var(--ny-amber);
+        color: #fff;
+        border-color: var(--ny-amber);
+    }
+
+    .ny-pg-btn.active {
+        background: var(--ny-amber);
+        color: #fff;
+        border-color: var(--ny-amber);
+    }
+
+    .ny-pg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .ny-pg-info {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--ny-muted);
+        font-family: var(--ff-mono);
+    }
+
+    /* Modals */
+    .ny-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(10,14,26,0.55);
+        backdrop-filter: blur(5px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        padding: 20px;
+    }
+
+    .ny-overlay.open { display: flex; }
+
+    .ny-modal {
+        background: var(--ny-surface);
+        border-radius: var(--ny-radius-lg);
+        box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+        width: 480px;
+        max-width: 95vw;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        animation: ny-pop 0.28s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+        overflow: hidden;
+    }
+
+    @keyframes ny-pop {
+        from { transform: scale(0.88); opacity: 0; }
+        to   { transform: scale(1);    opacity: 1; }
+    }
+
+    .ny-modal-head {
+        padding: 20px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--ny-border);
+        flex-shrink: 0;
+    }
+
+    .ny-modal-head.amber {
+        background: linear-gradient(135deg, var(--ny-amber), var(--ny-amber-dark));
+    }
+
+    .ny-modal-head.amber .ny-modal-title,
+    .ny-modal-head.amber .ny-close { color: #fff; }
+
+    .ny-modal-title {
+        font-family: var(--ff-head);
+        font-size: 18px;
+        color: var(--ny-ink);
+    }
+
+    .ny-close {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: var(--ny-ink);
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+
+    .ny-close:hover { background: rgba(255,255,255,0.35); transform: rotate(90deg); }
+
+    .ny-modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 22px;
+    }
+
+    .ny-modal-foot {
+        padding: 16px 22px;
+        background: var(--ny-bg);
+        border-top: 1px solid var(--ny-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    /* Detail modal content */
+    .ny-detail-hero {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 22px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--ny-border);
+    }
+
+    .ny-detail-avatar {
+        width: 64px; height: 64px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, var(--ny-amber), var(--ny-amber-dark));
+        color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+
+    .ny-detail-id {
+        font-family: var(--ff-mono);
+        font-size: 11px;
+        color: var(--ny-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .ny-detail-name {
+        font-family: var(--ff-head);
+        font-size: 20px;
+        color: var(--ny-ink);
+        margin: 2px 0 0;
+    }
+
+    .ny-amount-hero {
+        text-align: center;
+        padding: 18px;
+        background: var(--ny-amber-pale);
+        border-radius: var(--ny-radius);
+        border: 1px solid var(--ny-amber-rim);
+        margin-bottom: 20px;
+    }
+
+    .ny-amount-hero .label {
+        font-size: 11px;
+        color: var(--ny-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    .ny-amount-hero .value {
+        font-family: var(--ff-mono);
+        font-size: 30px;
+        color: var(--ny-amber-dark);
+        font-weight: 500;
+    }
+
+    .ny-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .ny-detail-cell {
+        background: var(--ny-bg);
+        border-radius: var(--ny-radius);
+        padding: 14px;
+    }
+
+    .ny-detail-cell .dlabel {
+        font-size: 10px;
+        color: var(--ny-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .ny-detail-cell .dvalue {
+        font-size: 14px;
+        color: var(--ny-ink);
+        font-weight: 500;
+    }
+
+    .ny-desc-box {
+        background: var(--ny-bg);
+        border-radius: var(--ny-radius);
+        padding: 14px;
+        border-left: 3px solid var(--ny-amber);
+    }
+
+    .ny-desc-box .dlabel {
+        font-size: 10px;
+        color: var(--ny-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .ny-desc-box .dvalue {
+        font-size: 13px;
+        color: var(--ny-slate);
+        line-height: 1.6;
+    }
+
+    /* Form */
+    .ny-form-group { margin-bottom: 18px; }
+
+    .ny-form-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ny-slate);
+    }
+
+    .ny-form-control {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1.5px solid var(--ny-border);
+        border-radius: var(--ny-radius);
+        font-family: var(--ff-body);
+        font-size: 13px;
+        color: var(--ny-ink);
+        background: var(--ny-bg);
+        transition: all 0.2s;
+    }
+
+    .ny-form-control:focus {
+        outline: none;
+        border-color: var(--ny-amber);
+        box-shadow: 0 0 0 3px var(--ny-amber-rim);
+        background: #fff;
+    }
+
+    textarea.ny-form-control { resize: vertical; min-height: 90px; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+        .ny-page { padding: 20px 16px 40px; }
+        .ny-detail-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+        .ny-summary-grid { grid-template-columns: 1fr 1fr; }
+        .ny-toolbar { flex-direction: column; align-items: stretch; }
+        .ny-search-wrap { min-width: 100%; }
+        .ny-toolbar-right { margin-left: 0; }
+        .ny-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .ny-page-header { flex-direction: column; }
+    }
+
+    @media (max-width: 400px) {
+        .ny-summary-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+<!-- Server-side meta for JS stats calculation -->
+<div id="ny-meta"
+     data-total="{{ total_all }}"
+     data-count="{{ nyongeza_data|length }}"
+     style="display:none"></div>
+
+<div class="ny-page">
+
+    <!-- Page Header -->
+    <div class="ny-page-header">
+        <div>
+            <h1 class="ny-page-title">Nyongeza <span>Records</span></h1>
+            <div class="ny-page-sub">
+                Allowance &amp; bonus management ·
+                {% if selected_office %}{{ selected_office.name }}{% else %}All Branches{% endif %}
+                · {{ nyongeza_data|length }} record{{ nyongeza_data|length|pluralize }}
+            </div>
+        </div>
+        <button class="ny-btn ny-btn-amber" onclick="openAddModal()">
+            <i class="fas fa-plus"></i> Add Nyongeza
+        </button>
+    </div>
+
+    <!-- Office Banner -->
+    {% if selected_office %}
+    <div class="ny-office-banner filtered">
+        <i class="fas fa-building"></i>
+        Filtered by office: <strong>{{ selected_office.name }}</strong>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'nyongeza' %}">
+            <i class="fas fa-times-circle"></i> Clear filter
+        </a>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="ny-office-banner all">
+        <i class="fas fa-globe"></i>
+        Showing data for <strong>all branches</strong>
+    </div>
+    {% endif %}
+
+    <!-- Summary Cards -->
+    <div class="ny-summary-grid">
+
+        <div class="ny-card total">
+            <div class="ny-card-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="ny-card-value">{{ total_all|intcomma }}</div>
+            <div class="ny-card-label">Total Nyongeza</div>
+            <div class="ny-card-sub">{{ nyongeza_data|length }} entr{{ nyongeza_data|length|pluralize:"y,ies" }}</div>
+        </div>
+
+        <div class="ny-card bank">
+            <div class="ny-card-icon"><i class="fas fa-university"></i></div>
+            <div class="ny-card-value">{{ total_bank|intcomma }}</div>
+            <div class="ny-card-label">Bank Deposits</div>
+            <div class="ny-card-sub">Via bank transfer</div>
+        </div>
+
+        <div class="ny-card cash">
+            <div class="ny-card-icon"><i class="fas fa-coins"></i></div>
+            <div class="ny-card-value">{{ total_cash|intcomma }}</div>
+            <div class="ny-card-label">Cash Deposits</div>
+            <div class="ny-card-sub">Via cash payment</div>
+        </div>
+
+        <div class="ny-card avg">
+            <div class="ny-card-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="ny-card-value" id="js-avg">—</div>
+            <div class="ny-card-label">Average Amount</div>
+            <div class="ny-card-sub" id="js-users">— unique users</div>
+        </div>
+
+    </div>
+
+    <!-- Toolbar -->
+    <div class="ny-toolbar">
+        <div class="ny-search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" class="ny-search" id="nySearch"
+                   placeholder="Search description, amount, or user…"
+                   oninput="applyFilters()">
+        </div>
+
+        <select class="ny-select" id="nyDateFilter" onchange="applyFilters()">
+            <option value="">All Dates</option>
+            {% for d in dates %}
+            <option value="{{ d|date:'Y-m-d' }}">{{ d|date:'M d, Y' }}</option>
+            {% endfor %}
+        </select>
+
+        <select class="ny-select" id="nyMethodFilter" onchange="applyFilters()">
+            <option value="">All Methods</option>
+            <option value="bank">Bank</option>
+            <option value="cash">Cash</option>
+        </select>
+
+        <select class="ny-select" id="nyUserFilter" onchange="applyFilters()">
+            <option value="">All Users</option>
+            {% for u in users %}
+            <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+        </select>
+
+        <div class="ny-toolbar-right">
+            <button class="ny-btn ny-btn-ghost" onclick="exportCSV()">
+                <i class="fas fa-download"></i> Export CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="ny-table-wrap">
+        <table class="ny-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Description</th>
+                    <th>Amount (Tsh)</th>
+                    <th>Method</th>
+                    <th>Date</th>
+                    <th>Recorded By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="nyTableBody">
+                {% for nyongeza in nyongeza_data %}
+                <tr class="ny-row"
+                    data-id="{{ nyongeza.id }}"
+                    data-desc="{{ nyongeza.description|escapejs }}"
+                    data-amount="{{ nyongeza.amount }}"
+                    data-amount-fmt="{{ nyongeza.amount|intcomma }}"
+                    data-method="{{ nyongeza.deposit_method }}"
+                    data-date="{{ nyongeza.date|date:'Y-m-d' }}"
+                    data-date-fmt="{{ nyongeza.date|date:'M d, Y' }}"
+                    data-uid="{{ nyongeza.recorded_by.id }}"
+                    data-uname="{{ nyongeza.recorded_by.get_full_name|default:nyongeza.recorded_by.username|escapejs }}"
+                    data-uinit="{{ nyongeza.recorded_by.get_full_name|default:nyongeza.recorded_by.username|slice:':1'|upper }}"
+                    onclick="handleRowClick(event, this)">
+
+                    <td style="color:var(--ny-muted); font-family:var(--ff-mono); font-size:12px;">
+                        {{ forloop.counter }}
+                    </td>
+
+                    <td>
+                        <div class="ny-desc" title="{{ nyongeza.description }}">
+                            {{ nyongeza.description }}
+                        </div>
+                    </td>
+
+                    <td>
+                        <span class="ny-amount">{{ nyongeza.amount|intcomma }}</span>
+                    </td>
+
+                    <td>
+                        {% if nyongeza.deposit_method == 'bank' %}
+                        <span class="ny-method-pill bank">
+                            <i class="fas fa-university"></i> Bank
+                        </span>
+                        {% elif nyongeza.deposit_method == 'cash' %}
+                        <span class="ny-method-pill cash">
+                            <i class="fas fa-coins"></i> Cash
+                        </span>
+                        {% else %}
+                        <span style="color:var(--ny-muted);">—</span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        <span class="ny-date-chip">{{ nyongeza.date|date:'M d, Y' }}</span>
+                    </td>
+
+                    <td>
+                        <div class="ny-user-cell">
+                            <div class="ny-avatar">
+                                {{ nyongeza.recorded_by.get_full_name|default:nyongeza.recorded_by.username|slice:':1'|upper }}
+                            </div>
+                            <div>
+                                <div class="ny-user-name">
+                                    {{ nyongeza.recorded_by.get_full_name|default:nyongeza.recorded_by.username }}
+                                </div>
+                                <div class="ny-user-id">ID: {{ nyongeza.recorded_by.id }}</div>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td>
+                        <div class="ny-action-cell">
+                            <button class="ny-icon-btn view" title="View"
+                                    onclick="event.stopPropagation(); openDetailModal(this.closest('tr'))">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="ny-icon-btn del" title="Delete"
+                                    onclick="event.stopPropagation(); confirmDelete({{ nyongeza.id }})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr class="ny-row-empty">
+                    <td colspan="7">
+                        <div class="ny-empty-cell">
+                            <i class="fas fa-inbox"></i>
+                            <p>No nyongeza records found.</p>
+                            <span>Records will appear here once added.</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="ny-pagination">
+        <button class="ny-pg-btn" id="pgPrev" onclick="changePage(-1)">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <div id="pgNumbers" style="display:flex; gap:6px;"></div>
+        <button class="ny-pg-btn" id="pgNext" onclick="changePage(1)">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <div class="ny-pg-info">
+            Showing <span id="pgStart">0</span>–<span id="pgEnd">0</span>
+            of <span id="pgTotal">0</span>
+        </div>
+    </div>
+
+</div><!-- /ny-page -->
+
+
+<!-- ══════════════════════════
+     DETAIL MODAL
+══════════════════════════ -->
+<div class="ny-overlay" id="detailOverlay" onclick="overlayClick(event,'detailOverlay')">
+    <div class="ny-modal">
+        <div class="ny-modal-head amber">
+            <span class="ny-modal-title">Nyongeza Detail</span>
+            <button class="ny-close" onclick="closeModal('detailOverlay')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="ny-modal-body" id="detailBody"></div>
+        <div class="ny-modal-foot">
+            <button class="ny-btn ny-btn-ghost" onclick="closeModal('detailOverlay')">Close</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════
+     ADD MODAL
+══════════════════════════ -->
+<div class="ny-overlay" id="addOverlay" onclick="overlayClick(event,'addOverlay')">
+    <div class="ny-modal">
+        <div class="ny-modal-head amber">
+            <span class="ny-modal-title">Add Nyongeza</span>
+            <button class="ny-close" onclick="closeModal('addOverlay')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="ny-modal-body">
+            <form id="addForm" method="post" action="{% url 'nyongeza_add' %}">
+                {% csrf_token %}
+
+                <div class="ny-form-group">
+                    <label class="ny-form-label">
+                        Description <span style="color:var(--ny-red)">*</span>
+                    </label>
+                    <textarea name="description" class="ny-form-control"
+                              placeholder="Enter allowance or bonus description…"
+                              required></textarea>
+                </div>
+
+                <div class="ny-form-group">
+                    <label class="ny-form-label">
+                        Amount (Tsh) <span style="color:var(--ny-red)">*</span>
+                    </label>
+                    <!-- Display input (formatted with commas) -->
+                    <input type="text" id="amountDisplay" class="ny-form-control"
+                        placeholder="0" autocomplete="off"
+                        oninput="formatAmountInput(this)">
+                    <!-- Hidden input carries the raw numeric value for form submission -->
+                    <input type="hidden" name="amount" id="amountHidden">
+                </div>
+
+                <div class="ny-form-group">
+                    <label class="ny-form-label">
+                        Deposit Method <span style="color:var(--ny-red)">*</span>
+                    </label>
+                    <select name="deposit_method" class="ny-form-control" required>
+                        <option value="">— Select method —</option>
+                        <option value="bank">🏦 Bank Transfer</option>
+                        <option value="cash">💵 Cash</option>
+                    </select>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                    <button type="button" class="ny-btn ny-btn-ghost"
+                            onclick="closeModal('addOverlay')">Cancel</button>
+                    <button type="submit" class="ny-btn ny-btn-amber">
+                        <i class="fas fa-save"></i> Save Nyongeza
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<script>
+/* ════════════════════════════════════════
+   SETUP — collect all data rows from DOM
+════════════════════════════════════════ */
+const ALL_ROWS = Array.from(document.querySelectorAll('tr.ny-row'));
+let filteredRows = [...ALL_ROWS];
+let currentPage  = 1;
+const PER_PAGE   = 12;
+
+/* ── Average & unique users ── */
+(function initStats() {
+    const meta  = document.getElementById('ny-meta');
+    const total = parseFloat(meta.dataset.total) || 0;
+    const count = parseInt(meta.dataset.count)   || 0;
+
+    if (!count) {
+        document.getElementById('js-avg').textContent   = '0.00';
+        document.getElementById('js-users').textContent = '0 unique users';
+        return;
+    }
+
+    const avg = total / count;
+    document.getElementById('js-avg').textContent =
+        avg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const uniqueUsers = new Set(ALL_ROWS.map(r => r.dataset.uid)).size;
+    document.getElementById('js-users').textContent =
+        uniqueUsers + ' unique user' + (uniqueUsers !== 1 ? 's' : '');
+})();
+
+
+/* ════════════════════════════════════════
+   FILTER + SEARCH
+════════════════════════════════════════ */
+function applyFilters() {
+    const q      = document.getElementById('nySearch').value.toLowerCase().trim();
+    const date   = document.getElementById('nyDateFilter').value;
+    const method = document.getElementById('nyMethodFilter').value;
+    const uid    = document.getElementById('nyUserFilter').value;
+
+    filteredRows = ALL_ROWS.filter(row => {
+        const desc   = (row.dataset.desc   || '').toLowerCase();
+        const amount = (row.dataset.amount || '').toString();
+        const uname  = (row.dataset.uname  || '').toLowerCase();
+
+        const matchQ      = !q      || desc.includes(q) || amount.includes(q) || uname.includes(q);
+        const matchDate   = !date   || row.dataset.date   === date;
+        const matchMethod = !method || row.dataset.method === method;
+        const matchUser   = !uid    || row.dataset.uid    === uid;
+
+        return matchQ && matchDate && matchMethod && matchUser;
+    });
+
+    currentPage = 1;
+    renderTable();
+}
+
+
+/* ════════════════════════════════════════
+   RENDER TABLE
+════════════════════════════════════════ */
+function renderTable() {
+    const start    = (currentPage - 1) * PER_PAGE;
+    const end      = start + PER_PAGE;
+    const pageRows = filteredRows.slice(start, end);
+
+    /* Hide all data rows first */
+    ALL_ROWS.forEach(r => r.style.display = 'none');
+
+    /* Show only current page rows */
+    pageRows.forEach(r => r.style.display = '');
+
+ 
+    const emptyRow = document.querySelector('tr.ny-row-empty');
+    if (emptyRow) emptyRow.style.display = 'none';
+
+    /* Dynamic no-results row — shown when filters return nothing but records exist */
+    let noResultsRow = document.getElementById('nyNoResults');
+
+    if (filteredRows.length === 0 && ALL_ROWS.length > 0) {
+        /* Create once, reuse */
+        if (!noResultsRow) {
+            noResultsRow = document.createElement('tr');
+            noResultsRow.id = 'nyNoResults';
+            noResultsRow.innerHTML = `
+                <td colspan="7">
+                    <div class="ny-empty-cell">
+                        <i class="fas fa-search"></i>
+                        <p>No records match your filters.</p>
+                        <span>Try adjusting your search or clearing the filters.</span>
+                    </div>
+                </td>`;
+            document.getElementById('nyTableBody').appendChild(noResultsRow);
+        }
+        noResultsRow.style.display = '';
+    } else {
+        if (noResultsRow) noResultsRow.style.display = 'none';
+    }
+
+    /* Pagination info */
+    document.getElementById('pgStart').textContent = filteredRows.length ? start + 1 : 0;
+    document.getElementById('pgEnd').textContent   = Math.min(end, filteredRows.length);
+    document.getElementById('pgTotal').textContent = filteredRows.length;
+
+    renderPagination();
+}
+
+
+/* ════════════════════════════════════════
+   PAGINATION
+════════════════════════════════════════ */
+function renderPagination() {
+    const total  = Math.ceil(filteredRows.length / PER_PAGE) || 1;
+    const pgNums = document.getElementById('pgNumbers');
+    pgNums.innerHTML = '';
+
+    let s = Math.max(1, currentPage - 2);
+    let e = Math.min(total, s + 4);
+    if (e - s < 4) s = Math.max(1, e - 4);
+
+    for (let i = s; i <= e; i++) {
+        const btn = document.createElement('button');
+        btn.className   = 'ny-pg-btn' + (i === currentPage ? ' active' : '');
+        btn.textContent = i;
+        btn.onclick     = () => goToPage(i);
+        pgNums.appendChild(btn);
+    }
+
+    document.getElementById('pgPrev').disabled = currentPage === 1;
+    document.getElementById('pgNext').disabled = currentPage === total;
+}
+
+function changePage(dir) {
+    const total = Math.ceil(filteredRows.length / PER_PAGE) || 1;
+    const next  = currentPage + dir;
+    if (next >= 1 && next <= total) { currentPage = next; renderTable(); }
+}
+
+function goToPage(p) { currentPage = p; renderTable(); }
+
+
+/* ════════════════════════════════════════
+   MODALS
+════════════════════════════════════════ */
+function openModal(id) {
+    document.getElementById(id).classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function overlayClick(e, id) {
+    if (e.target === document.getElementById(id)) closeModal(id);
+}
+
+function openAddModal() {
+    document.getElementById('addForm').reset();
+    document.getElementById('amountDisplay').value = '';  // ← add this
+    openModal('addOverlay');
+}
+
+function handleRowClick(event, row) {
+    if (!event.target.closest('.ny-action-cell')) openDetailModal(row);
+}
+
+function openDetailModal(row) {
+    const d = row.dataset;
+
+    /*
+     * data-amount-fmt  → dataset.amountFmt   (browser camelCase conversion)
+     * data-date-fmt    → dataset.dateFmt
+     * These are accessed correctly via camelCase — no fallback tricks needed.
+     */
+    const amountFmt = d.amountFmt || d.amount;
+    const dateFmt   = d.dateFmt   || d.date;
+
+    const methodHtml = d.method === 'bank'
+        ? `<span class="ny-method-pill bank"><i class="fas fa-university"></i> Bank</span>`
+        : d.method === 'cash'
+        ? `<span class="ny-method-pill cash"><i class="fas fa-coins"></i> Cash</span>`
+        : '<span style="color:var(--ny-muted)">—</span>';
+
+    document.getElementById('detailBody').innerHTML = `
+        <div class="ny-detail-hero">
+            <div class="ny-detail-avatar">
+                <i class="fas fa-receipt"></i>
+            </div>
+            <div>
+                <div class="ny-detail-id">Nyongeza #${d.id}</div>
+                <div class="ny-detail-name">${dateFmt}</div>
+            </div>
+        </div>
+
+        <div class="ny-amount-hero">
+            <div class="label">Amount</div>
+            <div class="value">Tsh ${amountFmt}</div>
+        </div>
+
+        <div class="ny-detail-grid">
+            <div class="ny-detail-cell">
+                <div class="dlabel">Date</div>
+                <div class="dvalue" style="font-family:var(--ff-mono)">${dateFmt}</div>
+            </div>
+            <div class="ny-detail-cell">
+                <div class="dlabel">Deposit Method</div>
+                <div class="dvalue">${methodHtml}</div>
+            </div>
+            <div class="ny-detail-cell" style="grid-column:1/-1">
+                <div class="dlabel">Recorded By</div>
+                <div class="dvalue"
+                     style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+                    <div class="ny-avatar"
+                         style="width:32px; height:32px; font-size:13px; border-radius:50%;">
+                        ${d.uinit}
+                    </div>
+                    <div>
+                        <div style="font-weight:600; color:var(--ny-ink)">${d.uname}</div>
+                        <div style="font-size:11px; color:var(--ny-muted); font-family:var(--ff-mono)">
+                            ID: ${d.uid}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ny-desc-box">
+            <div class="dlabel">Description</div>
+            <div class="dvalue">${d.desc}</div>
+        </div>
+    `;
+
+    openModal('detailOverlay');
+}
+
+
+/* ════════════════════════════════════════
+   DELETE
+════════════════════════════════════════ */
+function confirmDelete(id) {
+    Swal.fire({
+        title: 'Delete this record?',
+        text: 'This action cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, delete it'
+    }).then(result => {
+        if (!result.isConfirmed) return;
+
+        fetch(`/nyongeza/delete/${id}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const row = document.querySelector(`tr.ny-row[data-id="${id}"]`);
+                if (row) {
+                    row.style.transition = 'opacity 0.3s, transform 0.3s';
+                    row.style.opacity    = '0';
+                    row.style.transform  = 'translateX(20px)';
+                    setTimeout(() => {
+                        row.remove();
+                        /* Sync ALL_ROWS array */
+                        const idx = ALL_ROWS.findIndex(r => r.dataset.id == id);
+                        if (idx > -1) ALL_ROWS.splice(idx, 1);
+                        applyFilters();
+                    }, 300);
+                }
+                Swal.fire('Deleted!', 'Record removed successfully.', 'success');
+            } else {
+                Swal.fire('Error', data.message || 'Could not delete.', 'error');
+            }
+        })
+        .catch(() => Swal.fire('Error', 'Server error. Please try again.', 'error'));
+    });
+}
+
+
+/* ════════════════════════════════════════
+   EXPORT CSV
+════════════════════════════════════════ */
+function exportCSV() {
+    let csv = 'ID,Description,Amount,Deposit Method,Date,Recorded By\n';
+    filteredRows.forEach(row => {
+        const d = row.dataset;
+        csv += `${d.id},"${(d.desc || '').replace(/"/g, '""')}",${d.amount},${d.method},${d.date},"${d.uname}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `nyongeza_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+
+/* ════════════════════════════════════════
+   FORM VALIDATION
+════════════════════════════════════════ */
+document.getElementById('addForm').addEventListener('submit', function(e) {
+    const amount = parseFloat(document.getElementById('amountHidden').value);
+    const desc   = this.querySelector('[name=description]').value.trim();
+    const method = this.querySelector('[name=deposit_method]').value;
+
+    if (!desc || !(amount > 0) || !method) {
+        e.preventDefault();
+        Swal.fire('Validation Error',
+                  'Please fill all required fields with valid values.',
+                  'warning');
+    }
+});
+
+
+
+function formatAmountInput(el) {
+    // Strip everything except digits and one decimal point
+    let raw = el.value.replace(/[^0-9.]/g, '');
+    // Allow only one decimal point
+    const parts = raw.split('.');
+    if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
+    // Format integer part with commas
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    el.value = parts.length === 2 ? intPart + '.' + parts[1] : intPart;
+    // Sync hidden field with raw numeric value
+    document.getElementById('amountHidden').value = raw;
+}
+
+/* ════════════════════════════════════════
+   KEYBOARD + INIT
+════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeModal('detailOverlay');
+        closeModal('addOverlay');
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    filteredRows = [...ALL_ROWS];
+    renderTable();
+});
+</script>
+
+{% endblock %}

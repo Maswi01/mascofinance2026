@@ -1,0 +1,91 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 900px;
+        margin: 30px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .lp-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 28px 50px 40px;
+    }
+    .part-title {
+        font-size: 16px; font-weight: 700; color: #1a1a1a;
+        letter-spacing: 0.5px; padding-bottom: 10px;
+        border-bottom: 1.5px solid #999; margin-bottom: 32px;
+        font-family: Arial, sans-serif; text-transform: uppercase;
+    }
+    .filter-row {
+        display: flex; align-items: center; gap: 48px;
+        flex-wrap: wrap; margin-bottom: 24px;
+    }
+    .filter-field { display: flex; align-items: center; gap: 14px; }
+    .filter-field label {
+        font-size: 14px; color: #333;
+        font-family: Arial, sans-serif; white-space: nowrap;
+    }
+    .filter-field input[type="date"] {
+        padding: 9px 12px; border: 1px solid #ccc; border-radius: 2px;
+        font-size: 13.5px; font-family: Arial, sans-serif;
+        color: #333; outline: none; min-width: 180px;
+        transition: border-color 0.15s;
+    }
+    .filter-field input[type="date"]:focus {
+        border-color: #1abc9c;
+        box-shadow: 0 0 0 2px rgba(26,188,156,0.1);
+    }
+    .filter-divider { border: none; border-top: 1px solid #e0e0e0; margin: 4px 0 24px; }
+    .filter-actions { text-align: center; }
+    .submit-btn {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 10px 36px; background: #1a7a4a; color: #fff; border: none;
+        border-radius: 3px; font-size: 14px; font-family: Arial, sans-serif;
+        font-weight: 700; cursor: pointer; letter-spacing: 0.5px;
+        transition: background 0.15s;
+    }
+    .submit-btn:hover { background: #155f3a; }
+    @media (max-width: 650px) {
+        .filter-row { flex-direction: column; gap: 16px; }
+        .lp-card { padding: 20px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="lp-card">
+        <div class="part-title">Expenses Statement</div>
+        <form method="POST" action="{% url 'expenses_report' %}">
+            {% csrf_token %}
+            <div class="filter-row">
+                <div class="filter-field">
+                    <label>Date from</label>
+                    <input type="date" name="date_from" id="dateFrom" required>
+                </div>
+                <div class="filter-field">
+                    <label>Date to</label>
+                    <input type="date" name="date_to" id="dateTo" required>
+                </div>
+            </div>
+            <hr class="filter-divider">
+            <div class="filter-actions">
+                <button type="submit" class="submit-btn">SUBMIT</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    const today = new Date();
+    const past  = new Date(); past.setDate(today.getDate() - 15);
+    document.getElementById('dateFrom').value = past.toISOString().split('T')[0];
+    document.getElementById('dateTo').value   = today.toISOString().split('T')[0];
+})();
+</script>
+{% endblock %}

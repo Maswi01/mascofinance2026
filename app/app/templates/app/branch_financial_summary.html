@@ -1,0 +1,682 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load app_filters %}  <!-- Make sure to load the custom filters -->
+
+{% block content %}
+<style>
+    .summary-container {
+        padding: 20px;
+        margin-top: 100px;
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    .filter-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
+    }
+
+    .filter-title {
+        font-size: 1.2rem;
+        color: #1e293b;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .filter-title i {
+        color: #2d6ae3;
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .filter-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .filter-input {
+        padding: 10px 12px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        width: 100%;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #2d6ae3;
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .btn-filter {
+        padding: 10px 24px;
+        background: #2d6ae3;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    .btn-filter:hover {
+        background: #1a4bb8;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(45, 106, 227, 0.2);
+    }
+
+    .btn-reset {
+        padding: 10px 24px;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-reset:hover {
+        background: white;
+        border-color: #2d6ae3;
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .summary-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e2e8f0;
+    }
+
+    .summary-header {
+        background: linear-gradient(135deg, #2d6ae3, #1a4bb8);
+        color: white;
+        padding: 20px 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .summary-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .summary-period {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 18px;
+        border-radius: 30px;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .export-btn {
+        background: white;
+        color: #2d6ae3;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .export-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        padding: 20px;
+    }
+
+    .summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1200px;
+        font-size: 0.9rem;
+    }
+
+    .summary-table th {
+        background: #f8fafc;
+        padding: 15px 12px;
+        font-weight: 600;
+        color: #1e293b;
+        border-bottom: 2px solid #e2e8f0;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .summary-table td {
+        padding: 12px 12px;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: right;
+        font-family: 'Courier New', monospace;
+        font-weight: 500;
+    }
+
+    .summary-table td:first-child {
+        text-align: left;
+        font-weight: 600;
+        background: #f8fafc;
+        position: sticky;
+        left: 0;
+        background: white;
+        border-right: 2px solid #e2e8f0;
+        min-width: 180px;
+    }
+
+    .summary-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .summary-table .section-header td {
+        background: #1e293b;
+        color: white;
+        font-weight: 700;
+        text-align: left;
+        padding: 12px;
+    }
+
+    .summary-table .total-row td {
+        background: #e2e8f0;
+        font-weight: 700;
+        border-top: 2px solid #94a3b8;
+    }
+
+    .summary-table .balance-row td {
+        background: #e6f0ff;
+        font-weight: 700;
+    }
+
+    .summary-table .positive {
+        color: #059669;
+    }
+
+    .summary-table .negative {
+        color: #dc2626;
+    }
+
+    .branch-name {
+        font-size: 0.85rem;
+        color: #64748b;
+        font-weight: normal;
+    }
+
+    .amount-display {
+        font-weight: 600;
+    }
+
+    .text-muted {
+        color: #94a3b8;
+    }
+
+    .summary-footer {
+        padding: 20px;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+    }
+
+    .stat-box {
+        background: white;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin-bottom: 5px;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media print {
+        .filter-card, .export-btn, .btn-reset, .btn-filter {
+            display: none;
+        }
+        .summary-container {
+            margin-top: 0;
+            padding: 0;
+        }
+        .summary-table td:first-child {
+            background: #f8fafc;
+        }
+    }
+
+    /* Quick date buttons */
+    .quick-date-buttons {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+
+    .quick-date-btn {
+        padding: 6px 12px;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .quick-date-btn:hover {
+        background: #2d6ae3;
+        color: white;
+        border-color: #2d6ae3;
+    }
+</style>
+
+<div class="summary-container">
+    <!-- Quick Date Range Buttons -->
+    <div class="quick-date-buttons">
+        <button class="quick-date-btn" onclick="setDateRange(7)">
+            <i class="fas fa-clock"></i> Last 7 Days
+        </button>
+        <button class="quick-date-btn" onclick="setDateRange(30)">
+            <i class="fas fa-calendar-week"></i> Last 30 Days
+        </button>
+        <button class="quick-date-btn" onclick="setDateRange(90)">
+            <i class="fas fa-calendar-alt"></i> Last 90 Days
+        </button>
+        <button class="quick-date-btn" onclick="setDateRange(365)">
+            <i class="fas fa-calendar"></i> This Year
+        </button>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-card">
+        <div class="filter-title">
+            <i class="fas fa-filter"></i>
+            Filter Branch Financial Summary
+        </div>
+
+        <form method="GET" action="{% url 'branch_financial_summary' %}" id="filterForm">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-calendar-alt"></i>
+                        Start Date
+                    </label>
+                    <input type="date"
+                           name="start_date"
+                           class="filter-input"
+                           value="{{ start_date|date:'Y-m-d' }}"
+                           max="{{ current_date|date:'Y-m-d' }}">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-calendar-alt"></i>
+                        End Date
+                    </label>
+                    <input type="date"
+                           name="end_date"
+                           class="filter-input"
+                           value="{{ end_date|date:'Y-m-d' }}"
+                           max="{{ current_date|date:'Y-m-d' }}">
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="btn-filter">
+                        <i class="fas fa-search"></i>
+                        Apply Filters
+                    </button>
+                    <a href="{% url 'branch_financial_summary' %}" class="btn-reset">
+                        <i class="fas fa-redo-alt"></i>
+                        Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Table -->
+    <div class="summary-card">
+        <div class="summary-header">
+            <div class="summary-title">
+                <i class="fas fa-chart-bar"></i>
+                BRANCH FINANCIAL SUMMARY
+            </div>
+            <div class="summary-period">
+                <i class="fas fa-calendar"></i>
+                {{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }}
+            </div>
+            <button class="export-btn" onclick="window.print()">
+                <i class="fas fa-print"></i>
+                Print / PDF
+            </button>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>PARTICULAR</th>
+                        {% for office in offices %}
+                        <th>{{ office.name|upper }}</th>
+                        {% endfor %}
+                        <th>TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- OPENING BALANCE -->
+                    <tr>
+                        <td><strong>Opening Balance</strong></td>
+                        {% for office in offices %}
+                            {% with balance=summary_data.opening_balances|get_item:office.id %}
+                            <td class="{% if balance < 0 %}negative{% else %}positive{% endif %}">
+                                {{ balance|floatformat:0|intcomma }}
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="{% if totals.opening_balance < 0 %}negative{% else %}positive{% endif %}">
+                            <strong>{{ totals.opening_balance|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+                    <!-- MAPATO (Loan Repayments) -->
+                    <tr>
+                        <td>MAPATO</td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.mapato|get_item:office.id %}
+                            <td class="positive">
+                                {{ amount|floatformat:0|intcomma }}
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="positive">
+                            <strong>{{ totals.mapato|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+                    <!-- NYONGEZA (Additional Income) -->
+                    <tr>
+                        <td>NYONGEZA</td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.nyongeza|get_item:office.id %}
+                            <td class="positive">
+                                {{ amount|floatformat:0|intcomma }}
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="positive">
+                            <strong>{{ totals.nyongeza|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+
+                    <!-- MATUMIZI (Regular Expenses) -->
+                    <tr>
+                        <td>MATUMIZI</td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.matumizi|get_item:office.id %}
+                            <td class="negative">
+                                {{ amount|floatformat:0|intcomma }}
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="negative">
+                            <strong>{{ totals.matumizi|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+                    <!-- OFISINI (Office Expenses) -->
+                    <tr>
+                        <td>OFISINI</td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.ofisini|get_item:office.id %}
+                            <td class="negative">
+                                {{ amount|floatformat:0|intcomma }}
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="negative">
+                            <strong>{{ totals.ofisini|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+                    <!-- MATUMIZI-KITUO (Station Expenses) -->
+                    <tr>
+                        <td>MATUMIZI-KITUO</td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.matumizi_kituo|get_item:office.id %}
+                            <td class="negative">
+                                {{ amount|floatformat:0|intcomma }}
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="negative">
+                            <strong>{{ totals.matumizi_kituo|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+                    <!-- MATUMIZI-MIKURUGENZI (Director Expenses) -->
+                    <tr>
+                        <td>MATUMIZI-MIKURUGENZI</td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.matumizi_mikurugenzi|get_item:office.id %}
+                            <td class="negative">
+                                {{ amount|floatformat:0|intcomma }}
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="negative">
+                            <strong>{{ totals.matumizi_mikurugenzi|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+                    <!-- MAKATO BENKI (Bank Charges) -->
+                    <tr>
+                        <td>MAKATO BENKI</td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.makato_benki|get_item:office.id %}
+                            <td class="negative">
+                                {{ amount|floatformat:0|intcomma }}
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="negative">
+                            <strong>{{ totals.makato_benki|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+                    <!-- BALANCE OFISINI (Office Cash) -->
+                    <tr class="balance-row">
+                        <td><strong>BALANCE OFISINI</strong></td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.balance_ofisini|get_item:office.id %}
+                            <td class="positive">
+                                <strong>{{ amount|floatformat:0|intcomma }}</strong>
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="positive">
+                            <strong>{{ totals.balance_ofisini|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+                    <!-- BALANCE BENKI (Bank Balance) -->
+                    <tr class="balance-row">
+                        <td><strong>BALANCE BENKI</strong></td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.balance_benki|get_item:office.id %}
+                            <td class="positive">
+                                <strong>{{ amount|floatformat:0|intcomma }}</strong>
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="positive">
+                            <strong>{{ totals.balance_benki|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+
+                    <!-- CLOSING BALANCE -->
+                    <tr style="background: #e6f0ff; font-weight: 700; border-top: 2px solid #2d6ae3;">
+                        <td><strong>CLOSING BALANCE</strong></td>
+                        {% for office in offices %}
+                            {% with amount=summary_data.closing_balance|get_item:office.id %}
+                            <td class="{% if amount < 0 %}negative{% else %}positive{% endif %}">
+                                <strong>{{ amount|floatformat:0|intcomma }}</strong>
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                        <td class="{% if totals.closing_balance < 0 %}negative{% else %}positive{% endif %}">
+                            <strong>{{ totals.closing_balance|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Summary Footer -->
+        <div class="summary-footer">
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-label">
+                        <i class="fas fa-chart-line" style="color: #059669;"></i>
+                        Total Income (HAZINA)
+                    </div>
+                    <div class="stat-value" style="color: #059669;">
+                        {{ totals.hazina|floatformat:0|intcomma }}
+                    </div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">
+                        <i class="fas fa-chart-line" style="color: #dc2626;"></i>
+                        Total Expenses
+                    </div>
+                    {% with total_expenses=totals.fomu|add:totals.matumizi|add:totals.ofisini|add:totals.matumizi_kituo|add:totals.matumizi_mikurugenzi|add:totals.makato_benki %}
+                    <div class="stat-value" style="color: #dc2626;">
+                        {{ total_expenses|floatformat:0|intcomma }}
+                    </div>
+                    {% endwith %}
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">
+                        <i class="fas fa-coins" style="color: #2d6ae3;"></i>
+                        Total Cash Available
+                    </div>
+                    {% with total_cash=totals.balance_ofisini|add:totals.balance_benki %}
+                    <div class="stat-value" style="color: #2d6ae3;">
+                        {{ total_cash|floatformat:0|intcomma }}
+                    </div>
+                    {% endwith %}
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">
+                        <i class="fas fa-balance-scale" style="color: #7c3aed;"></i>
+                        Net Position
+                    </div>
+                    <div class="stat-value" style="color: #7c3aed;">
+                        {{ totals.closing_balance|floatformat:0|intcomma }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Form validation
+    document.getElementById('filterForm')?.addEventListener('submit', function(e) {
+        const startDate = document.querySelector('input[name="start_date"]').value;
+        const endDate = document.querySelector('input[name="end_date"]').value;
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+            e.preventDefault();
+            alert('Start date cannot be after end date');
+        }
+    });
+
+    // Quick date range functions
+    function setDateRange(days) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - days);
+        
+        // Format dates as YYYY-MM-DD
+        const formatDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        
+        document.querySelector('input[name="start_date"]').value = formatDate(start);
+        document.querySelector('input[name="end_date"]').value = formatDate(end);
+        document.getElementById('filterForm').submit();
+    }
+
+    // Auto-submit on date change? (optional)
+    // document.querySelectorAll('.filter-input').forEach(input => {
+    //     input.addEventListener('change', function() {
+    //         document.getElementById('filterForm').submit();
+    //     });
+    // });
+</script>
+{% endblock %}

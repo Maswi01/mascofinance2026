@@ -1,0 +1,1092 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    /* ==================== Loan History Styles ==================== */
+    .loan-history-container {
+        padding: var(--spacing-md);
+        animation: fadeIn 0.5s ease-out;
+        margin-top: 150px;
+    }
+
+    /* Company Header */
+    .company-header {
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        color: white;
+        padding: 30px 40px;
+        border-radius: 20px 20px 20px 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .company-logo-section {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .company-logo {
+        width: 80px;
+        height: 80px;
+        background: white;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        color: #1e293b;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    .company-info {
+        line-height: 1.6;
+    }
+
+    .company-name {
+        font-size: 28px;
+        font-weight: 800;
+        margin-bottom: 5px;
+        letter-spacing: 1px;
+    }
+
+    .company-address {
+        font-size: 14px;
+        opacity: 0.9;
+    }
+
+    .company-contact {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-top: 5px;
+    }
+
+    .header-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 12px 24px;
+        border-radius: 40px;
+        font-weight: 600;
+        font-size: 16px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    /* Selection Card */
+    .selection-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        margin-bottom: 30px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .selection-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .selection-title i {
+        color: #2d6ae3;
+        font-size: 22px;
+    }
+
+    .client-select-wrapper {
+        display: flex;
+        gap: 15px;
+        align-items: flex-end;
+    }
+
+    .client-select {
+        flex: 1;
+        padding: 15px 20px;
+        border: 2px solid #e2e8f0;
+        border-radius: 15px;
+        font-size: 16px;
+        color: #1e293b;
+        background: white;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .client-select:focus {
+        border-color: #2d6ae3;
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+        outline: none;
+    }
+
+    .btn-view-history {
+        padding: 15px 35px;
+        background: linear-gradient(135deg, #2d6ae3, #1a4c8c);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 16px;
+    }
+
+    .btn-view-history:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(45, 106, 227, 0.3);
+    }
+
+    /* Client Info Card */
+    .client-info-card {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        border-radius: 20px;
+        padding: 25px 30px;
+        margin-bottom: 25px;
+        border-left: 6px solid #2d6ae3;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    .client-info-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .client-info-label {
+        font-size: 12px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 5px;
+    }
+
+    .client-info-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .client-info-value small {
+        font-size: 14px;
+        font-weight: 400;
+        color: #64748b;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .stat-icon.total {
+        background: rgba(45, 106, 227, 0.1);
+        color: #2d6ae3;
+    }
+
+    .stat-icon.amount {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+
+    .stat-icon.paid {
+        background: rgba(139, 92, 246, 0.1);
+        color: #8b5cf6;
+    }
+
+    .stat-icon.outstanding {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+
+    .stat-icon.completed {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+
+    .stat-details {
+        flex: 1;
+    }
+
+    .stat-label {
+        font-size: 13px;
+        color: #64748b;
+        margin-bottom: 5px;
+    }
+
+    .stat-number {
+        font-size: 22px;
+        font-weight: 800;
+        color: #1e293b;
+    }
+
+    /* Title Section */
+    .title-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .section-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .section-title i {
+        color: #2d6ae3;
+        font-size: 28px;
+    }
+
+    .loan-count-badge {
+        background: #2d6ae3;
+        color: white;
+        padding: 8px 20px;
+        border-radius: 30px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    /* Loans Table */
+    .loans-table-container {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        overflow-x: auto;
+    }
+
+    .loans-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    .loans-table thead {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        border-bottom: 2px solid #2d6ae3;
+    }
+
+    .loans-table th {
+        padding: 18px 12px;
+        text-align: left;
+        font-weight: 700;
+        color: #1e293b;
+        text-transform: uppercase;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+    }
+
+    .loans-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: all 0.3s ease;
+    }
+
+    .loans-table tbody tr:hover {
+        background: rgba(45, 106, 227, 0.02);
+    }
+
+    .loans-table td {
+        padding: 20px 12px;
+        color: #475569;
+        vertical-align: middle;
+    }
+
+    .loan-id {
+        font-family: monospace;
+        font-weight: 600;
+        color: #2d6ae3;
+        background: rgba(45, 106, 227, 0.1);
+        padding: 6px 12px;
+        border-radius: 8px;
+        display: inline-block;
+    }
+
+    .loan-type-badge {
+        display: inline-block;
+        padding: 6px 16px;
+        border-radius: 30px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .loan-type-personal {
+        background: rgba(45, 106, 227, 0.1);
+        color: #2d6ae3;
+    }
+
+    .loan-type-business {
+        background: rgba(139, 92, 246, 0.1);
+        color: #8b5cf6;
+    }
+
+    .loan-type-emergency {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+
+    .amount {
+        font-weight: 700;
+    }
+
+    .amount-positive {
+        color: #10b981;
+    }
+
+    .amount-negative {
+        color: #ef4444;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 30px;
+        font-size: 12px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .status-active {
+        background: rgba(45, 106, 227, 0.1);
+        color: #2d6ae3;
+    }
+
+    .status-completed {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+
+    .status-overdue {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+
+    .status-pending {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+
+    .btn-schedule {
+        background: linear-gradient(135deg, #2d6ae3, #1a4c8c);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-schedule:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(45, 106, 227, 0.3);
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        max-width: 900px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .modal-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .modal-title i {
+        color: #2d6ae3;
+        font-size: 26px;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        color: #94a3b8;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .modal-close:hover {
+        color: #ef4444;
+        transform: scale(1.1);
+    }
+
+    .modal-body {
+        margin-bottom: 20px;
+    }
+
+    .schedule-summary {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+
+    .summary-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .summary-label {
+        font-size: 12px;
+        color: #64748b;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+
+    .summary-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .schedule-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .schedule-table th {
+        background: #f1f5f9;
+        padding: 12px 10px;
+        text-align: left;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .schedule-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .payment-status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .status-paid {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+
+    .status-pending {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+
+    /* Footer */
+    .statement-footer {
+        margin-top: 40px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+        display: flex;
+        justify-content: space-between;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 20px;
+        margin-top: 30px;
+    }
+
+    .no-data-icon {
+        font-size: 60px;
+        color: #cbd5e1;
+        margin-bottom: 20px;
+    }
+
+    .no-data h3 {
+        color: #1e293b;
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+
+    .no-data p {
+        color: #64748b;
+        font-size: 16px;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @media (max-width: 1200px) {
+        .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .company-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 20px;
+        }
+        
+        .company-logo-section {
+            flex-direction: column;
+        }
+        
+        .client-select-wrapper {
+            flex-direction: column;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .client-info-card {
+            grid-template-columns: 1fr;
+        }
+        
+        .modal-content {
+            width: 95%;
+            padding: 20px;
+        }
+        
+        .schedule-summary {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        .company-header {
+            background: white;
+            color: black;
+            border: 1px solid #ddd;
+        }
+    }
+</style>
+
+<div class="loan-history-container">
+    <!-- Company Header -->
+    <div class="company-header no-print">
+        <div class="company-logo-section">
+            <div class="company-logo">
+                <i class="fas fa-history"></i>
+            </div>
+            <div class="company-info">
+                <div class="company-name">
+                    {% if company_office %}
+                        {{ company_office.name|upper }}
+                    {% else %}
+                        SHAHIDI MICROFINANCE
+                    {% endif %}
+                </div>
+                <div class="company-address">
+                    <i class="fas fa-map-marker-alt"></i>
+                    {% if company_office %}
+                        {% if company_office.region %}{{ company_office.region }}{% endif %}
+                        {% if company_office.district %}, {{ company_office.district }}{% endif %}
+                        {% if company_office.ward %}, {{ company_office.ward }}{% endif %}
+                        {% if company_office.street %}, {{ company_office.street }}{% endif %}
+                    {% else %}
+                        Dar es Salaam, Tanzania
+                    {% endif %}
+                </div>
+                <div class="company-contact">
+                    <i class="fas fa-phone"></i> +255 123 456 789 &nbsp;&nbsp;
+                    <i class="fas fa-envelope"></i> info@shahidi.co.tz
+                </div>
+            </div>
+        </div>
+        <div class="header-badge">
+            <i class="fas fa-file-invoice"></i>
+            LOAN HISTORY
+        </div>
+    </div>
+
+    <!-- Client Selection Card -->
+    <div class="selection-card no-print">
+        <div class="selection-title">
+            <i class="fas fa-user-search"></i>
+            Select Customer to View Loan History
+        </div>
+        
+        <form method="post" action="{% url 'loan_history' %}" class="client-select-wrapper">
+            {% csrf_token %}
+            <select name="client_id" id="clientSelect" class="client-select" required>
+                <option value="" disabled {% if not selected_client %}selected{% endif %}>-- Select a customer --</option>
+                {% for client in clients %}
+                    <option value="{{ client.id }}" {% if selected_client and selected_client.id == client.id %}selected{% endif %}>
+                                        {{ client.firstname }} {{ client.middlename|default:"" }} {{ client.lastname }} - 
+                                        {% if client.phonenumber %}{{ client.phonenumber }}{% else %}No Phone{% endif %}
+                                    </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn-view-history">
+                <i class="fas fa-search"></i>
+                View Loan History
+            </button>
+        </form>
+    </div>
+
+    {% if selected_client %}
+        <!-- Client Information Card -->
+        <div class="client-info-card">
+            <div class="client-info-item">
+                <span class="client-info-label">Customer Name</span>
+                <span class="client-info-value">
+                    {{ selected_client.firstname }} {{ selected_client.middlename|default:"" }} {{ selected_client.lastname }}
+                </span>
+            </div>
+            <div class="client-info-item">
+                <span class="client-info-label">Customer ID</span>
+                <span class="client-info-value">
+                    CLT-{{ selected_client.id|stringformat:"06d" }}
+                    <small>Reg: {{ selected_client.registered_date|date:"d/m/Y" }}</small>
+                </span>
+            </div>
+            <div class="client-info-item">
+                <span class="client-info-label">Phone Number</span>
+                <span class="client-info-value">
+                    {{ selected_client.phonenumber|default:"Not Provided" }}
+                </span>
+            </div>
+            <div class="client-info-item">
+                <span class="client-info-label">Total Loans</span>
+                <span class="client-info-value">
+                    {{ total_loans }}
+                    <small>({{ active_loans }} Active, {{ completed_loans }} Completed)</small>
+                </span>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon total">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label">Total Loans</div>
+                    <div class="stat-number">{{ total_loans }}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon amount">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label">Total Amount</div>
+                    <div class="stat-number">Tsh {{ total_loan_amount|floatformat:2|default:"0.00" }}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon paid">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label">Total Paid</div>
+                    <div class="stat-number">Tsh {{ total_paid_amount|floatformat:2|default:"0.00" }}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon outstanding">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label">Outstanding</div>
+                    <div class="stat-number">Tsh {{ total_outstanding|floatformat:2|default:"0.00" }}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon completed">
+                    <i class="fas fa-flag-checkered"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label">Completed</div>
+                    <div class="stat-number">{{ completed_loans }}/{{ total_loans }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loans Table Section -->
+        <div class="title-section">
+            <h2 class="section-title">
+                <i class="fas fa-list-alt"></i>
+                Loan History Records
+            </h2>
+            <span class="loan-count-badge">
+                <i class="fas fa-file-invoice"></i>
+                {{ total_loans }} Loan{{ total_loans|pluralize }}
+            </span>
+        </div>
+
+        <div class="loans-table-container">
+            {% if loans_data %}
+                <table class="loans-table">
+                    <thead>
+                        <tr>
+                            <th>SN</th>
+                            <th>Loan Type</th>
+                            <th>Loan ID</th>
+                            <th>Loan Amount</th>
+                            <th>Interest</th>
+                            <th>Penalty</th>
+                            <th>Total Amount</th>
+                            <th>Paid Amount</th>
+                            <th>Outstanding</th>
+                            <th>Repayment Schedule</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for loan in loans_data %}
+                        <tr>
+                            <td>
+                                <span style="font-weight: 600; color: #2d6ae3;">#{{ loan.sn }}</span>
+                            </td>
+                            <td>
+                                <span class="loan-type-badge 
+                                    {% if 'Personal' in loan.loan_type %}loan-type-personal
+                                    {% elif 'Business' in loan.loan_type %}loan-type-business
+                                    {% else %}loan-type-emergency{% endif %}">
+                                    {{ loan.loan_type }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="loan-id">
+                                    <i class="fas fa-hashtag"></i>
+                                    {{ loan.loan_id }}
+                                </span>
+                                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                                    {{ loan.application_date|date:"d/m/Y" }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="amount" style="color: #2d6ae3;">
+                                    Tsh {{ loan.loan_amount|floatformat:2 }}
+                                </span>
+                            </td>
+                            <td>
+                                <span style="color: #f59e0b; font-weight: 600;">
+                                    Tsh {{ loan.interest_amount|floatformat:2 }}
+                                </span>
+                            </td>
+                            <td>
+                                <span style="color: #ef4444; font-weight: 600;">
+                                    Tsh {{ loan.penalty_amount|floatformat:2 }}
+                                </span>
+                            </td>
+                            <td>
+                                <span style="font-weight: 700; color: #1e293b;">
+                                    Tsh {{ loan.total_amount|floatformat:2 }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="amount amount-positive">
+                                    Tsh {{ loan.paid_amount|floatformat:2 }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="amount {% if loan.outstanding_balance > 0 %}amount-negative{% else %}amount-positive{% endif %}">
+                                    Tsh {{ loan.outstanding_balance|floatformat:2 }}
+                                </span>
+                                <div style="font-size: 11px; color: #64748b;">
+                                    {% if loan.outstanding_balance <= 0 %}
+                                        Fully Paid
+                                    {% else %}
+                                        {{ loan.payment_period_months }} months term
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn-schedule" onclick="viewSchedule({{ loan.loan.id }}, '{{ loan.loan_id }}')">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    View Schedule
+                                </button>
+                                <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
+                                    Monthly: Tsh {{ loan.monthly_installment|floatformat:2 }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ loan.status_color }}">
+                                    <i class="fas fa-{% if loan.status == 'Completed' %}check-circle{% elif loan.status == 'Active' %}play-circle{% elif loan.status == 'Overdue' %}exclamation-circle{% else %}clock{% endif %}"></i>
+                                    {{ loan.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="no-data">
+                    <div class="no-data-icon">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <h3>No Loan History Found</h3>
+                    <p>This customer has not taken any loans yet.</p>
+                    <a href="{% url 'loan_application' %}" class="btn btn-primary" style="margin-top: 20px; display: inline-flex; gap: 10px; padding: 12px 30px;">
+                        <i class="fas fa-plus-circle"></i>
+                        Create New Loan
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Footer -->
+        <div class="statement-footer">
+            <div>
+                <i class="fas fa-file-signature"></i>
+                Generated by: {{ request.user.get_full_name|default:request.user.username }}
+            </div>
+            <div>
+                <i class="fas fa-clock"></i>
+                {% now "d F Y H:i:s" %}
+            </div>
+            <div>
+                <i class="fas fa-print"></i>
+                <a href="#" onclick="window.print()" style="color: #2d6ae3; text-decoration: none;">Print Report</a>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- No Client Selected Message -->
+        <div class="no-data">
+            <div class="no-data-icon">
+                <i class="fas fa-user-clock"></i>
+            </div>
+            <h3>Select a Customer</h3>
+            <p style="max-width: 500px; margin: 0 auto;">
+                Please select a customer from the dropdown above to view their complete loan history,
+                including all loan details, payments, and repayment schedules.
+            </p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Repayment Schedule Modal -->
+<div id="scheduleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-calendar-alt"></i>
+                <span id="modalLoanTitle">Repayment Schedule</span>
+            </div>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="scheduleContent">
+                <!-- Schedule will be loaded here via AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // View Repayment Schedule
+    function viewSchedule(loanId, loanIdDisplay) {
+        const modal = document.getElementById('scheduleModal');
+        const modalTitle = document.getElementById('modalLoanTitle');
+        const scheduleContent = document.getElementById('scheduleContent');
+        
+        modalTitle.innerHTML = `<i class="fas fa-calendar-alt"></i> Repayment Schedule - ${loanIdDisplay}`;
+        scheduleContent.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 40px; color: #2d6ae3;"></i><p style="margin-top: 20px; color: #64748b;">Loading schedule...</p></div>';
+        
+        modal.classList.add('active');
+        
+        // Fetch schedule via AJAX
+        fetch(`/loan-schedule/${loanId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let html = `
+                        <div class="schedule-summary">
+                            <div class="summary-item">
+                                <span class="summary-label">Loan ID</span>
+                                <span class="summary-value">${data.loan_id}</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Client Name</span>
+                                <span class="summary-value">${data.client_name}</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Monthly Installment</span>
+                                <span class="summary-value" style="color: #2d6ae3;">Tsh ${data.monthly_installment.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <table class="schedule-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Due Date</th>
+                                    <th>Due Amount</th>
+                                    <th>Paid Amount</th>
+                                    <th>Remaining</th>
+                                    <th>Payment Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    data.schedule.forEach(item => {
+                        html += `
+                            <tr>
+                                <td style="font-weight: 600;">${item.installment_no}</td>
+                                <td>${item.due_date}</td>
+                                <td style="font-weight: 600; color: #f59e0b;">Tsh ${item.due_amount.toFixed(2)}</td>
+                                <td style="color: #10b981; font-weight: 600;">Tsh ${item.paid_amount.toFixed(2)}</td>
+                                <td style="color: ${item.remaining > 0 ? '#ef4444' : '#10b981'}; font-weight: 600;">
+                                    Tsh ${item.remaining.toFixed(2)}
+                                </td>
+                                <td>${item.payment_date}</td>
+                                <td>
+                                    <span class="payment-status status-${item.status.toLowerCase()}">
+                                        <i class="fas fa-${item.status === 'Paid' ? 'check-circle' : 'clock'}"></i>
+                                        ${item.status}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                            </tbody>
+                        </table>
+                    `;
+                    
+                    scheduleContent.innerHTML = html;
+                } else {
+                    scheduleContent.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;"><i class="fas fa-exclamation-circle" style="font-size: 40px;"></i><p style="margin-top: 20px;">Failed to load schedule</p></div>';
+                }
+            })
+            .catch(error => {
+                scheduleContent.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;"><i class="fas fa-exclamation-triangle" style="font-size: 40px;"></i><p style="margin-top: 20px;">Error loading schedule</p></div>';
+            });
+    }
+    
+    // Close Modal
+    function closeModal() {
+        document.getElementById('scheduleModal').classList.remove('active');
+    }
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('scheduleModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+    
+    // Auto-submit form when client is selected (optional)
+    document.getElementById('clientSelect').addEventListener('change', function() {
+        if (this.value) {
+            // Uncomment to auto-submit on selection
+            // this.form.submit();
+        }
+    });
+</script>
+
+{% endblock %}

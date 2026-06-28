@@ -1,0 +1,283 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1300px;
+        margin: 20px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+    }
+    .report-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 24px 30px 24px;
+    }
+
+    /* ── Letterhead ── */
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 18px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 80px; height: auto; }
+    .company-name {
+        font-size: 26px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub    { font-size: 13px; font-weight: 600; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 3px; }
+    .company-contact { font-size: 12px; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 2px; }
+
+    /* ── Headings ── */
+    .branch-heading {
+        font-size: 14px; font-weight: 700; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin: 14px 0 6px;
+        text-transform: uppercase;
+    }
+    .report-heading {
+        font-size: 13.5px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin-bottom: 16px;
+        text-transform: uppercase;
+    }
+
+    /* ── Search ── */
+    .search-row {
+        display: flex; align-items: center; gap: 12px;
+        margin-bottom: 12px;
+    }
+    .lp-search-input {
+        flex: 1; max-width: 420px;
+        padding: 7px 12px; font-size: 13px; font-family: Arial, sans-serif;
+        border: 1px solid #bbb; border-radius: 3px; outline: none;
+    }
+    .lp-search-input:focus { border-color: #2471a3; box-shadow: 0 0 0 2px rgba(36,113,163,0.12); }
+    .lp-search-count { font-size: 12px; color: #666; font-family: Arial, sans-serif; }
+
+    /* ── Table ── */
+    .outstanding-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 12.5px;
+    }
+    .outstanding-table thead tr th {
+        padding: 8px 8px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 12px;
+        border: 1px solid #ccc;
+        white-space: nowrap; background: #fff;
+    }
+    .outstanding-table th.num { text-align: right; }
+    .outstanding-table th.center { text-align: center; }
+
+    .outstanding-table tbody tr { border-bottom: 1px solid #e0e0e0; }
+    .outstanding-table tbody tr:hover { background: #fafafa; }
+    .outstanding-table td {
+        padding: 7px 8px; color: #1a1a1a;
+        border-right: 1px solid #e8e8e8;
+        vertical-align: middle; font-size: 12.5px;
+    }
+    .outstanding-table td:last-child { border-right: none; }
+    .outstanding-table td.num { text-align: right; }
+    .outstanding-table td.center { text-align: center; }
+
+    /* Not paid = 0 → subtle */
+    .not-paid-zero { color: #aaa; }
+
+    /* No-match row (search) */
+    .no-match-row td {
+        text-align: center; padding: 24px; color: #aaa; font-style: italic;
+    }
+
+    /* Total row */
+    .total-row td {
+        font-weight: 700; font-size: 13px;
+        padding: 8px 8px; background: #fff;
+        border-top: 2px solid #1a1a1a;
+        border-right: 1px solid #e8e8e8;
+    }
+    .total-row td:last-child { border-right: none; }
+
+    /* Action row */
+    .action-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding-top: 14px; border-top: 1px solid #ddd; margin-top: 10px;
+    }
+    .back-link {
+        font-size: 13px; color: #9b59b6; font-family: Arial, sans-serif;
+        text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .print-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; color: #333;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row { display: none !important; }
+        .search-row { display: none !important; }
+        .outstanding-table { font-size: 9pt; }
+        .outstanding-table th, .outstanding-table td { padding: 3px 5px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="report-card">
+
+        <div class="printable">
+
+            <!-- Letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="branch-heading">{{ branch_name }} BRANCH</div>
+            <div class="report-heading">MONTHLY OUTSTANDING UP TO {{ month_label }}</div>
+
+            <!-- Search box (hidden on print) -->
+            <div class="search-row">
+                <input type="text" id="lpSearch" class="lp-search-input"
+                       placeholder="Search by name, check no, employer, or contact...">
+                <span class="lp-search-count" id="lpSearchCount"></span>
+            </div>
+
+            <table class="outstanding-table">
+                <thead>
+                    <tr>
+                        <th class="center">S/N</th>
+                        <th>Name</th>
+                        <th>Check no</th>
+                        <th>Employer</th>
+                        <th>Contact</th>
+                        <th class="num">Amount to be paid</th>
+                        <th class="num">Paid amount (This month)</th>
+                        <th class="num">Not paid</th>
+                        <th class="num">Outstanding (Total)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr class="data-row">
+                        <td class="center sn-cell">{{ forloop.counter }}</td>
+                        <td style="text-transform:uppercase;">{{ row.name }}</td>
+                        <td>{{ row.check_no }}</td>
+                        <td>{{ row.employer }}</td>
+                        <td>{{ row.contact }}</td>
+                        <td class="num" data-num="{{ row.amount_to_be_paid }}">{{ row.amount_to_be_paid|floatformat:0|intcomma }}</td>
+                        <td class="num" data-num="{{ row.paid_this_month }}">{{ row.paid_this_month|floatformat:0|intcomma }}</td>
+                        <td class="num {% if row.not_paid == 0 %}not-paid-zero{% endif %}" data-num="{{ row.not_paid }}">
+                            {{ row.not_paid|floatformat:0|intcomma }}
+                        </td>
+                        <td class="num" data-num="{{ row.outstanding_total }}">{{ row.outstanding_total|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align:center;padding:24px;color:#aaa;font-style:italic;">
+                            No active loans found for this branch.
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Shown only when search yields no matches -->
+                    <tr class="no-match-row" id="lpNoMatch" style="display:none;">
+                        <td colspan="9">No records match your search.</td>
+                    </tr>
+
+                    {% if rows %}
+                    <tr class="total-row">
+                        <td colspan="5"><strong>Total</strong></td>
+                        <td class="num"><strong data-total="amount_to_be_paid">{{ total_amount_to_pay|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong data-total="paid_this_month">{{ total_paid_this_month|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong data-total="not_paid">{{ total_not_paid|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong data-total="outstanding_total">{{ total_outstanding|floatformat:0|intcomma }}</strong></td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+        </div><!-- end printable -->
+
+        <div class="action-row">
+            <a class="back-link" href="{% url 'monthly_outstanding_filter' %}">
+                ← Change month
+            </a>
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+(function () {
+    const input    = document.getElementById('lpSearch');
+    const countEl  = document.getElementById('lpSearchCount');
+    const noMatch  = document.getElementById('lpNoMatch');
+    const table    = document.querySelector('.outstanding-table');
+    if (!input || !table) return;
+
+    const tbody    = table.querySelector('tbody');
+    const dataRows = Array.from(tbody.querySelectorAll('tr.data-row'));
+    const totalRow = tbody.querySelector('.total-row');
+    const keys     = ['amount_to_be_paid', 'paid_this_month', 'not_paid', 'outstanding_total'];
+
+    const fmt = n => Math.round(n).toLocaleString('en-US');
+
+    function recalc(visibleRows) {
+        if (!totalRow) return;
+        const sums = { amount_to_be_paid: 0, paid_this_month: 0, not_paid: 0, outstanding_total: 0 };
+        visibleRows.forEach(tr => {
+            tr.querySelectorAll('td[data-num]').forEach((c, i) => {
+                sums[keys[i]] += parseFloat(c.dataset.num) || 0;
+            });
+        });
+        keys.forEach(k => {
+            const el = totalRow.querySelector(`[data-total="${k}"]`);
+            if (el) el.textContent = fmt(sums[k]);
+        });
+    }
+
+    function filter() {
+        const q = input.value.trim().toLowerCase();
+        const visible = [];
+        let sn = 1;
+
+        dataRows.forEach(tr => {
+            const show = q === '' || tr.textContent.toLowerCase().includes(q);
+            tr.style.display = show ? '' : 'none';
+            if (show) {
+                const snCell = tr.querySelector('.sn-cell');
+                if (snCell) snCell.textContent = sn++;
+                visible.push(tr);
+            }
+        });
+
+        recalc(visible);
+
+        if (noMatch) {
+            noMatch.style.display = (dataRows.length && visible.length === 0) ? '' : 'none';
+        }
+        countEl.textContent = q === ''
+            ? ''
+            : `${visible.length} of ${dataRows.length} record(s)`;
+    }
+
+    input.addEventListener('input', filter);
+})();
+</script>
+
+{% endblock %}

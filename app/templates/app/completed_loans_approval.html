@@ -1,0 +1,306 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'loans-approve' as can_approve_loans %}
+
+<style>
+    .cla-wrapper {
+        max-width: 100%;
+        margin: 10px auto 60px;
+        padding: 0 10px;
+        font-family: Arial, sans-serif;
+    }
+
+    /* ── Header ── */
+    .company-header {
+        display: flex; align-items: center; gap: 14px;
+        padding: 14px 20px 12px; border-bottom: 2px solid #8b0000;
+        justify-content: center; text-align: center; margin-bottom: 16px;
+    }
+    .company-logo img  { width: 68px; height: auto; }
+    .company-name      { font-size: 22px; font-weight: 900; color: #2471a3; text-transform: uppercase; line-height: 1.1; }
+    .company-sub       { font-size: 11px; font-weight: 700; color: #1a1a1a; margin-top: 2px; }
+    .company-contact   { font-size: 10px; color: #1a1a1a; margin-top: 2px; }
+
+    .cla-branch  { font-size: 13px; font-weight: 700; text-decoration: underline; text-align: center; text-transform: uppercase; margin: 10px 0 4px; }
+    .cla-title   { font-size: 12px; font-weight: 900; text-decoration: underline; text-align: center; text-transform: uppercase; margin-bottom: 4px; }
+    .cla-month-h { font-size: 12.5px; font-weight: 700; text-decoration: underline; text-align: center; text-transform: uppercase; margin: 20px 0 6px; }
+
+    .gold-divider { border: none; border-top: 2px solid #c8a84b; margin: 14px 0 18px; }
+
+    /* ── Table ── */
+    .table-scroll { overflow-x: auto; }
+    .cla-table {
+        width: 100%; border-collapse: collapse;
+        font-size: 10.5px; font-family: Arial, sans-serif; min-width: 860px;
+    }
+    .cla-table th, .cla-table td {
+        border: 1px solid #bbb; padding: 3px 5px;
+        white-space: nowrap; vertical-align: middle;
+    }
+    .th-main   { background: #0d4a7a; color: #fff; font-weight: 700; text-align: center; font-size: 10.5px; }
+    .th-select { background: #2471a3; color: #fff; font-weight: 700; text-align: center; font-size: 10.5px; }
+
+    .td-right  { text-align: right; }
+    .td-center { text-align: center; }
+    .td-tick   { text-align: center; color: #27ae60; font-weight: 900; font-size: 14px; }
+    .td-select { text-align: center; background: #eaf4fb; }
+
+    .cla-grand td {
+        background: #d4b97a !important;
+        font-weight: 700;
+        border-top: 2px solid #b89650;
+    }
+    .cla-grand td.td-right { text-align: right; }
+
+    /* ── Badge ── */
+    .month-badge {
+        display: inline-block;
+        background: #0d4a7a;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 12px;
+        border-radius: 2px;
+        margin-bottom: 6px;
+    }
+    .count-badge {
+        display: inline-block;
+        background: #27ae60;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 1px 8px;
+        border-radius: 10px;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
+
+    /* ── Action row ── */
+    .action-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 0 12px; flex-wrap: wrap; gap: 8px;
+    }
+    .back-link  { font-size: 13px; color: #2980b9; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .print-btn  { padding: 5px 16px; background: #fff; border: 1px solid #888; border-radius: 2px; font-size: 13px; cursor: pointer; color: #333; }
+
+    /* ── Approve row ── */
+    .approve-row {
+        display: flex; justify-content: flex-end; align-items: center;
+        margin-top: 6px; margin-bottom: 2px; gap: 8px;
+    }
+    .select-all-btn {
+        padding: 4px 14px; background: #2471a3; border: 1px solid #1a5c8a;
+        border-radius: 2px; font-size: 12px; cursor: pointer; color: #fff;
+    }
+    .select-all-btn:hover { background: #1a5c8a; }
+    .select-all-btn.deselect { background: #fff; color: #333; border-color: #888; }
+    .select-all-btn.deselect:hover { background: #f0f0f0; }
+    .approve-btn {
+        padding: 5px 18px; background: #27ae60; border: 1px solid #1e8449;
+        border-radius: 2px; font-size: 12px; cursor: pointer; color: #fff; font-weight: 700;
+    }
+    .approve-btn:hover { background: #1e8449; }
+
+    /* ── Empty state ── */
+    .empty-state {
+        text-align: center; color: #aaa; font-style: italic;
+        margin: 40px 0; font-size: 14px;
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 8px; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row, .approve-row, .no-print { display: none !important; }
+        .cla-table { font-size: 7pt; }
+        .cla-table th, .cla-table td { padding: 1px 2px; }
+    }
+</style>
+
+<div class="cla-wrapper">
+
+    <div class="action-row no-print">
+        <a class="back-link" href="{% url 'loans' %}">← Back to Loans</a>
+        <button class="print-btn" onclick="window.print()">PRINT</button>
+    </div>
+
+    <div class="printable">
+
+        <div class="company-header">
+            <div class="company-logo">
+                <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo" onerror="this.style.display='none'">
+            </div>
+            <div>
+                <div class="company-name">MASCO FINANCE CO. LTD</div>
+                <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+            </div>
+        </div>
+
+        <div class="cla-branch">{{ branch_name }} BRANCH</div>
+        <div class="cla-title">COMPLETED LOANS — PENDING APPROVAL</div>
+
+        {% if sections %}
+
+            {% for section in sections %}
+
+                {% if not forloop.first %}<hr class="gold-divider">{% endif %}
+
+                <div class="cla-month-h">
+                    {{ section.label }}
+                    <span class="count-badge no-print">{{ section.count }} loan{{ section.count|pluralize }}</span>
+                </div>
+
+                <form method="POST" action="{% url 'completed_loans_approve' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="section_key" value="{{ section.key }}">
+
+                    <div class="table-scroll">
+                    <table class="cla-table" id="cla-table-{{ forloop.counter }}">
+                        <thead>
+                            <tr>
+                                <th class="th-main" style="min-width:28px;">S/N</th>
+                                <th class="th-main" style="min-width:140px;">Client Name</th>
+                                <th class="th-main" style="min-width:80px;">Check No</th>
+                                <th class="th-main" style="min-width:80px;">Loan ID</th>
+                                <th class="th-main" style="min-width:70px;">Office</th>
+                                <th class="th-main" style="min-width:80px;">Loan Date</th>
+                                <th class="th-main" style="min-width:80px;">Completed</th>
+                                <th class="th-main" style="min-width:50px;">Months</th>
+                                <th class="th-main" style="min-width:90px;">Loaned Amt</th>
+                                <th class="th-main" style="min-width:90px;">Interest</th>
+                                <th class="th-main" style="min-width:90px;">Total Repay</th>
+                                <th class="th-main" style="min-width:90px;">Total Paid</th>
+                                <th class="th-main" style="min-width:50px;">Status</th>
+                                <th class="th-main" style="min-width:90px;">Mobile</th>
+                                {% if can_approve_loans %}
+                                <th class="th-select no-print" style="min-width:55px;">Select</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in section.rows %}
+                            <tr>
+                                <td class="td-center">{{ forloop.counter }}</td>
+                                <td>{{ row.name }}</td>
+                                <td class="td-center">{{ row.check_no }}</td>
+                                <td class="td-center" style="font-size:10px;">{{ row.loan_id_label }}</td>
+                                <td class="td-center">{{ row.office }}</td>
+                                <td class="td-center">
+                                    {% if row.loan_date %}{{ row.loan_date|date:"d/m/Y" }}{% else %}—{% endif %}
+                                </td>
+                                <td class="td-center">
+                                    {% if row.completion_date %}{{ row.completion_date|date:"d/m/Y" }}{% else %}—{% endif %}
+                                </td>
+                                <td class="td-center">{{ row.months }}</td>
+                                <td class="td-right">{{ row.loan_amount|floatformat:0|intcomma }}</td>
+                                <td class="td-right">{{ row.interest|floatformat:0|intcomma }}</td>
+                                <td class="td-right">{{ row.total_repayment|floatformat:0|intcomma }}</td>
+                                <td class="td-right">{{ row.total_paid|floatformat:0|intcomma }}</td>
+                                <td class="td-tick">✓ ✓</td>
+                                <td class="td-center">{{ row.mobile }}</td>
+                                {% if can_approve_loans %}
+                                <td class="td-select no-print">
+                                    <input type="checkbox"
+                                           name="loan_ids"
+                                           value="{{ row.loan_id }}"
+                                           class="row-loan-cb"
+                                           style="width:16px;height:16px;cursor:pointer;"
+                                           onchange="syncSelectAll(this)">
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+
+                            <tr class="cla-grand">
+                                <td colspan="8"><strong>SECTION TOTAL</strong></td>
+                                <td class="td-right"><strong>{{ section.total_loaned|floatformat:0|intcomma }}</strong></td>
+                                <td class="td-right"><strong>—</strong></td>
+                                <td class="td-right"><strong>{{ section.total_repayment|floatformat:0|intcomma }}</strong></td>
+                                <td class="td-right"><strong>{{ section.total_paid|floatformat:0|intcomma }}</strong></td>
+                                <td></td>
+                                <td></td>
+                                {% if can_approve_loans %}<td class="no-print"></td>{% endif %}
+                            </tr>
+                        </tbody>
+                    </table>
+                    </div>
+
+                    {% if can_approve_loans %}
+                    <div class="approve-row no-print">
+                        <button type="button"
+                                class="select-all-btn"
+                                data-table="cla-table-{{ forloop.counter }}"
+                                onclick="handleSelectAll(this)">SELECT ALL</button>
+                        <button type="submit" class="approve-btn">✓ APPROVE SELECTED</button>
+                    </div>
+                    {% endif %}
+
+                </form>
+
+            {% endfor %}
+
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">✅</div>
+                <div>No completed loans pending approval{% if selected_office %} for {{ selected_office.name }}{% endif %}.</div>
+            </div>
+        {% endif %}
+
+    </div><!-- end .printable -->
+
+    <div class="action-row no-print" style="margin-top: 16px;">
+        <a class="back-link" href="{% url 'loans' %}">← Back to Loans</a>
+        <button class="print-btn" onclick="window.print()">PRINT</button>
+    </div>
+
+</div>
+
+<script>
+function handleSelectAll(btn) {
+    const table    = document.getElementById(btn.dataset.table);
+    if (!table) return;
+    const cbs      = Array.from(table.querySelectorAll('tbody input.row-loan-cb'));
+    const allCheck = cbs.every(cb => cb.checked);
+    cbs.forEach(cb => { cb.checked = !allCheck; });
+    if (!allCheck) {
+        btn.textContent = 'DESELECT ALL';
+        btn.classList.add('deselect');
+    } else {
+        btn.textContent = 'SELECT ALL';
+        btn.classList.remove('deselect');
+    }
+}
+
+function syncSelectAll(rowCb) {
+    const table = rowCb.closest('table');
+    if (!table) return;
+    const cbs = Array.from(table.querySelectorAll('tbody input.row-loan-cb'));
+    const btn = document.querySelector(`.select-all-btn[data-table="${table.id}"]`);
+    if (!btn) return;
+    const allChecked = cbs.every(cb => cb.checked);
+    if (allChecked) {
+        btn.textContent = 'DESELECT ALL';
+        btn.classList.add('deselect');
+    } else {
+        btn.textContent = 'SELECT ALL';
+        btn.classList.remove('deselect');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.select-all-btn').forEach(function (btn) {
+        const table    = document.getElementById(btn.dataset.table);
+        if (!table) return;
+        const eligible = table.querySelectorAll('tbody input.row-loan-cb').length;
+        if (eligible < 2) btn.style.display = 'none';
+    });
+});
+</script>
+
+{% endblock %}

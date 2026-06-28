@@ -1,0 +1,744 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .staff-container {
+        margin: 20px;
+        background: #f5f5f5;
+        margin-top: 70px;
+    }
+
+    .page-header {
+        background-color: #7FCAD7;
+        color: #333;
+        padding: 15px 20px;
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 20px;
+        border-radius: 3px;
+    }
+
+    .staff-content {
+        background: white;
+        padding: 20px;
+        border-radius: 3px;
+    }
+
+    .controls-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .show-entries {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .show-entries input {
+        width: 60px;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        font-size: 13px;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 250px;
+    }
+
+    .search-box input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        width: 100%;
+        font-size: 13px;
+    }
+
+    .btn-add {
+        background-color: #9B7DB8;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        transition: background-color 0.3s;
+    }
+
+    .btn-add:hover {
+        background-color: #8a6da8;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+
+    table thead {
+        background-color: #f9f9f9;
+        border-bottom: 2px solid #ddd;
+    }
+
+    table th {
+        padding: 12px;
+        text-align: left;
+        font-weight: bold;
+        font-size: 13px;
+        color: #333;
+    }
+
+    table td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+        font-size: 13px;
+        color: #333;
+    }
+
+    table tbody tr {
+        transition: background-color 0.2s;
+    }
+
+    table tbody tr:hover {
+        background-color: #f9f9f9;
+        cursor: pointer;
+    }
+
+    table a {
+        color: #0099cc;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    table a:hover {
+        text-decoration: underline;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .pagination-info {
+        font-size: 13px;
+        color: #666;
+        order: 1;
+    }
+
+    .pagination-buttons {
+        display: flex;
+        gap: 5px;
+        order: 2;
+    }
+
+    .pagination-btn {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background-color: #f5f5f5;
+        border-color: #0099cc;
+    }
+
+    .pagination-btn.active {
+        background-color: #0099cc;
+        color: white;
+        border-color: #0099cc;
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999;
+        font-size: 14px;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        overflow-y: auto;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    .modal-content {
+        background: white;
+        margin: 20px auto;
+        width: 90%;
+        max-width: 900px;
+        border-radius: 3px;
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        background-color: #7FCAD7;
+        padding: 15px 20px;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #333;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .close-btn:hover {
+        color: #000;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .section-title {
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        font-size: 12px;
+        color: #333;
+    }
+
+    .form-group input,
+    .form-group select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        font-size: 13px;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #0099cc;
+        box-shadow: 0 0 5px rgba(0, 153, 204, 0.3);
+    }
+
+    .modal-footer {
+        padding: 20px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        border-top: 1px solid #eee;
+    }
+
+    .btn-cancel {
+        background-color: #ccc;
+        color: #333;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        transition: background-color 0.3s;
+    }
+
+    .btn-cancel:hover {
+        background-color: #bbb;
+    }
+
+    .btn-submit {
+        background-color: #9B7DB8;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        transition: background-color 0.3s;
+    }
+
+    .btn-submit:hover {
+        background-color: #8a6da8;
+    }
+
+    @media (max-width: 768px) {
+        .controls-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .show-entries,
+        .search-box {
+            width: 100%;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-content {
+            width: 95%;
+            margin: 10px auto;
+        }
+
+        table {
+            font-size: 12px;
+        }
+
+        table th,
+        table td {
+            padding: 8px;
+        }
+
+        .pagination {
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+</style>
+
+<div class="staff-container">
+    <div class="page-header">STAFF REGISTRATION</div>
+    
+    <div class="staff-content">
+        <div class="controls-row">
+            <div class="show-entries">
+                <label>Show</label>
+                <input type="number" id="entriesPerPage" value="10" min="1" max="100" onchange="handleEntriesPerPageChange()">
+                <span>entries</span>
+            </div>
+
+            <div class="search-box">
+                <label>Search:</label>
+                <input type="text" id="searchInput" placeholder="Search by name, username, or phone..." onkeyup="handleSearch()">
+            </div>
+
+            <button class="btn-add" onclick="openAddStaff()">Add Staff</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>No.</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Mobile No</th>
+                    <th>Branch</th>
+                    <th>Username</th>
+                </tr>
+            </thead>
+            <tbody id="staffTableBody">
+                <!-- Table body will be populated by JavaScript -->
+            </tbody>
+        </table>
+
+        <div id="noResults" class="no-results" style="display: none;">
+            No staff members found matching your search criteria.
+        </div>
+
+        <div class="pagination">
+            <div class="pagination-info">
+                Showing <span id="startIndex">1</span> to <span id="endIndex">10</span> of <span id="totalCount">0</span> entries
+            </div>
+            <div class="pagination-buttons">
+                <button class="pagination-btn" id="prevBtn" onclick="previousPage()" disabled>Previous</button>
+                <div id="pageNumbers"></div>
+                <button class="pagination-btn" id="nextBtn" onclick="nextPage()" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Staff Modal -->
+<div id="addStaffModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>STAFF REGISTRATION</h3>
+            <button class="close-btn" onclick="closeAddStaff()">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <form id="addStaffForm" method="POST" action="{% url 'signup' %}">
+                {% csrf_token %}
+
+                <!-- Personal Info Section -->
+                <div class="section-title">Personal Info</div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>First Name *</label>
+                        <input type="text" name="firstname" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Middle Name</label>
+                        <input type="text" name="middlename">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Last Name *</label>
+                        <input type="text" name="lastname" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Number *</label>
+                        <input type="text" name="phone" required>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Designation *</label>
+                        <select name="role" required>
+                            <option value="">Role</option>
+                            {% for i in roles%}
+                            <option value="{{i.id}}">{{i.title}}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Branch *</label>
+                        <select name="office_allocation" required>
+                            <option value="">Select Branch</option>
+                            {% for office in offices %}
+                            <option value="{{ office.id }}">{{ office.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Company Info Section -->
+                <div class="section-title" style="margin-top: 30px;">Company Info</div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>NSSF NO</label>
+                        <input type="text" name="nssf_no">
+                    </div>
+                    <div class="form-group">
+                        <label>Bank Account Name</label>
+                        <input type="text" name="bank_account_name">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Bank Account Number</label>
+                        <input type="text" name="bank_account_number">
+                    </div>
+                    <div class="form-group">
+                        <label>Username *</label>
+                        <input type="text" name="username" required>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Email Address *</label>
+                        <input type="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Join Date *</label>
+                        <input type="date" name="join_date" required>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeAddStaff()">Cancel</button>
+            <button class="btn-submit" onclick="submitAddStaffForm()">SUBMIT</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ====== DATA INITIALIZATION ======
+    let allStaffData = [];
+    let filteredStaffData = [];
+    let currentPage = 1;
+    let entriesPerPage = 10;
+
+    // Initialize staff data from Django context
+    function initializeStaffData() {
+        const staffElements = document.querySelectorAll('#staffTableBody tr');
+        allStaffData = [];
+
+        {% for staff in staff_members %}
+        allStaffData.push({
+            id: {{ staff.id }},
+            number: {{ forloop.counter }},
+            firstName: "{{ staff.first_name|escapejs }}",
+            lastName: "{{ staff.last_name|escapejs }}",
+            fullName: "{{ staff.first_name|escapejs }} {{ staff.last_name|escapejs }}",
+            designation: "{{ staff.role|default:'N/A'|escapejs }}",
+            phone: "{{ staff.phone|default:'N/A'|escapejs }}",
+            branch: "{{ staff.office_allocation.name|default:'N/A'|escapejs }}",
+            username: "{{ staff.username|escapejs }}"
+        });
+        {% endfor %}
+
+        filteredStaffData = [...allStaffData];
+        renderTable();
+        updatePagination();
+    }
+
+    // ====== SEARCH FUNCTIONALITY ======
+    function handleSearch() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        
+        if (searchTerm === '') {
+            filteredStaffData = [...allStaffData];
+        } else {
+            filteredStaffData = allStaffData.filter(staff => {
+                const searchableText = `${staff.fullName} ${staff.username} ${staff.phone} ${staff.designation} ${staff.branch}`.toLowerCase();
+                return searchableText.includes(searchTerm);
+            });
+        }
+
+        currentPage = 1;
+        renderTable();
+        updatePagination();
+    }
+
+    // ====== ENTRIES PER PAGE ======
+    function handleEntriesPerPageChange() {
+        const value = parseInt(document.getElementById('entriesPerPage').value);
+        if (value > 0) {
+            entriesPerPage = value;
+            currentPage = 1;
+            renderTable();
+            updatePagination();
+        }
+    }
+
+    // ====== TABLE RENDERING ======
+    function renderTable() {
+        const tableBody = document.getElementById('staffTableBody');
+        const startIndex = (currentPage - 1) * entriesPerPage;
+        const endIndex = startIndex + entriesPerPage;
+        const paginatedData = filteredStaffData.slice(startIndex, endIndex);
+
+        // Clear the table body
+        tableBody.innerHTML = '';
+
+        if (paginatedData.length === 0) {
+            // Show no results message
+            document.getElementById('noResults').style.display = 'block';
+            return;
+        } else {
+            document.getElementById('noResults').style.display = 'none';
+        }
+
+        // Render rows
+        paginatedData.forEach((staff, index) => {
+            const rowNumber = startIndex + index + 1;
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${rowNumber}</td>
+                <td>
+                    <a href="javascript:void(0)" onclick="viewStaffProfile(${staff.id}); event.stopPropagation();">
+                        ${staff.fullName}
+                    </a>
+                </td>
+                <td>${staff.designation}</td>
+                <td>${staff.phone}</td>
+                <td>${staff.branch}</td>
+                <td>${staff.username}</td>
+            `;
+            row.style.cursor = 'pointer';
+            row.onclick = function() {
+                viewStaffProfile(staff.id);
+            };
+            tableBody.appendChild(row);
+        });
+
+        // Update pagination info
+        const totalCount = filteredStaffData.length;
+        document.getElementById('startIndex').textContent = totalCount > 0 ? startIndex + 1 : 0;
+        document.getElementById('endIndex').textContent = Math.min(endIndex, totalCount);
+        document.getElementById('totalCount').textContent = totalCount;
+    }
+
+    // ====== PAGINATION ======
+    function updatePagination() {
+        const totalCount = filteredStaffData.length;
+        const totalPages = Math.ceil(totalCount / entriesPerPage);
+
+        // Update previous/next buttons
+        document.getElementById('prevBtn').disabled = currentPage === 1;
+        document.getElementById('nextBtn').disabled = currentPage === totalPages || totalPages === 0;
+
+        // Generate page numbers
+        const pageNumbersContainer = document.getElementById('pageNumbers');
+        pageNumbersContainer.innerHTML = '';
+
+        // Calculate which page numbers to show
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = 'pagination-btn';
+            if (i === currentPage) {
+                pageBtn.classList.add('active');
+            }
+            pageBtn.textContent = i;
+            pageBtn.onclick = function() {
+                goToPage(i);
+            };
+            pageNumbersContainer.appendChild(pageBtn);
+        }
+    }
+
+    function previousPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            renderTable();
+            updatePagination();
+        }
+    }
+
+    function nextPage() {
+        const totalPages = Math.ceil(filteredStaffData.length / entriesPerPage);
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderTable();
+            updatePagination();
+        }
+    }
+
+    function goToPage(pageNumber) {
+        currentPage = pageNumber;
+        renderTable();
+        updatePagination();
+    }
+
+    // ====== MODAL FUNCTIONS ======
+    function openAddStaff() {
+        document.getElementById('addStaffModal').style.display = 'block';
+    }
+
+    function closeAddStaff() {
+        document.getElementById('addStaffModal').style.display = 'none';
+        document.getElementById('addStaffForm').reset();
+    }
+
+    function submitAddStaffForm() {
+        document.getElementById('addStaffForm').submit();
+    }
+
+    function viewStaffProfile(staffId) {
+        window.location.href = `/staff/profile/${staffId}/`;
+    }
+
+    // ====== MODAL INTERACTIONS ======
+    window.onclick = function(event) {
+        const modal = document.getElementById('addStaffModal');
+        if (event.target === modal) {
+            closeAddStaff();
+        }
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeAddStaff();
+        }
+    });
+
+    // ====== INITIALIZATION ======
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeStaffData();
+    });
+</script>
+
+{% endblock %}

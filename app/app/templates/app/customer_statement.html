@@ -1,0 +1,323 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .cs-page {
+        max-width: 1000px;
+        margin: 70px auto 60px;
+        padding: 0 16px;
+        font-family: Arial, sans-serif;
+    }
+
+    /* ── Client selector ──────────────────────────────────────── */
+    .cs-selector {
+        background: #f5f9fb;
+        border: 1px solid #cce0ea;
+        border-radius: 4px;
+        padding: 12px 20px;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .cs-selector label { font-size: 13px; font-weight: 600; color: #1a3a4a; }
+    .cs-selector select {
+        font-size: 13px;
+        padding: 5px 10px;
+        border: 1px solid #aac8d8;
+        border-radius: 3px;
+        background: #fff;
+        min-width: 260px;
+    }
+    .cs-selector button {
+        padding: 5px 18px;
+        background: #7fc8d9;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .cs-selector button:hover { background: #5ab0c5; }
+
+    /* ── Card ─────────────────────────────────────────────────── */
+    .cs-card {
+        background: #fff;
+        border: 1px solid #ccc;
+        padding: 0 0 20px;
+    }
+
+    /* ── Letterhead ──────────────────────────────────────────── */
+    .company-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px 30px 14px;
+        border-bottom: 2px solid #8b0000;
+        justify-content: center;
+        text-align: center;
+    }
+    .company-logo img { width: 66px; height: auto; }
+    .company-name    { font-size: 22px; font-weight: 900; color: #2471a3; text-transform: uppercase; line-height: 1.1; }
+    .company-sub     { font-size: 12px; font-weight: 600; color: #1a1a1a; margin-top: 2px; }
+    .company-contact { font-size: 11px; color: #555; margin-top: 2px; }
+
+    /* ── Title ───────────────────────────────────────────────── */
+    .cs-title {
+        font-size: 14px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        margin: 14px 0 6px; text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* ── Client info bar ─────────────────────────────────────── */
+    .cs-info {
+        display: flex;
+        gap: 30px;
+        padding: 8px 30px 14px;
+        font-size: 13px;
+        flex-wrap: wrap;
+    }
+    .cs-info span { color: #555; }
+    .cs-info strong { color: #1a1a1a; }
+
+    /* ── Table ───────────────────────────────────────────────── */
+    .cs-table-wrap {
+        padding: 0 24px;
+    }
+    .cs-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .cs-table thead tr th {
+        background: #7fc8d9;
+        color: #fff;
+        font-weight: 700;
+        padding: 9px 12px;
+        border: 1px solid #5ab0c5;
+        text-align: left;
+        white-space: nowrap;
+    }
+    .cs-table thead tr th.amt { text-align: right; }
+
+    .cs-table td {
+        padding: 8px 12px;
+        border: 1px solid #e0e8ec;
+        color: #1a1a1a;
+        vertical-align: middle;
+        font-size: 13px;
+    }
+    .cs-table td.amt { text-align: right; white-space: nowrap; }
+
+    /* ── Row types ───────────────────────────────────────────── */
+
+    /* Disbursement — blue tint, bold, group header feel */
+    .cs-table tr.row-disbursement td {
+        background: #e8f4fb;
+        font-weight: 700;
+        border-top: 2px solid #7fc8d9;
+    }
+    .cs-table tr.row-disbursement td.loan-amt { color: #1a5276; }
+
+    /* Repayment — clean white */
+    .cs-table tr.row-repayment td {
+        background: #fff;
+    }
+    .cs-table tr.row-repayment td.paid-amt { color: #1a6b3a; font-weight: 600; }
+
+    /* Topup clearance — amber */
+    .cs-table tr.row-clearance td {
+        background: #fff8f0;
+        color: #7a3000;
+        font-style: italic;
+    }
+    .cs-table tr.row-clearance td.paid-amt { font-weight: 600; }
+
+    /* Zero balance highlight */
+    .bal-zero { color: #c0392b !important; font-weight: 700 !important; }
+
+    /* ── Loan block separator (spacer row) ───────────────────── */
+    .cs-table tr.loan-spacer td {
+        padding: 4px;
+        background: #f0f4f8;
+        border: none;
+        border-top: 2px solid #b0cfe0;
+        border-bottom: 2px solid #b0cfe0;
+    }
+
+    /* ── Action bar ──────────────────────────────────────────── */
+    .action-row {
+        display: flex;
+        justify-content: flex-end;
+        padding: 14px 24px 0;
+        gap: 8px;
+    }
+    .print-btn {
+        padding: 6px 20px;
+        background: #fff;
+        border: 1px solid #888;
+        border-radius: 2px;
+        font-size: 13px;
+        cursor: pointer;
+        color: #333;
+        font-weight: 600;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .cs-card, .cs-card * { visibility: visible; }
+        .cs-card { position: absolute; top: 0; left: 0; right: 0; border: none; }
+        .action-row, .cs-selector { display: none !important; }
+        .cs-table { font-size: 11px; }
+        .cs-table td, .cs-table th { padding: 5px 8px !important; }
+    }
+</style>
+
+<div class="cs-page">
+
+    <!-- ── Client selector ──────────────────────────────────── -->
+    <form method="GET" class="cs-selector no-print">
+        <label for="client_select">Select Client:</label>
+        <select id="client_select" name="client_id" onchange="this.form.submit()">
+            <option value="">— Choose a client —</option>
+            {% for c in all_clients %}
+            <option value="{{ c.id }}" {% if c.id == client.id %}selected{% endif %}>
+                {{ c.firstname }} {{ c.lastname }}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="submit">View Statement</button>
+    </form>
+
+    <div class="cs-card">
+
+        <!-- ── Letterhead ─────────────────────────────────────── -->
+        <div class="company-header">
+            <div class="company-logo">
+                <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                     onerror="this.style.display='none'">
+            </div>
+            <div>
+                <div class="company-name">MASCO FINANCE CO. LTD</div>
+                <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                <div class="company-contact">Mobile: +255 718 544 515 &nbsp;|&nbsp; Email: mascofinance@gmail.com</div>
+            </div>
+        </div>
+
+        <div class="cs-title">Customer Statement</div>
+
+        <!-- ── Client info ────────────────────────────────────── -->
+        <div class="cs-info">
+            <div>
+                <span>Customer Name: </span>
+                <strong>{{ client.firstname }} {{ client.middlename }} {{ client.lastname }}</strong>
+            </div>
+            <div>
+                <span>Customer ID: </span>
+                <strong>{{ client.id }}</strong>
+            </div>
+            <div>
+                <span>Branch: </span>
+                <strong>{{ branch_name }}</strong>
+            </div>
+        </div>
+
+        <!-- ── Statement table ────────────────────────────────── -->
+        <div class="cs-table-wrap">
+        <table class="cs-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Receipt No</th>
+                    <th>Description</th>
+                    <th>Loan Type</th>
+                    <th>Loan ID</th>
+                    <th class="amt">Loan</th>
+                    <th class="amt">Paid</th>
+                    <th class="amt">Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            {% if not loan_blocks %}
+                <tr>
+                    <td colspan="8" style="text-align:center; color:#aaa; font-style:italic; padding:20px;">
+                        No loan records found for this client.
+                    </td>
+                </tr>
+            {% endif %}
+
+            {% for block in loan_blocks %}
+
+                {# ── Spacer between loan blocks (not before the first) ── #}
+                {% if not forloop.first %}
+                <tr class="loan-spacer">
+                    <td colspan="8"></td>
+                </tr>
+                {% endif %}
+
+                {# ── All rows for this loan block ─────────────────────── #}
+                {% for row in block.rows %}
+                <tr class="
+                    {% if row.type == 'disbursement' %}row-disbursement
+                    {% elif row.type == 'repayment' %}row-repayment
+                    {% elif row.type == 'topup_clearance' %}row-clearance
+                    {% endif %}
+                ">
+                    <td>{{ row.date|date:"d/m/Y" }}</td>
+
+                    {# Receipt No — clickable link for repayment and clearance only #}
+                    <td>
+                        {% if row.type == 'repayment' %}
+                            <a href="{% url 'edit_repayment' row.record_id %}"
+                               style="color:#2980b9; text-decoration:none; font-weight:600;"
+                               title="Edit this payment">
+                                {{ row.receipt_no }}
+                            </a>
+                        {% elif row.type == 'topup_clearance' %}
+                            <a href="{% url 'edit_topup' row.record_id %}"
+                               style="color:#b96a00; text-decoration:none; font-weight:600;"
+                               title="Edit this clearance">
+                                {{ row.receipt_no }}
+                            </a>
+                        {% else %}
+                            {{ row.receipt_no }}
+                        {% endif %}
+                    </td>
+
+                    <td>{{ row.description }}</td>
+                    <td>{{ row.loan_type }}</td>
+                    <td>{{ row.loan_id_label }}</td>
+                    <td class="amt loan-amt">
+                        {% if row.loan_amount %}{{ row.loan_amount|floatformat:0|intcomma }}{% endif %}
+                    </td>
+                    <td class="amt paid-amt">
+                        {% if row.paid_amount %}{{ row.paid_amount|floatformat:0|intcomma }}{% endif %}
+                    </td>
+                    <td class="amt {% if row.balance == 0 %}bal-zero{% endif %}">
+                        {{ row.balance|floatformat:0|intcomma }}
+                    </td>
+                </tr>
+                {% endfor %}
+
+            {% endfor %}
+
+            </tbody>
+        </table>
+        </div>
+
+        <!-- ── Action bar ─────────────────────────────────────── -->
+        <div class="action-row no-print">
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div><!-- /.cs-card -->
+</div><!-- /.cs-page -->
+
+{% endblock %}

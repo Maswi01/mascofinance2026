@@ -1,0 +1,425 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 900px;
+        margin: 30px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+
+    .lp-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 32px 50px 40px;
+    }
+
+    .part-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1a1a1a;
+        letter-spacing: 0.5px;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #999;
+        margin-bottom: 36px;
+        font-family: Arial, sans-serif;
+        text-transform: uppercase;
+    }
+
+    /* ── Label + field rows ── */
+    .form-row {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 28px;
+    }
+
+    .form-row label {
+        width: 220px;
+        flex-shrink: 0;
+        font-size: 14px;
+        color: #333;
+        padding-top: 10px;
+        font-family: Arial, sans-serif;
+    }
+
+    .field-wrap {
+        flex: 1;
+        position: relative;
+    }
+
+    /* ── Custom searchable select ── */
+    .custom-select-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 430px;
+    }
+
+    .custom-select-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 9px 12px;
+        border: 1px solid #ccc;
+        border-radius: 2px;
+        font-size: 13.5px;
+        font-family: Arial, sans-serif;
+        color: #555;
+        background: #fff;
+        cursor: pointer;
+        user-select: none;
+        transition: border-color 0.15s;
+    }
+
+    .custom-select-trigger:hover,
+    .custom-select-wrapper.open .custom-select-trigger {
+        border-color: #9b59b6;
+        box-shadow: 0 0 0 2px rgba(155,89,182,0.12);
+    }
+
+    .custom-select-trigger .arrow {
+        font-size: 12px;
+        color: #888;
+        transition: transform 0.2s;
+        margin-left: 8px;
+        flex-shrink: 0;
+    }
+
+    .custom-select-wrapper.open .custom-select-trigger .arrow {
+        transform: rotate(180deg);
+    }
+
+    /* Dropdown panel */
+    .custom-select-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 999;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-top: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        max-height: 260px;
+        overflow: hidden;
+        flex-direction: column;
+    }
+
+    .custom-select-wrapper.open .custom-select-dropdown {
+        display: flex;
+    }
+
+    /* Search input inside dropdown */
+    .dropdown-search {
+        padding: 6px 10px;
+        border: none;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+        color: #333;
+        outline: none;
+        background: #fafafa;
+        flex-shrink: 0;
+    }
+
+    .dropdown-search:focus {
+        background: #fff;
+        border-bottom-color: #9b59b6;
+    }
+
+    /* Options list */
+    .dropdown-options {
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .dropdown-option {
+        padding: 10px 14px;
+        font-size: 13.5px;
+        font-family: Arial, sans-serif;
+        color: #222;
+        cursor: pointer;
+        transition: background 0.1s;
+        border-bottom: 1px solid #f2f2f2;
+    }
+
+    .dropdown-option:hover {
+        background: #f0e8f8;
+    }
+
+    .dropdown-option.selected {
+        background: #9b59b6;
+        color: #fff;
+    }
+
+    .dropdown-option.no-results {
+        color: #aaa;
+        font-style: italic;
+        cursor: default;
+    }
+
+    .dropdown-option.no-results:hover {
+        background: transparent;
+    }
+
+    /* Hidden real select for form submission */
+    .real-select {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+        width: 1px;
+        height: 1px;
+    }
+
+    /* Standard select (loan type) */
+    .std-select {
+        width: 100%;
+        max-width: 200px;
+        padding: 9px 12px;
+        border: 1px solid #ccc;
+        border-radius: 2px;
+        font-size: 13.5px;
+        font-family: Arial, sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.15s;
+        cursor: pointer;
+    }
+
+    .std-select:focus {
+        border-color: #9b59b6;
+        box-shadow: 0 0 0 2px rgba(155,89,182,0.1);
+    }
+
+    /* ── Submit button ── */
+    .proceed-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 32px;
+        background: #9b59b6;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: 0.5px;
+        transition: background 0.15s;
+        margin-top: 12px;
+        margin-left: 220px;
+    }
+
+    .proceed-btn:hover { background: #7d3c98; }
+
+    /* Alert */
+    .alert-error {
+        background: #fde8e8;
+        border: 1px solid #f5c6c6;
+        color: #b00;
+        padding: 10px 16px;
+        border-radius: 3px;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+        margin-bottom: 18px;
+    }
+
+    @media (max-width: 650px) {
+        .form-row { flex-direction: column; }
+        .form-row label { width: 100%; padding-top: 0; margin-bottom: 6px; }
+        .proceed-btn { margin-left: 0; }
+        .lp-card { padding: 20px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="lp-card">
+
+        <div class="part-title">Customer Loan Payment</div>
+
+        {% if messages %}
+            {% for msg in messages %}
+            <div class="alert-error">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="{% url 'loan_payment_select' %}" id="paymentForm">
+            {% csrf_token %}
+
+            <!-- Customer Name -->
+            <!-- Customer Name -->
+            <div class="form-row">
+                <label>Customer Name</label>
+                <div class="field-wrap">
+                    <div class="custom-select-wrapper" id="customerSelectWrapper">
+                        <div class="custom-select-trigger" id="customerTrigger">
+                            <span id="customerTriggerText">Select Customer Name</span>
+                            <span class="arrow">▼</span>
+                        </div>
+                        <div class="custom-select-dropdown" id="customerDropdown">
+                            <input type="text" class="dropdown-search" id="customerSearch"
+                                placeholder="Search by name or check no..." autocomplete="off">
+                            <div class="dropdown-options" id="customerOptions">
+                                <div class="dropdown-option selected" data-value="">Select Customer Name</div>
+                                {% for item in client_loan_list %}
+                                <div class="dropdown-option"
+                                    data-value="{{ item.primary_loan_id }}"
+                                    data-label="{{ item.client.firstname }} {{ item.client.middlename|default:'' }} {{ item.client.lastname }} -[{{ item.client.checkno|default:item.client.employmentcardno|default:'' }}]"
+                                    data-has-multiple="{{ item.has_multiple|yesno:'true,false' }}"
+                                    data-loans="[{% for loan in item.loans %}{'id':{{ loan.id }},'type':'{{ loan.loan_type }}'}{% if not forloop.last %},{% endif %}{% endfor %}]">
+                                    {{ item.client.firstname }} {{ item.client.middlename|default:'' }} {{ item.client.lastname }} -[{{ item.client.checkno|default:item.client.employmentcardno|default:'' }}]
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <input type="hidden" name="loan_id" id="loanIdInput" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loan Type selector — shown only when client has multiple loans -->
+            <div class="form-row" id="loanTypeRow" style="display:none;">
+                <label>Loan Type</label>
+                <div class="field-wrap">
+                    <select id="loanTypeSelect" class="std-select" style="max-width:200px;">
+                        <option value="">Select Loan Type</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row" id="proceedRow" style="display:none;">
+                <label></label>
+                <div class="field-wrap">
+                    <button type="submit" class="proceed-btn" id="proceedBtn" style="margin-left:0;">
+                        <i class="fas fa-arrow-right"></i> Proceed to Payment
+                    </button>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    const wrapper      = document.getElementById('customerSelectWrapper');
+    const trigger      = document.getElementById('customerTrigger');
+    const trigText     = document.getElementById('customerTriggerText');
+    const search       = document.getElementById('customerSearch');
+    const options      = document.getElementById('customerOptions');
+    const hidden       = document.getElementById('loanIdInput');
+    const loanTypeRow  = document.getElementById('loanTypeRow');
+    const loanTypeSel  = document.getElementById('loanTypeSelect');
+    const proceedRow   = document.getElementById('proceedRow');
+
+    /* ── Open / close dropdown ── */
+    trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        wrapper.classList.toggle('open');
+        if (wrapper.classList.contains('open')) {
+            search.value = '';
+            filterOptions('');
+            setTimeout(() => search.focus(), 50);
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!wrapper.contains(e.target)) wrapper.classList.remove('open');
+    });
+
+    /* ── Search filter ── */
+    search.addEventListener('input', function() {
+        filterOptions(this.value.toLowerCase().trim());
+    });
+    search.addEventListener('click', e => e.stopPropagation());
+    search.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') wrapper.classList.remove('open');
+    });
+
+    function filterOptions(query) {
+        const opts = options.querySelectorAll('.dropdown-option');
+        let visibleCount = 0;
+
+        opts.forEach(function(opt) {
+            if (!opt.dataset.value) {
+                opt.style.display = query ? 'none' : '';
+                return;
+            }
+            const label = (opt.dataset.label || opt.textContent).toLowerCase();
+            if (!query || label.includes(query)) {
+                opt.style.display = '';
+                visibleCount++;
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+
+        const noRes = options.querySelector('.no-results');
+        if (noRes) noRes.remove();
+        if (visibleCount === 0 && query) {
+            const div = document.createElement('div');
+            div.className = 'dropdown-option no-results';
+            div.textContent = 'No customers found';
+            options.appendChild(div);
+        }
+    }
+
+    /* ── Customer option selected ── */
+    options.addEventListener('click', function(e) {
+        const opt = e.target.closest('.dropdown-option');
+        if (!opt || opt.classList.contains('no-results')) return;
+
+        const val         = opt.dataset.value || '';
+        const label       = opt.dataset.label || opt.textContent.trim();
+        const hasMultiple = opt.dataset.hasMultiple === 'true';
+        const loansRaw    = opt.dataset.loans;
+
+        // Update trigger text
+        options.querySelectorAll('.dropdown-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        trigText.textContent = label || 'Select Customer Name';
+        trigText.style.color = val ? '#222' : '#555';
+        wrapper.classList.remove('open');
+
+        // Reset state
+        hidden.value             = '';
+        loanTypeRow.style.display = 'none';
+        loanTypeSel.innerHTML    = '<option value="">Select Loan Type</option>';
+        proceedRow.style.display  = 'none';
+
+        if (!val) return;
+
+        if (hasMultiple && loansRaw) {
+            // Populate loan type dropdown and wait for selection
+            const loans = JSON.parse(loansRaw.replace(/'/g, '"'));
+            loans.forEach(function(loan) {
+                const o = document.createElement('option');
+                o.value       = loan.id;
+                o.textContent = loan.type;
+                loanTypeSel.appendChild(o);
+            });
+            loanTypeRow.style.display = 'flex';
+            // proceedRow stays hidden until loan type is chosen
+        } else {
+            // Single loan — ready to proceed immediately
+            hidden.value            = val;
+            proceedRow.style.display = 'flex';
+        }
+    });
+
+    /* ── Loan type selected (multi-loan clients) ── */
+    loanTypeSel.addEventListener('change', function() {
+        hidden.value            = this.value;
+        proceedRow.style.display = this.value ? 'flex' : 'none';
+    });
+
+})();
+</script>
+
+{% endblock %}

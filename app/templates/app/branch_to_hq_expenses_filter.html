@@ -1,0 +1,171 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 50px 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    .filter-card {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 36px 40px 40px;
+        width: 100%;
+        max-width: 900px;
+    }
+
+    .form-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #1a2a4a;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        padding-bottom: 14px;
+        border-bottom: 2px solid #e0e0e0;
+        margin-bottom: 32px;
+    }
+
+    .date-row {
+        display: flex;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
+        margin-bottom: 32px;
+    }
+
+    .date-group {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex: 1;
+        min-width: 260px;
+    }
+
+    .date-group label {
+        font-size: 14px;
+        color: #444;
+        font-weight: 400;
+        white-space: nowrap;
+    }
+
+    .date-input {
+        flex: 1;
+        padding: 10px 14px;
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        font-size: 13.5px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .date-input:focus {
+        border-color: #2ecc9a;
+        box-shadow: 0 0 0 3px rgba(46,204,154,0.1);
+    }
+
+    .form-divider {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 0 0 28px;
+    }
+
+    .submit-row { display: flex; justify-content: center; }
+
+    .btn-submit {
+        background: #2ecc9a;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 44px;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        transition: background 0.2s, transform 0.15s;
+        box-shadow: 0 2px 8px rgba(46,204,154,0.3);
+    }
+
+    .btn-submit:hover { background: #27ae88; transform: translateY(-1px); }
+
+    .alert {
+        padding: 11px 16px;
+        border-radius: 5px;
+        font-size: 13px;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .alert-error { background: #fce4e4; color: #c62828; border: 1px solid #ffcdd2; }
+
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 20px 16px; margin-top: 60px; }
+        .filter-card { padding: 24px 16px; }
+        .date-row { flex-direction: column; gap: 16px; }
+        .date-group { width: 100%; }
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="filter-card">
+        <div class="form-title">Branch to HQ Transfer Expenses</div>  {# ← changed #}
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                <i class="fas fa-exclamation-circle"></i> {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="get" action="{% url 'branch_to_hq_expenses_result' %}">  {# ← changed #}
+            <div class="date-row">
+                <div class="date-group">
+                    <label for="date_from">Date from</label>
+                    <input
+                        type="date"
+                        id="date_from"
+                        name="date_from"
+                        class="date-input"
+                        value="{{ date_from|default:'' }}"
+                        required
+                    >
+                </div>
+                <div class="date-group">
+                    <label for="date_to">Date to</label>
+                    <input
+                        type="date"
+                        id="date_to"
+                        name="date_to"
+                        class="date-input"
+                        value="{{ date_to|default:'' }}"
+                        required
+                    >
+                </div>
+            </div>
+
+            <hr class="form-divider">
+
+            <div class="submit-row">
+                <button type="submit" class="btn-submit">Submit</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

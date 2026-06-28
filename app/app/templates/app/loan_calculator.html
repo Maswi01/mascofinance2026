@@ -1,0 +1,477 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    @media print {
+        body * { visibility: hidden; }
+        .calc-wrapper, .calc-wrapper * { visibility: visible; }
+        .calc-wrapper { position: absolute; top: 0; left: 0; width: 100%; margin: 0; padding: 0; }
+        .no-print { display: none !important; }
+    }
+
+    .calc-wrapper {
+        max-width: 1100px;
+        margin: 60px auto 60px;
+        font-family: Georgia, 'Times New Roman', serif;
+        color: #1a1a1a;
+        background: #fff;
+        padding: 0 20px;
+    }
+
+    .company-header {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        padding: 20px 32px 18px;
+        border-bottom: 3px solid #1a3048;
+    }
+    .company-logo { width: 100px; height: 80px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .company-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .company-info { text-align: center; flex: 1; }
+    .company-name { font-size: 32px; font-weight: 700; color: #1a4fa0; letter-spacing: 1px; font-family: Arial, sans-serif; line-height: 1.1; }
+    .company-address { font-size: 15px; color: #222; margin-top: 4px; font-family: Arial, sans-serif; font-weight: 600; }
+    .company-contact { font-size: 14px; color: #222; margin-top: 3px; font-family: Arial, sans-serif; }
+
+    .calc-card { background: #fff; border: 1px solid #ddd; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .section-title { font-size: 16px; font-weight: 600; color: #1a1a1a; padding: 18px 32px 14px; border-bottom: 1px solid #ccc; font-family: Arial, sans-serif; }
+    .form-area { padding: 24px 32px 8px; }
+
+    .form-row { display: flex; align-items: center; margin-bottom: 18px; }
+    .form-row label { width: 220px; flex-shrink: 0; font-size: 14px; color: #2c2c2c; text-align: right; padding-right: 24px; font-family: Arial, sans-serif; }
+    .form-row input, .form-row select { width: 240px; padding: 7px 10px; border: 1px solid #bbb; border-radius: 2px; font-size: 14px; font-family: Arial, sans-serif; color: #1a1a1a; background: #fff; outline: none; transition: border-color 0.15s; }
+    .form-row input:focus, .form-row select:focus { border-color: #1a4fa0; box-shadow: 0 0 0 2px rgba(26,79,160,0.08); }
+    .form-row input[readonly] { background: #f5f5f5; color: #555; }
+
+    .amount-wrap { position: relative; width: 240px; }
+    .amount-wrap input { width: 100%; padding-right: 28px; box-sizing: border-box; }
+    .amount-suffix { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #888; pointer-events: none; font-family: Arial, sans-serif; }
+
+    .results-section { background: #d6e0d6; margin: 16px 0 0; padding: 0; }
+    .result-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 32px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+    .result-row:last-child { border-bottom: none; }
+    .result-label { font-size: 14px; color: #1a1a1a; font-family: Arial, sans-serif; }
+    .result-value { font-size: 15px; font-weight: 700; color: #1a1a1a; text-decoration: underline; min-width: 160px; text-align: right; font-family: Arial, sans-serif; }
+    .result-value.empty { color: #888; font-weight: 400; text-decoration: none; font-style: italic; font-size: 13px; }
+
+    .schedule-section { padding: 0; display: none; }
+    .schedule-title-bar { background: #c8a0a8; padding: 10px 20px; font-size: 15px; font-weight: 700; color: #1a1a1a; letter-spacing: 0.5px; font-family: Arial, sans-serif; }
+    .schedule-table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: Arial, sans-serif; }
+    .schedule-table thead tr { background: #aecfde; }
+    .schedule-table th { padding: 9px 12px; text-align: left; font-weight: 600; color: #1a1a1a; border: 1px solid #bbb; white-space: nowrap; }
+    .schedule-table th.num { text-align: center; width: 60px; }
+    .schedule-table td { padding: 8px 12px; border: 1px solid #ddd; color: #1a1a1a; }
+    .schedule-table td.num { text-align: center; font-weight: 600; }
+    .schedule-table td.amt { text-align: right; }
+    .schedule-table tbody tr:hover { background: #f0f6fa; }
+    /* Last row highlight — different amount */
+    .schedule-table tbody tr.last-row { background: #fdf6e3; }
+    .schedule-table tfoot tr { background: #d4b97a; font-weight: 700; }
+    .schedule-table tfoot td { padding: 9px 12px; border: 1px solid #bbb; }
+
+    .signature-section { padding: 20px 32px 12px; display: none; font-family: Arial, sans-serif; font-size: 13.5px; }
+    .sig-row { display: flex; gap: 48px; margin-bottom: 14px; }
+    .sig-item { display: flex; align-items: center; gap: 8px; }
+    .sig-line { display: inline-block; width: 140px; border-bottom: 1px solid #333; }
+    .provided-by { margin-top: 6px; }
+
+    .accent-bar { background: #1a3048; height: 5px; }
+    .bottom-bar { display: flex; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid #ddd; }
+    .print-btn { padding: 6px 20px; background: #f4f4f4; border: 1px solid #aaa; border-radius: 2px; font-size: 13px; font-family: Arial, sans-serif; color: #1a1a1a; cursor: pointer; letter-spacing: 0.5px; transition: background 0.15s; font-weight: 600; }
+    .print-btn:hover { background: #e0e0e0; }
+
+    .notification { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 4px; font-family: Arial, sans-serif; font-size: 13px; font-weight: 600; z-index: 9999; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .notification.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .notification.error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+</style>
+
+<div class="calc-wrapper">
+    <div class="calc-card">
+
+        <!-- Company Header -->
+        <div class="company-header">
+            <div class="company-logo">
+                <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo" height="85" width="auto">
+            </div>
+            <div class="company-info">
+                <div class="company-name">MASCO FINANCE CO. LTD</div>
+                <div class="company-address">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+            </div>
+        </div>
+
+        <div class="accent-bar"></div>
+
+        <div class="section-title">Loan Calculator</div>
+
+        <div class="form-area">
+
+            <!-- Amount (P) -->
+            <div class="form-row">
+                <label for="loanAmount">Amount</label>
+                <div class="amount-wrap">
+                    <input type="text" id="loanAmount" placeholder="0"
+                           inputmode="numeric" autocomplete="off"
+                           oninput="onAmountInput(this)">
+                    <span class="amount-suffix">/=</span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label for="interestRate">Interest per annum %</label>
+                <input type="number" id="interestRate" placeholder="0" min="0" max="100" step="0.1" oninput="onInputChange()">
+            </div>
+
+            <div class="form-row">
+                <label for="loanType">Loan type</label>
+                <select id="loanType" onchange="onLoanTypeChange()">
+                    <option value="">Select Loan Type</option>
+                    <option value="maendeleo">Maendeleo</option>
+                    <option value="dharura">Dharura</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label for="periodMonths">Period</label>
+                <select id="periodMonths" onchange="onInputChange()">
+                    <option value="">Select period</option>
+                </select>
+            </div>
+            <div class="form-row" id="periodHintRow" style="display:none;">
+                <label></label>
+                <span style="font-size:12px; color:#1a3048; font-family:Arial,sans-serif; font-style:italic;">
+                    &#9888; Dharura loans are limited to 1 month only.
+                </span>
+            </div>
+
+            <div class="form-row">
+                <label for="startDate">Starting Payment Day</label>
+                <input type="date" id="startDate" onchange="onInputChange()">
+            </div>
+
+            <!-- Outstanding Amount -->
+            <div class="form-row">
+                <label for="outstandingAmount">Outstanding Amount</label>
+                <div class="amount-wrap">
+                    <input type="text" id="outstandingAmount" placeholder="Outstanding Balance"
+                           inputmode="numeric" autocomplete="off"
+                           oninput="onAmountInput(this)">
+                    <span class="amount-suffix">/=</span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label for="endDate">End Payment Day</label>
+                <input type="text" id="endDate" readonly placeholder="—">
+            </div>
+
+        </div>
+
+        <!-- Results -->
+        <div class="results-section">
+            <div class="result-row">
+                <span class="result-label">Monthly Repayment :</span>
+                <span class="result-value" id="monthlyRepaymentResult"><span class="empty">—</span></span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Total Return Amount:</span>
+                <span class="result-value" id="totalReturnResult"><span class="empty">—</span></span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Total Interest Amount:</span>
+                <span class="result-value" id="totalInterestResult"><span class="empty">—</span></span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Amount to be deposited:</span>
+                <span class="result-value" id="depositAmountResult"><span class="empty">—</span></span>
+            </div>
+        </div>
+
+        <!-- Schedule -->
+        <div class="schedule-section" id="scheduleSection">
+            <div class="schedule-title-bar" id="scheduleTitleBar">MONTHLY INSTALLMENT SCHEDULES - []</div>
+            <table class="schedule-table" id="scheduleTable">
+                <thead>
+                    <tr>
+                        <th class="num">Phase</th>
+                        <th>Date</th>
+                        <th>Principal Repayment</th>
+                        <th>Interest Repayment</th>
+                        <th>Total Repayment</th>
+                        <th>Loan Balance</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleBody"></tbody>
+                <tfoot>
+                    <tr>
+                        <td class="num">Total</td>
+                        <td></td>
+                        <td class="amt" id="footPrincipal"></td>
+                        <td class="amt" id="footInterest"></td>
+                        <td class="amt" id="footTotal"></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Signature -->
+        <div class="signature-section" id="signatureSection">
+            <div class="sig-row">
+                <div class="sig-item">Customer Name: <span class="sig-line"></span></div>
+                <div class="sig-item">Signature: <span class="sig-line" style="width:110px"></span></div>
+                <div class="sig-item">Date: <span class="sig-line" style="width:90px"></span></div>
+            </div>
+            <div class="provided-by">
+                Provided by: <u id="providedByName">________________</u>&nbsp;&nbsp;
+                Signature: <span class="sig-line" style="width:110px"></span>&nbsp;&nbsp;
+                Date: <span class="sig-line" style="width:90px"></span>
+            </div>
+        </div>
+
+        <div class="bottom-bar no-print">
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+
+<div class="notification" id="notification"></div>
+
+<script>
+(function() {
+    const today = new Date();
+    document.getElementById('startDate').value = today.toISOString().split('T')[0];
+    populatePeriod('');
+})();
+
+/* ── Comma-formatted input ── */
+function onAmountInput(el) {
+    const cursorPos = el.selectionStart;
+    const oldLen    = el.value.length;
+    const raw = el.value.replace(/[^0-9]/g, '');
+    if (!raw) { el.value = ''; onInputChange(); return; }
+    const formatted = parseInt(raw, 10).toLocaleString('en');
+    el.value = formatted;
+    const newLen    = el.value.length;
+    const newCursor = cursorPos + (newLen - oldLen);
+    el.setSelectionRange(newCursor, newCursor);
+    onInputChange();
+}
+
+function getRaw(id) {
+    return parseFloat(document.getElementById(id).value.replace(/,/g, '')) || 0;
+}
+
+function populatePeriod(loanType) {
+    const sel  = document.getElementById('periodMonths');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Select period</option>';
+    const max = (loanType === 'dharura') ? 1 : 36;
+    for (let i = 1; i <= max; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i + (i === 1 ? ' Month' : ' Months');
+        sel.appendChild(opt);
+    }
+    if (loanType === 'dharura') {
+        sel.value    = 1;
+        sel.disabled = true;
+        document.getElementById('periodHintRow').style.display = 'flex';
+    } else {
+        sel.disabled = false;
+        document.getElementById('periodHintRow').style.display = 'none';
+        if (prev && parseInt(prev) <= max) sel.value = prev;
+    }
+}
+
+function onLoanTypeChange() {
+    populatePeriod(document.getElementById('loanType').value);
+    calculate();
+}
+
+function onInputChange() { calculate(); }
+
+/* ── Formatters ── */
+function fmt(n) {
+    if (isNaN(n) || n === null) return null;
+    return Math.round(n).toLocaleString('en') + ' /=';
+}
+function fmtMonth(date) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[date.getMonth()] + '/' + date.getFullYear();
+}
+function fmtDate(date) {
+    const d = String(date.getDate()).padStart(2,'0');
+    const m = String(date.getMonth()+1).padStart(2,'0');
+    return `${d}/${m}/${date.getFullYear()}`;
+}
+function setResult(id, value) {
+    const el = document.getElementById(id);
+    if (value === null || value === undefined) {
+        el.innerHTML = '<span class="empty">—</span>';
+    } else {
+        el.textContent = value;
+    }
+}
+
+/* ── Ceil to nearest 1,000 (standard months round UP, last month absorbs remainder) ── */
+function round1000(val) {
+    return Math.ceil(val / 1000) * 1000;
+}
+
+/*
+ * ════════════════════════════════════════════════════
+ *  ROUNDING STRATEGY (matches image):
+ *
+ *  Standard months (1 to N-1):
+ *    principal = floor(P / N, 1000)
+ *    interest  = floor(totalInterest / N, 1000)
+ *    total     = principal + interest
+ *
+ *  Last month (N) absorbs the remainder:
+ *    principal = P             - (standard_principal × (N-1))
+ *    interest  = totalInterest - (standard_interest  × (N-1))
+ *    total     = lastPrincipal + lastInterest
+ *
+ *  Example: P=500,000 | I=40% | N=6
+ *    totalInterest = 200,000 | totalReturn = 700,000
+ *    standard: 84,000 + 33,000 = 117,000  (months 1–5)
+ *    last:     80,000 + 35,000 = 115,000  (month 6)
+ * ════════════════════════════════════════════════════
+ */
+function calculate() {
+    const P            = getRaw('loanAmount');
+    const I            = parseFloat(document.getElementById('interestRate').value);
+    const N            = parseInt(document.getElementById('periodMonths').value);
+    const startDateVal = document.getElementById('startDate').value;
+    const loanType     = document.getElementById('loanType').value;
+
+    if (!P || P <= 0 || isNaN(I) || !N || !startDateVal) {
+        setResult('monthlyRepaymentResult', null);
+        setResult('totalReturnResult',      null);
+        setResult('totalInterestResult',    null);
+        setResult('depositAmountResult',    null);
+        document.getElementById('endDate').value = '';
+        document.getElementById('scheduleSection').style.display  = 'none';
+        document.getElementById('signatureSection').style.display = 'none';
+        return;
+    }
+
+    const totalInterest = (I / 100) * P;
+    const totalReturn   = P + totalInterest;
+
+    /* ── Standard months (1 to N-1): round TOTAL as one number to nearest 1,000 ── */
+    const stdMonthly   = round1000(totalReturn / N);
+    const stdPrincipal = round1000(P            / N);
+    const stdInterest  = stdMonthly - stdPrincipal;  // derived so they always add up
+
+    /* ── Last month absorbs remainder ── */
+    const lastPrincipal = P             - (stdPrincipal * (N - 1));
+    const lastInterest  = totalInterest - (stdInterest  * (N - 1));
+    const lastMonthly   = lastPrincipal + lastInterest;
+
+    /* Monthly Repayment shown = standard amount (what most months pay) */
+    setResult('monthlyRepaymentResult', fmt(stdMonthly));
+    setResult('totalReturnResult',      fmt(totalReturn));
+    setResult('totalInterestResult',    fmt(totalInterest));
+    setResult('depositAmountResult',    fmt(P));
+
+    /* ── First installment date ──
+       day <= 18 → same month 28th
+       day >  18 → next month 28th */
+    const startDate = new Date(startDateVal + 'T00:00:00');
+    const firstInstallment = new Date(startDate);
+    if (startDate.getDate() > 18) {
+        firstInstallment.setMonth(firstInstallment.getMonth() + 1);
+    }
+    firstInstallment.setDate(28);
+
+    /* End date */
+    const endDate = new Date(firstInstallment);
+    endDate.setMonth(endDate.getMonth() + N - 1);
+    document.getElementById('endDate').value = fmtDate(endDate);
+
+    const typeLabel = loanType === 'maendeleo' ? 'MAENDELEO'
+                    : loanType === 'dharura'   ? 'DHARURA' : '';
+    document.getElementById('scheduleTitleBar').textContent =
+        `MONTHLY INSTALLMENT SCHEDULES${typeLabel ? ' - [' + typeLabel + ']' : ''}`;
+
+    generateSchedule(
+        P, N, totalReturn,
+        stdPrincipal, stdInterest, stdMonthly,
+        lastPrincipal, lastInterest, lastMonthly,
+        firstInstallment
+    );
+
+    document.getElementById('scheduleSection').style.display  = 'block';
+    document.getElementById('signatureSection').style.display = 'block';
+}
+
+function generateSchedule(
+    P, N, totalReturn,
+    stdPrincipal, stdInterest, stdMonthly,
+    lastPrincipal, lastInterest, lastMonthly,
+    startDate
+) {
+    const tbody = document.getElementById('scheduleBody');
+    tbody.innerHTML = '';
+
+    let balance      = totalReturn;
+    let totPrincipal = 0;
+    let totInterest  = 0;
+    let totRepayment = 0;
+    let currentDate  = new Date(startDate);
+
+    /* Opening balance row */
+    const openRow = document.createElement('tr');
+    openRow.style.background = '#f9f9f9';
+    openRow.innerHTML = `
+        <td class="num" style="color:#888;font-style:italic;font-size:12px;">—</td>
+        <td style="color:#888;font-style:italic;font-size:12px;">Opening Balance</td>
+        <td class="amt"></td><td class="amt"></td><td class="amt"></td>
+        <td class="amt"><strong>${Math.round(balance).toLocaleString('en')}</strong></td>
+    `;
+    tbody.appendChild(openRow);
+
+    for (let i = 1; i <= N; i++) {
+        const isLast   = (i === N);
+
+        /* Standard for months 1 to N-1, last month gets remainder */
+        const pmt      = isLast ? lastPrincipal : stdPrincipal;
+        const imt      = isLast ? lastInterest  : stdInterest;
+        const rowTotal = isLast ? lastMonthly   : stdMonthly;
+
+        balance -= rowTotal;
+        if (Math.abs(balance) < 0.5) balance = 0;
+
+        totPrincipal += pmt;
+        totInterest  += imt;
+        totRepayment += rowTotal;
+
+        const row = document.createElement('tr');
+        if (isLast) row.classList.add('last-row');
+
+        row.innerHTML = `
+            <td class="num">${i}</td>
+            <td>${fmtMonth(currentDate)}</td>
+            <td class="amt">${Math.round(pmt).toLocaleString('en')}</td>
+            <td class="amt">${Math.round(imt).toLocaleString('en')}</td>
+            <td class="amt">${Math.round(rowTotal).toLocaleString('en')}</td>
+            <td class="amt">${Math.round(balance).toLocaleString('en')}</td>
+        `;
+        tbody.appendChild(row);
+
+        currentDate = new Date(currentDate);
+        currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+
+    document.getElementById('footPrincipal').textContent = Math.round(totPrincipal).toLocaleString('en');
+    document.getElementById('footInterest').textContent  = Math.round(totInterest).toLocaleString('en');
+    document.getElementById('footTotal').textContent     = Math.round(totRepayment).toLocaleString('en');
+}
+
+calculate();
+</script>
+
+{% endblock %}

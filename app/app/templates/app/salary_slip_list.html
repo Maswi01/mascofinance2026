@@ -1,0 +1,346 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 20px 40px 50px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+    }
+
+    /* ── Payroll title bar — gradient blue/cyan matching screenshot ── */
+    .payroll-bar {
+        background: linear-gradient(90deg, #1a73c7 0%, #29b6f6 80%, #4dd0e1 100%);
+        border-radius: 4px 4px 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        height: 46px;
+    }
+
+    .payroll-bar h2 {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin: 0;
+    }
+
+    /* Right accent square matching screenshot */
+    .payroll-bar-accent {
+        width: 46px;
+        height: 46px;
+        background: rgba(255,255,255,0.25);
+        border-radius: 0 4px 0 0;
+        margin-right: -20px;
+    }
+
+    /* ── Main card ── */
+    .list-card {
+        background: #fff;
+        border-radius: 0 0 6px 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 24px 28px 28px;
+    }
+
+    /* Back link */
+    .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #1a73c7;
+        font-size: 13px;
+        text-decoration: none;
+        margin-bottom: 16px;
+        transition: color 0.15s;
+    }
+    .btn-back:hover { color: #1557a0; }
+
+    /* ── Action buttons row ── */
+    .action-row {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .btn-paid {
+        background: #2ecc9a;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 9px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.2s;
+        text-decoration: none;
+    }
+    .btn-paid:hover { background: #27ae88; }
+
+    .btn-slips {
+        background: #e53935;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 9px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.2s;
+        text-decoration: none;
+    }
+    .btn-slips:hover { background: #c62828; }
+
+    /* ── Payroll Table ── */
+    .payroll-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .payroll-table thead tr {
+        background: #f7f9fb;
+    }
+
+    .payroll-table th {
+        padding: 10px 14px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 12.5px;
+        color: #444;
+        border: 1px solid #dde3ea;
+        white-space: nowrap;
+    }
+
+    .payroll-table th.col-sn  { text-align: center; width: 60px; }
+    .payroll-table th.col-amt { text-align: right; }
+    .payroll-table th.col-status { text-align: center; }
+
+    .payroll-table td {
+        padding: 10px 14px;
+        border: 1px solid #eef1f5;
+        color: #333;
+        vertical-align: middle;
+        font-size: 13px;
+    }
+
+    .payroll-table td.col-sn     { text-align: center; color: #777; }
+    .payroll-table td.col-amt    { text-align: right; }
+    .payroll-table td.col-center { text-align: center; }
+
+    .payroll-table tbody tr:hover { background: #f8f9ff; }
+
+    /* Payment status badge */
+    .badge {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 12px;
+        font-size: 11.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .badge-paid    { background: #e8f5e9; color: #2e7d32; }
+    .badge-pending { background: #fff3e0; color: #e65100; }
+    .badge-unpaid  { background: #fce4e4; color: #c62828; }
+
+    /* Branch sub-header rows */
+    .branch-header td {
+        background: #e8f0fe;
+        font-weight: 700;
+        font-size: 12.5px;
+        color: #1a73c7;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        padding: 7px 14px;
+        border-color: #c8d4e8;
+    }
+
+    /* Grand totals row */
+    .total-row td {
+        background: #c9b882;
+        color: #3a2a00;
+        font-weight: 700;
+        font-size: 13.5px;
+        border-color: #b8a070;
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+        color: #aaa;
+        font-size: 14px;
+    }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; display: block; }
+
+    /* ── Print area ── */
+    @media print {
+        body * { visibility: hidden; }
+        #printArea, #printArea * { visibility: visible; }
+        #printArea { position: absolute; left: 0; top: 0; width: 100%; padding: 16px; }
+        .no-print { display: none !important; }
+        .payroll-table tbody tr:hover { background: none; }
+    }
+
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 10px; margin-top: 60px; }
+        .list-card { padding: 12px; }
+        .payroll-table { display: block; overflow-x: auto; }
+        .action-row { flex-wrap: wrap; }
+    }
+</style>
+
+<div class="page-wrapper">
+    <!-- Title bar -->
+    <div class="payroll-bar">
+        <h2>Payroll {{ month_label }}</h2>
+        <div class="payroll-bar-accent"></div>
+    </div>
+
+    <div class="list-card">
+        <a href="{% url 'salary_slip_filter' %}" class="btn-back no-print">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <!-- Action buttons -->
+        <div class="action-row no-print">
+            <a href="{% url 'salary_slip_pay_all' %}?month={{ month_param }}" class="btn-paid">
+                <i class="fas fa-eye"></i> PAID SALARY
+            </a>
+            <button type="button" class="btn-slips" onclick="printSlips()">
+                <i class="fas fa-trash-alt"></i> SALARY SLIPS
+            </button>
+        </div>
+
+        <!-- ── PRINTABLE TABLE ── -->
+        <div id="printArea">
+
+            <!-- Company Header (print only) -->
+            <div style="display:none;" class="print-header">
+                <div style="text-align:center; font-weight:800; font-size:18px; color:#1a3a6e;">MASCO FINANCE CO. LTD</div>
+                <div style="text-align:center; font-size:13px; color:#555; margin-bottom:8px;">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                <div style="text-align:center; font-weight:700; font-size:14px; text-decoration:underline; text-transform:uppercase; margin-bottom:16px;">
+                    Payroll — {{ month_label }}
+                </div>
+            </div>
+
+            {% if salaries %}
+            <table class="payroll-table">
+                <thead>
+                    <tr>
+                        <th class="col-sn">S/N</th>
+                        <th>Employee Name</th>
+                        <th>Basic Salary</th>
+                        <th>Deduction</th>
+                        <th class="col-amt">Net Salary</th>
+                        <th class="col-center">Date</th>
+                        <th class="col-center">Receipt</th>
+                        <th class="col-status">Payment Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for branch_name, branch_salaries in grouped_salaries.items %}
+                    <!-- Branch header row -->
+                    <tr class="branch-header">
+                        <td colspan="8">
+                            <i class="fas fa-building" style="margin-right:6px;"></i>
+                            {{ branch_name }}
+                        </td>
+                    </tr>
+                    {% for sal in branch_salaries %}
+                    <tr>
+                        <td class="col-sn">{{ forloop.counter }}</td>
+                        <td>
+                            {% if sal.employee %}
+                                {{ sal.employee.get_full_name|default:sal.employee.username }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="col-amt">{{ sal.basic_salary|floatformat:0|intcomma }}</td>
+                        <td class="col-amt">{{ sal.deduction|floatformat:0|intcomma }}</td>
+                        <td class="col-amt">{{ sal.net_salary|floatformat:0|intcomma }}</td>
+                        <td class="col-center">{{ sal.payment_date|date:"d/m/Y"|default:"—" }}</td>
+                        <td class="col-center">
+                            {% if sal.receipt_number %}
+                                <span style="font-size:11.5px; color:#555;">{{ sal.receipt_number }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="col-center">
+                            {% if sal.payment_date %}
+                                <span class="badge badge-paid">Paid</span>
+                            {% else %}
+                                <span class="badge badge-pending">Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="2" style="text-align:right; padding-right:14px; font-weight:700;">Grand Total</td>
+                        <td class="col-amt">{{ totals.basic_salary|floatformat:0|intcomma }}</td>
+                        <td class="col-amt">{{ totals.deduction|floatformat:0|intcomma }}</td>
+                        <td class="col-amt">{{ totals.net_salary|floatformat:0|intcomma }}</td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-file-invoice-dollar"></i>
+                No salary records found for {{ month_label }}.
+            </div>
+            {% endif %}
+        </div><!-- end printArea -->
+
+        <!-- Bottom print button -->
+        <div style="display:flex; justify-content:flex-end; margin-top:16px;" class="no-print">
+            <button onclick="window.print()" style="
+                padding: 7px 18px;
+                border: 1px solid #cdd4da;
+                border-radius: 4px;
+                background: #fff;
+                font-size: 13px;
+                font-family: 'Poppins', sans-serif;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            ">
+                <i class="fas fa-print"></i> Print
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function printSlips() {
+        // Show print header when printing salary slips
+        document.querySelectorAll('.print-header').forEach(el => el.style.display = 'block');
+        window.print();
+        document.querySelectorAll('.print-header').forEach(el => el.style.display = 'none');
+    }
+</script>
+
+{% endblock %}

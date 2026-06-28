@@ -1,0 +1,258 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'expenses-create' as can_add_expense %}
+
+<style>
+    .transaction-wrapper {
+        max-width: 900px;
+        margin: 100px auto;
+        padding: 0 20px;
+    }
+
+    .transaction-card {
+        background: #ffffff;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        padding: 36px 48px 48px;
+    }
+
+    .transaction-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1a1a1a;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #cccccc;
+        margin-bottom: 36px;
+        letter-spacing: 0.3px;
+        font-family: Georgia, serif;
+    }
+
+    .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 28px;
+    }
+
+    .form-row label {
+        width: 240px;
+        flex-shrink: 0;
+        font-size: 14.5px;
+        color: #3a3a3a;
+        text-align: right;
+        padding-right: 28px;
+        font-family: Georgia, serif;
+    }
+
+    /* ── Custom Select Wrapper ── */
+    .select-wrapper {
+        position: relative;
+        width: 320px;
+    }
+
+    .select-wrapper select {
+        width: 100%;
+        padding: 10px 40px 10px 14px;
+        border: 1px solid #c0c0c0;
+        border-radius: 3px;
+        font-size: 14px;
+        font-family: Georgia, serif;
+        color: #2c2c2c;
+        background: #ffffff;
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .select-wrapper select:focus {
+        border-color: #1a4fa0;
+        box-shadow: 0 0 0 3px rgba(26,79,160,0.08);
+    }
+
+    /* Custom dropdown arrow */
+    .select-wrapper::after {
+        content: '';
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 6px solid #555;
+        pointer-events: none;
+        transition: transform 0.2s;
+    }
+
+    .select-wrapper.open::after {
+        transform: translateY(-50%) rotate(180deg);
+    }
+
+    /* ── Proceed Button ── */
+    .proceed-btn {
+        margin-left: 240px;
+        margin-top: 8px;
+        padding: 10px 36px;
+        background: #1a4fa0;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        font-size: 14px;
+        font-family: Georgia, serif;
+        font-weight: 600;
+        cursor: pointer;
+        letter-spacing: 0.4px;
+        transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .proceed-btn:hover {
+        background: #153d80;
+        box-shadow: 0 3px 10px rgba(26,79,160,0.25);
+        transform: translateY(-1px);
+    }
+
+    .proceed-btn:active {
+        transform: translateY(0);
+    }
+
+    .proceed-btn i {
+        font-size: 13px;
+    }
+
+    /* ── Error message ── */
+    .error-msg {
+        margin-left: 240px;
+        margin-top: -16px;
+        margin-bottom: 16px;
+        font-size: 12.5px;
+        color: #c0392b;
+        font-family: Arial, sans-serif;
+        display: none;
+    }
+
+    .error-msg.visible {
+        display: block;
+    }
+
+    /* ── Type description badges ── */
+    .type-hint {
+        margin-left: 240px;
+        margin-top: -20px;
+        margin-bottom: 20px;
+        font-size: 12px;
+        color: #666;
+        font-family: Arial, sans-serif;
+        font-style: italic;
+        min-height: 18px;
+        transition: opacity 0.2s;
+    }
+
+    @media (max-width: 700px) {
+        .transaction-card { padding: 24px 20px 36px; }
+        .form-row { flex-direction: column; align-items: flex-start; }
+        .form-row label { width: 100%; text-align: left; padding-right: 0; margin-bottom: 8px; }
+        .select-wrapper { width: 100%; }
+        .proceed-btn { margin-left: 0; width: 100%; justify-content: center; }
+        .error-msg, .type-hint { margin-left: 0; }
+    }
+</style>
+
+<div class="transaction-wrapper">
+    <div class="transaction-card">
+
+        <div class="transaction-title">BRANCH OFFICE TRANSACTION</div>
+
+        <div class="form-row">
+            <label for="transactionType">Transaction type</label>
+            <div class="select-wrapper" id="selectWrapper">
+                <select id="transactionType" onchange="onTypeChange()">
+                    <option value="">Select Category</option>
+                    <option value="deposit">Deposit</option>
+                    <option value="transfer">Transfer</option>
+                    {% if can_add_expense %}
+                    <option value="expenses">Expenses</option>
+                    {% endif %}
+                    <option value="bank_charges">Bank Charges</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Hint text under dropdown -->
+        <div class="type-hint" id="typeHint"></div>
+
+        <!-- Validation error -->
+        <div class="error-msg" id="errorMsg">Please select a transaction type to continue.</div>
+
+        <!-- Proceed button -->
+        <button class="proceed-btn" onclick="proceed()">
+            <i class="fas fa-arrow-right"></i>
+            Proceed
+        </button>
+
+    </div>
+</div>
+
+<!-- Hidden redirect URLs injected via Django -->
+<span id="url-deposit"    data-url="#"      style="display:none;"></span>
+<span id="url-transfer"   data-url="{% url 'bank_cash_transaction' %}"     style="display:none;"></span>
+<span id="url-expenses"   data-url="{% url 'expense' %}"     style="display:none;"></span>
+<span id="url-bank_charges" data-url="{% url 'bank_charges' %}" style="display:none;"></span>
+
+<script>
+    const typeDescriptions = {
+        deposit:      'Record cash or bank deposits into a branch account.',
+        transfer_branch:     'Transfer funds between branches.',
+        transfer_bank_cash:     'Transfer funds between accounts bank to cash or viceversa.',
+        expenses:     'Log branch operating expenses and payments.',
+        bank_charges: 'Record bank fees, charges, or service costs.'
+    };
+
+    const selectWrapper = document.getElementById('selectWrapper');
+
+    // Arrow animation on open
+    document.getElementById('transactionType').addEventListener('mousedown', function() {
+        selectWrapper.classList.toggle('open');
+    });
+    document.getElementById('transactionType').addEventListener('blur', function() {
+        selectWrapper.classList.remove('open');
+    });
+
+    function onTypeChange() {
+        const val = document.getElementById('transactionType').value;
+        const hint = document.getElementById('typeHint');
+        const err  = document.getElementById('errorMsg');
+
+        hint.textContent = val ? typeDescriptions[val] || '' : '';
+        err.classList.remove('visible');
+        selectWrapper.classList.remove('open');
+    }
+
+    function proceed() {
+        const val = document.getElementById('transactionType').value;
+
+        if (!val) {
+            document.getElementById('errorMsg').classList.add('visible');
+            document.getElementById('transactionType').focus();
+            return;
+        }
+
+        const urlEl = document.getElementById('url-' + val);
+        if (urlEl) {
+            window.location.href = urlEl.getAttribute('data-url');
+        }
+    }
+
+    // Allow Enter key to proceed
+    document.getElementById('transactionType').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') proceed();
+    });
+</script>
+
+{% endblock %}

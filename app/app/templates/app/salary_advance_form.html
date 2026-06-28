@@ -1,0 +1,576 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 30px 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+    }
+
+    /* Main white card */
+    .form-card {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 30px 36px 36px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    /* Title - matching screenshot: gold text, underline */
+    .form-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #b8860b;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding-bottom: 12px;
+        border-bottom: 1.5px solid #e0e0e0;
+        margin-bottom: 28px;
+    }
+
+    /* Form layout */
+    .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 18px;
+        gap: 0;
+    }
+
+    .form-row label {
+        width: 210px;
+        min-width: 210px;
+        font-size: 13.5px;
+        color: #555;
+        font-weight: 400;
+        text-align: right;
+        padding-right: 24px;
+    }
+
+    .form-row .input-wrap {
+        flex: 1;
+        max-width: 340px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px 13px;
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    .form-control:focus {
+        border-color: #1a73c7;
+        box-shadow: 0 0 0 3px rgba(26,115,199,0.1);
+    }
+
+    .form-control:read-only {
+        background: #f4f6f8;
+        color: #666;
+        cursor: default;
+    }
+
+    /* Select with dropdown arrow */
+    .select-wrap {
+        position: relative;
+    }
+
+    .select-wrap select {
+        width: 100%;
+        padding: 8px 36px 8px 13px;
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        transition: border-color 0.2s;
+    }
+
+    .select-wrap select:focus { border-color: #1a73c7; }
+
+    .select-wrap::after {
+        content: '▼';
+        position: absolute;
+        right: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        color: #888;
+        pointer-events: none;
+    }
+
+    /* Monthly installment display */
+    .installment-display {
+        font-size: 15px;
+        font-weight: 700;
+        color: #222;
+        text-decoration: underline;
+        letter-spacing: 0.5px;
+        padding: 6px 0;
+    }
+
+    /* Schedule Table - matching screenshot teal/blue style */
+    .schedule-section {
+        margin-top: 28px;
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .schedule-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .schedule-table thead tr {
+        background: #5bc0de;
+    }
+
+    .schedule-table th {
+        padding: 12px 20px;
+        text-align: center;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: 0.3px;
+    }
+
+    .schedule-table tbody tr {
+        background: #d9f0f7;
+        border-bottom: 1px solid #b8e2f0;
+        transition: background 0.12s;
+    }
+
+    .schedule-table tbody tr:hover { background: #c4e8f3; }
+
+    .schedule-table td {
+        padding: 10px 20px;
+        text-align: center;
+        color: #333;
+        font-size: 13.5px;
+    }
+
+    /* Total row - tan/khaki color matching screenshot */
+    .total-row {
+        background: #c9a96e !important;
+        border-top: 2px solid #b8936a;
+    }
+
+    .total-row td {
+        font-weight: 600;
+        color: #fff !important;
+        font-size: 14px;
+    }
+
+    /* Submit button */
+    .submit-section {
+        margin-top: 20px;
+        padding: 14px 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        display: flex;
+        justify-content: center;
+        background: #fff;
+    }
+
+    .btn-submit {
+        background: #2ecc9a;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 40px;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        transition: background 0.2s, transform 0.15s;
+        box-shadow: 0 2px 8px rgba(46,204,154,0.3);
+    }
+
+    .btn-submit:hover { background: #27ae88; transform: translateY(-1px); }
+    .btn-submit:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+
+    /* Back link */
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #1a73c7;
+        font-size: 13px;
+        text-decoration: none;
+        margin-bottom: 16px;
+        transition: color 0.15s;
+    }
+
+    .back-link:hover { color: #1557a0; }
+
+    /* Empty schedule placeholder */
+    .schedule-placeholder {
+        text-align: center;
+        padding: 30px;
+        color: #aaa;
+        font-size: 13.5px;
+        background: #f8fbfd;
+        border: 1px dashed #cdd4da;
+        border-radius: 4px;
+    }
+
+    /* Toast */
+    .toast {
+        position: fixed;
+        top: 80px;
+        right: 24px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Poppins', sans-serif;
+        color: #fff;
+        z-index: 9999;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+        pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { background: #2ecc9a; }
+    .toast.error { background: #e53935; }
+
+    /* Loading spinner */
+    .loading { opacity: 0.5; pointer-events: none; }
+
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 16px; margin-top: 60px; }
+        .form-card { padding: 20px 16px; }
+        .form-row { flex-direction: column; align-items: flex-start; }
+        .form-row label { width: 100%; text-align: left; padding-right: 0; margin-bottom: 5px; }
+        .form-row .input-wrap { max-width: 100%; width: 100%; }
+    }
+</style>
+
+<div class="toast" id="toast"></div>
+
+<div class="page-wrapper">
+    <a href="{% url 'salary_advance_list' %}" class="back-link">
+        <i class="fas fa-arrow-left"></i> Back to Advances List
+    </a>
+
+    <div class="form-card">
+        <div class="form-title">Staff Specific Deduction</div>
+
+        <form id="advanceForm" method="post" action="{% url 'salary_advance_store' %}">
+            {% csrf_token %}
+
+            <!-- Staff Name -->
+            <div class="form-row">
+                <label for="employee_id">Staff Name</label>
+                <div class="input-wrap select-wrap">
+                    <select name="employee_id" id="employee_id" required onchange="onEmployeeChange(this)">
+                        <option value="">— Select Staff —</option>
+                        {% for staff in staff_list %}
+                        <option value="{{ staff.id }}"
+                            data-name="{{ staff.get_full_name|upper|default:staff.username|upper }}"
+                            data-role="{{ staff.role|default:'' }}"
+                        >
+                            {{ staff.get_full_name|upper|default:staff.username|upper }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Designation (auto-filled, read-only) -->
+            <div class="form-row">
+                <label>Designation</label>
+                <div class="input-wrap">
+                    <input type="text" id="designationField" class="form-control" readonly placeholder="Auto-filled from staff">
+                </div>
+            </div>
+
+            <!-- Account -->
+            <div class="form-row">
+                <label for="account">Account</label>
+                <div class="input-wrap select-wrap">
+                    <select name="account" id="account" required>
+                        {% for opt in account_options %}
+                        <option value="{{ opt }}">{{ opt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Amount -->
+            <div class="form-row">
+                <label for="amount">Amount</label>
+                <div class="input-wrap">
+                    <input
+                        type="text"
+                        name="amount"
+                        id="amount"
+                        class="form-control"
+                        placeholder="e.g. 200,000"
+                        required
+                        oninput="formatAmount(this); scheduleChanged()"
+                    >
+                </div>
+            </div>
+
+            <!-- Period -->
+            <div class="form-row">
+                <label for="period">Period</label>
+                <div class="input-wrap select-wrap">
+                    <select name="period" id="period" required onchange="scheduleChanged()">
+                        {% for p in period_options %}
+                        <option value="{{ p }}">{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Starting Payment Month -->
+            <div class="form-row">
+                <label for="starting_payment_month">Starting Payment Month</label>
+                <div class="input-wrap">
+                    <input
+                        type="month"
+                        name="starting_payment_month"
+                        id="starting_payment_month"
+                        class="form-control"
+                        required
+                        onchange="scheduleChanged()"
+                        style="padding: 6px 13px;"
+                    >
+                </div>
+            </div>
+
+            <!-- Ending Payment Month (auto-filled) -->
+            <div class="form-row">
+                <label>Ending Payment Month</label>
+                <div class="input-wrap">
+                    <input type="text" id="endingMonthDisplay" class="form-control" readonly placeholder="Auto-calculated">
+                    <input type="hidden" name="ending_payment_month" id="ending_payment_month_hidden">
+                </div>
+            </div>
+
+            <!-- Monthly Installment -->
+            <div class="form-row">
+                <label>Monthly Installment</label>
+                <div class="input-wrap">
+                    <div class="installment-display" id="installmentDisplay">—</div>
+                </div>
+            </div>
+        </form>
+
+        <!-- Installment Schedule Table -->
+        <div class="schedule-section" id="scheduleSection">
+            <div class="schedule-placeholder" id="schedulePlaceholder">
+                <i class="fas fa-calendar-alt" style="font-size:28px;display:block;margin-bottom:8px;color:#ccc;"></i>
+                Fill in the form above to preview the installment schedule.
+            </div>
+
+            <table class="schedule-table" id="scheduleTable" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Installment</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleBody"></tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td>Total</td>
+                        <td id="scheduleTotal">0</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Submit -->
+        <div class="submit-section" style="margin-top: 24px;">
+            <button type="submit" form="advanceForm" class="btn-submit" id="submitBtn" onclick="return submitForm(event)">
+                SUBMIT
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== Employee Change ====================
+    function onEmployeeChange(select) {
+        const option = select.options[select.selectedIndex];
+        const role = option.dataset.role || '';
+        document.getElementById('designationField').value = role;
+    }
+
+    // ==================== Amount Formatting ====================
+    function formatAmount(input) {
+        let raw = input.value.replace(/[^0-9]/g, '');
+        if (raw) {
+            input.value = parseInt(raw).toLocaleString();
+        }
+    }
+
+    function getRawAmount() {
+        return parseFloat(document.getElementById('amount').value.replace(/,/g, '')) || 0;
+    }
+
+    // ==================== Schedule Calculation ====================
+    let debounceTimer = null;
+
+    function scheduleChanged() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(updateSchedule, 400);
+    }
+
+    function updateSchedule() {
+        const amount = getRawAmount();
+        const period = parseInt(document.getElementById('period').value) || 0;
+        const startInput = document.getElementById('starting_payment_month').value; // YYYY-MM
+
+        if (!amount || !period || !startInput) {
+            document.getElementById('schedulePlaceholder').style.display = '';
+            document.getElementById('scheduleTable').style.display = 'none';
+            document.getElementById('installmentDisplay').textContent = '—';
+            document.getElementById('endingMonthDisplay').value = '';
+            return;
+        }
+
+        // Convert YYYY-MM to MM-YYYY for API
+        const [year, month] = startInput.split('-');
+        const startingStr = `${month}-${year}`;
+
+        fetch(`{% url 'salary_advance_preview' %}?amount=${amount}&period=${period}&starting_month=${startingStr}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+
+                // Monthly installment
+                document.getElementById('installmentDisplay').textContent =
+                    data.installment.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+                // Ending month
+                document.getElementById('endingMonthDisplay').value = data.ending_month;
+                document.getElementById('ending_payment_month_hidden').value = data.ending_month;
+
+                // Build schedule table
+                const tbody = document.getElementById('scheduleBody');
+                tbody.innerHTML = '';
+                data.schedule.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.month}</td>
+                        <td>${parseFloat(row.amount).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                document.getElementById('scheduleTotal').textContent =
+                    parseFloat(data.total).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+                document.getElementById('schedulePlaceholder').style.display = 'none';
+                document.getElementById('scheduleTable').style.display = '';
+            })
+            .catch(err => console.error('Schedule preview error:', err));
+    }
+
+    // ==================== Form Submit (AJAX) ====================
+    function submitForm(e) {
+        e.preventDefault();
+
+        const employee = document.getElementById('employee_id').value;
+        const amount = getRawAmount();
+        const period = document.getElementById('period').value;
+        const startMonth = document.getElementById('starting_payment_month').value;
+
+        if (!employee || !amount || !period || !startMonth) {
+            showToast('Please fill in all required fields.', 'error');
+            return false;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+
+        // Convert YYYY-MM → MM-YYYY for backend
+        const [year, month] = startMonth.split('-');
+        const startingStr = `${month}-${year}`;
+
+        const formData = new FormData(document.getElementById('advanceForm'));
+        // Override starting_payment_month with correct format
+        formData.set('starting_payment_month', startingStr);
+        // Set raw amount (no commas)
+        formData.set('amount', amount);
+
+        fetch("{% url 'salary_advance_store' %}", {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('✓ Salary advance saved successfully!', 'success');
+                setTimeout(() => {
+                    window.location.href = "{% url 'salary_advance_list' %}";
+                }, 1800);
+            } else {
+                showToast('✗ Error: ' + (data.errors ? Object.values(data.errors).join(', ') : 'Unknown error'), 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'SUBMIT';
+            }
+        })
+        .catch(() => {
+            // Fallback to normal form submit
+            document.getElementById('advanceForm').submit();
+        });
+
+        return false;
+    }
+
+    // ==================== Toast ====================
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+        setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    // ==================== Init: Set default starting month to current ====================
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        document.getElementById('starting_payment_month').value = `${yyyy}-${mm}`;
+        scheduleChanged();
+    });
+</script>
+{% endblock %}

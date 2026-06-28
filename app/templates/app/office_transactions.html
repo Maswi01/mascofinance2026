@@ -1,0 +1,1418 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    /* ==================== Office Page Styles ==================== */
+    .office-container {
+        padding: var(--spacing-md);
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Summary Cards */
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .summary-card {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        box-shadow: var(--shadow-md);
+        transition: var(--transition-base);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .summary-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--primary-blue), var(--accent-purple));
+    }
+
+    .summary-card.total::before {
+        background: linear-gradient(to bottom, var(--primary-blue), var(--dark-blue));
+    }
+
+    .summary-card.region::before {
+        background: linear-gradient(to bottom, var(--accent-green), #34d399);
+    }
+
+    .summary-card.recent::before {
+        background: linear-gradient(to bottom, var(--accent-orange), #fbbf24);
+    }
+
+    .summary-card.active::before {
+        background: linear-gradient(to bottom, #10b981, #34d399);
+    }
+
+    .summary-card-content {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .summary-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: var(--border-radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--font-size-lg);
+        color: var(--white);
+        background: var(--primary-blue);
+        flex-shrink: 0;
+    }
+
+    .summary-card.region .summary-icon {
+        background: var(--accent-green);
+    }
+
+    .summary-card.recent .summary-icon {
+        background: var(--accent-orange);
+    }
+
+    .summary-card.active .summary-icon {
+        background: #10b981;
+    }
+
+    .summary-text h3 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-3xl);
+        font-weight: 700;
+        color: var(--gray-dark);
+        margin-bottom: 4px;
+    }
+
+    .summary-text p {
+        color: var(--gray-medium);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    /* Search and Filter Bar */
+    .search-filter-bar {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 300px;
+        position: relative;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 20px 12px 45px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--gray-medium);
+        font-size: var(--font-size-base);
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: var(--spacing-md);
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        padding: 10px 15px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        color: var(--gray-dark);
+        background: var(--white);
+        cursor: pointer;
+        min-width: 150px;
+        transition: var(--transition-base);
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: var(--spacing-sm);
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        border: none;
+        outline: none;
+    }
+
+    .btn-primary {
+        background: var(--primary-blue);
+        color: var(--white);
+    }
+
+    .btn-primary:hover {
+        background: var(--dark-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1.5px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+        background: var(--white);
+        border-color: var(--primary-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Office Table */
+    .table-container {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .office-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .office-table thead {
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+    }
+
+    .office-table th {
+        padding: var(--spacing-md) var(--spacing-lg);
+        text-align: left;
+        color: var(--white);
+        font-weight: 600;
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family-heading);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .office-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: var(--transition-fast);
+    }
+
+    .office-table tbody tr:hover {
+        background: rgba(45, 106, 227, 0.05);
+    }
+
+    .office-table td {
+        padding: var(--spacing-md) var(--spacing-lg);
+        color: var(--gray-dark);
+        font-size: var(--font-size-sm);
+    }
+
+    .office-info {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .office-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--border-radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-blue);
+        color: var(--white);
+        font-size: var(--font-size-lg);
+        flex-shrink: 0;
+    }
+
+    .office-name {
+        font-weight: 600;
+        color: var(--gray-dark);
+        margin-bottom: 2px;
+    }
+
+    .office-id {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+    }
+
+    .location-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        background: rgba(45, 106, 227, 0.1);
+        color: var(--primary-blue);
+        border: 1px solid rgba(45, 106, 227, 0.2);
+    }
+
+    .action-buttons-cell {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+    }
+
+    .icon-btn:hover {
+        background: var(--white);
+        transform: translateY(-2px);
+    }
+
+    .icon-btn.view:hover {
+        color: var(--primary-blue);
+        border-color: var(--primary-blue);
+    }
+
+    .icon-btn.edit:hover {
+        color: var(--accent-green);
+        border-color: var(--accent-green);
+    }
+
+    .icon-btn.delete:hover {
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-lg);
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .pagination-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background: var(--primary-blue);
+        color: var(--white);
+        border-color: var(--primary-blue);
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-pages {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+
+    .page-number {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    .page-number.active {
+        background: var(--primary-blue);
+        color: var(--white);
+        border-color: var(--primary-blue);
+    }
+
+    .page-number:hover:not(.active) {
+        background: var(--gray-light);
+        border-color: var(--primary-blue);
+    }
+
+    /* Popup Overlay */
+    .popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        display: none;
+        justify-content: flex-end;
+        align-items: center;
+        z-index: 2000;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .popup-overlay.active {
+        display: flex;
+    }
+
+    /* Office Details Popup */
+    .office-details-popup {
+        width: 450px;
+        height: 100vh;
+        background: var(--white);
+        box-shadow: var(--shadow-xl);
+        transform: translateX(100%);
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .office-details-popup {
+        transform: translateX(0);
+    }
+
+    .popup-header {
+        padding: var(--spacing-lg);
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+        color: var(--white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .popup-title {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        font-weight: 600;
+    }
+
+    .close-popup {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        color: var(--white);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition-fast);
+    }
+
+    .close-popup:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+
+    .popup-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
+    }
+
+    .office-profile-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+        padding-bottom: var(--spacing-lg);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .office-profile-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: var(--border-radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-blue);
+        color: var(--white);
+        font-size: var(--font-size-2xl);
+        border: 4px solid #e2e8f0;
+        box-shadow: var(--shadow-md);
+    }
+
+    .office-profile-info h2 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        color: var(--gray-dark);
+        margin-bottom: var(--spacing-xs);
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .info-item h4 {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .info-item p {
+        font-size: var(--font-size-base);
+        color: var(--gray-dark);
+        font-weight: 500;
+    }
+
+    .popup-footer {
+        padding: var(--spacing-lg);
+        background: var(--gray-light);
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--spacing-md);
+    }
+
+    /* Add Office Popup */
+    .add-office-popup {
+        width: 500px;
+        max-width: 90vw;
+        height: 90vh;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .add-office-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-md);
+    }
+
+    .form-group {
+        margin-bottom: var(--spacing-md);
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        color: var(--gray-dark);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    /* Update Office Popup */
+    .update-office-popup {
+        width: 500px;
+        max-width: 90vw;
+        height: 90vh;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .update-office-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .search-filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-box {
+            min-width: 100%;
+        }
+
+        .filter-controls {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .office-table {
+            display: block;
+            overflow-x: auto;
+        }
+
+        .office-details-popup {
+            width: 100%;
+        }
+
+        .add-office-popup,
+        .update-office-popup {
+            width: 95vw;
+            height: 95vh;
+            margin: 2.5vh auto;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .summary-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .action-buttons {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .office-profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+</style>
+
+<div class="office-container">
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card total" onclick="filterOffice('all')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-building"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="totalOffices">0</h3>
+                    <p>Total Offices</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card region" onclick="filterOffice('region')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="totalRegions">0</h3>
+                    <p>Unique Regions</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card recent" onclick="filterOffice('recent')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-calendar-plus"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="recentOffices">0</h3>
+                    <p>Recent (30 days)</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card active">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="summary-text">
+                    <h3>0</h3>
+                    <p>Total Staff</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Bar -->
+    <div class="search-filter-bar">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" 
+                   class="search-input" 
+                   placeholder="Search offices by name, region, or district..."
+                   id="searchInput"
+                   onkeyup="searchOffice()">
+        </div>
+
+        <div class="filter-controls">
+            <select class="filter-select" id="regionFilter" onchange="filterOffice()">
+                <option value="">All Regions</option>
+                {% for region in regions %}
+                <option value="{{ region }}">{{ region }}</option>
+                {% endfor %}
+            </select>
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="exportOfficeData()">
+                    <i class="fas fa-download"></i>
+                    Export
+                </button>
+                <button class="btn btn-primary" onclick="openAddOfficePopup()">
+                    <i class="fas fa-plus-circle"></i>
+                    Add New Office
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Office Table -->
+    <div class="table-container">
+        <table class="office-table">
+            <thead>
+                <tr>
+                    <th>Office Name</th>
+                    <th>Region</th>
+                    <th>District</th>
+                    <th>Ward</th>
+                    <th>Street</th>
+                    <th>Founded Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="officeTableBody">
+                {% for office in offices %}
+                <tr data-id="{{ office.id }}" data-region="{{ office.region }}">
+                    <td>
+                        <div class="office-info">
+                            <div class="office-icon">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div>
+                                <div class="office-name">{{ office.name }}</div>
+                                <div class="office-id">ID: {{ office.id }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ office.region }}</td>
+                    <td>{{ office.district }}</td>
+                    <td>{{ office.ward }}</td>
+                    <td>{{ office.street|default:"-" }}</td>
+                    <td>{{ office.founded_date|date:"Y-m-d"|default:"-" }}</td>
+                    <td>
+                        <div class="action-buttons-cell">
+                            <button class="icon-btn view" onclick="viewOfficeDetails({{ office.id }})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="icon-btn edit" onclick="openUpdateOfficePopup({{ office.id }})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="icon-btn delete" onclick="deleteOffice({{ office.id }})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: var(--spacing-xl); color: var(--gray-medium);">
+                        No offices found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+        <button class="pagination-btn" onclick="changePage(-1)" id="prevPage">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        
+        <div class="pagination-pages" id="paginationPages">
+            <!-- Page numbers will be generated by JavaScript -->
+        </div>
+        
+        <button class="pagination-btn" onclick="changePage(1)" id="nextPage">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        
+        <div style="margin-left: var(--spacing-md); font-size: var(--font-size-sm); color: var(--gray-medium);">
+            Showing <span id="startIndex">1</span>-<span id="endIndex">0</span> of <span id="totalItems">0</span> offices
+        </div>
+    </div>
+</div>
+
+<!-- Office Details Popup -->
+<div class="popup-overlay" id="officeDetailsPopup">
+    <div class="office-details-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Office Details</h2>
+            <button class="close-popup" onclick="closeOfficeDetails()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content" id="officeDetailsContent">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" onclick="closeOfficeDetails()">
+                Close
+            </button>
+            <button class="btn btn-primary" onclick="openUpdateOfficePopup()">
+                <i class="fas fa-edit"></i>
+                Edit Office
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Office Popup -->
+<div class="popup-overlay" id="addOfficePopup">
+    <div class="add-office-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Add New Office</h2>
+            <button class="close-popup" onclick="closeAddOfficePopup()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <form id="addOfficeForm" method="post" action="{% url 'office_add' %}">
+                {% csrf_token %}
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">Office Name *</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Region *</label>
+                        <input type="text" name="region" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">District *</label>
+                        <input type="text" name="district" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ward *</label>
+                        <input type="text" name="ward" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Street</label>
+                        <input type="text" name="street" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Founded Date</label>
+                        <input type="date" name="founded_date" class="form-control">
+                    </div>
+                </div>
+
+                <div class="popup-footer">
+                    <button class="btn btn-secondary" type="button" onclick="closeAddOfficePopup()">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-save"></i>
+                        Add Office
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Office Popup -->
+<div class="popup-overlay" id="updateOfficePopup">
+    <div class="update-office-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Update Office</h2>
+            <button class="close-popup" onclick="closeUpdateOfficePopup()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <form id="updateOfficeForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="office_id" id="updateOfficeId">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">Office Name *</label>
+                        <input type="text" name="name" id="updateOfficeName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Region *</label>
+                        <input type="text" name="region" id="updateOfficeRegion" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">District *</label>
+                        <input type="text" name="district" id="updateOfficeDistrict" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ward *</label>
+                        <input type="text" name="ward" id="updateOfficeWard" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Street</label>
+                        <input type="text" name="street" id="updateOfficeStreet" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Founded Date</label>
+                        <input type="date" name="founded_date" id="updateOfficeFoundedDate" class="form-control">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" type="button" onclick="closeUpdateOfficePopup()">
+                Cancel
+            </button>
+            <button class="btn btn-primary" type="submit" form="updateOfficeForm">
+                <i class="fas fa-save"></i>
+                Update Office
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== Office Data from Django ====================
+    // Convert Django template data to JavaScript array
+    const officeData = [
+        {% for office in offices %}
+        {
+            id: {{ office.id }},
+            name: "{{ office.name|default:''|escapejs }}",
+            region: "{{ office.region|default:''|escapejs }}",
+            district: "{{ office.district|default:''|escapejs }}",
+            ward: "{{ office.ward|default:''|escapejs }}",
+            street: "{{ office.street|default:''|escapejs }}",
+            foundedDate: "{{ office.founded_date|date:'Y-m-d'|default:'' }}",
+            headOfficer: null,
+            createdAt: "{{ office.created_at|date:'Y-m-d'|default:'' }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Extract unique regions for filter dropdown
+    const regions = [...new Set(officeData.map(office => office.region))].sort();
+
+    // Populate region filter dropdown
+    document.addEventListener('DOMContentLoaded', function() {
+        const regionFilter = document.getElementById('regionFilter');
+        regions.forEach(region => {
+            const option = document.createElement('option');
+            option.value = region;
+            option.textContent = region;
+            regionFilter.appendChild(option);
+        });
+    });
+
+    // ==================== Global Variables ====================
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let filteredOffices = [...officeData];
+    let currentSelectedOffice = null;
+
+    // ==================== Initialize Page ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSummaryCards();
+        renderOfficeTable();
+        updatePagination();
+        
+        // Add event listeners for table rows
+        document.querySelectorAll('#officeTableBody tr[data-id]').forEach(row => {
+            row.addEventListener('click', function(e) {
+                // Don't trigger on action buttons
+                if (!e.target.closest('.action-buttons-cell')) {
+                    const officeId = parseInt(this.getAttribute('data-id'));
+                    viewOfficeDetails(officeId);
+                }
+            });
+        });
+    });
+
+    // ==================== Summary Cards Functions ====================
+    function updateSummaryCards() {
+        const total = officeData.length;
+        const uniqueRegions = new Set(officeData.map(o => o.region)).size;
+        
+        // Count offices created in last 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recent = officeData.filter(office => {
+            if (!office.createdAt) return false;
+            const createdDate = new Date(office.createdAt);
+            return createdDate >= thirtyDaysAgo;
+        }).length;
+
+        document.getElementById('totalOffices').textContent = total;
+        document.getElementById('totalRegions').textContent = uniqueRegions;
+        document.getElementById('recentOffices').textContent = recent;
+    }
+
+    // ==================== Office Table Functions ====================
+    function renderOfficeTable() {
+        const tableBody = document.getElementById('officeTableBody');
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentOffices = filteredOffices.slice(startIndex, endIndex);
+
+        // If we already have server-rendered rows, just hide/show them
+        const allRows = document.querySelectorAll('#officeTableBody tr[data-id]');
+        
+        if (allRows.length > 0) {
+            // Hide all rows
+            allRows.forEach(row => row.style.display = 'none');
+            
+            // Show only filtered rows for current page
+            currentOffices.forEach((office, index) => {
+                const row = document.querySelector(`#officeTableBody tr[data-id="${office.id}"]`);
+                if (row) {
+                    row.style.display = '';
+                }
+            });
+            
+            // Handle no results
+            const noResultsRow = document.querySelector('#officeTableBody tr:not([data-id])');
+            if (noResultsRow) {
+                noResultsRow.style.display = filteredOffices.length === 0 ? '' : 'none';
+            }
+        }
+
+        // Update pagination info
+        document.getElementById('startIndex').textContent = filteredOffices.length > 0 ? startIndex + 1 : 0;
+        document.getElementById('endIndex').textContent = Math.min(endIndex, filteredOffices.length);
+        document.getElementById('totalItems').textContent = filteredOffices.length;
+    }
+
+    // ==================== Search and Filter Functions ====================
+    function searchOffice() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const regionFilter = document.getElementById('regionFilter').value;
+
+        filteredOffices = officeData.filter(office => {
+            const matchesSearch = 
+                office.name.toLowerCase().includes(searchTerm) ||
+                office.region.toLowerCase().includes(searchTerm) ||
+                office.district.toLowerCase().includes(searchTerm) ||
+                office.ward.toLowerCase().includes(searchTerm) ||
+                (office.street && office.street.toLowerCase().includes(searchTerm));
+
+            const matchesRegion = !regionFilter || 
+                                 office.region.toLowerCase() === regionFilter.toLowerCase();
+
+            return matchesSearch && matchesRegion;
+        });
+
+        currentPage = 1;
+        renderOfficeTable();
+        updatePagination();
+    }
+
+    function filterOffice(filter = '') {
+        if (filter === 'region') {
+            // Show only offices with region data
+            filteredOffices = officeData.filter(office => office.region);
+        } else if (filter === 'recent') {
+            // Show offices created in last 30 days
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            filteredOffices = officeData.filter(office => {
+                if (!office.createdAt) return false;
+                const createdDate = new Date(office.createdAt);
+                return createdDate >= thirtyDaysAgo;
+            });
+        } else {
+            filteredOffices = [...officeData];
+        }
+        
+        currentPage = 1;
+        renderOfficeTable();
+        updatePagination();
+    }
+
+    // ==================== Pagination Functions ====================
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredOffices.length / itemsPerPage);
+        const paginationPages = document.getElementById('paginationPages');
+        
+        paginationPages.innerHTML = '';
+
+        // Show max 5 page numbers
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = `page-number ${i === currentPage ? 'active' : ''}`;
+            pageBtn.textContent = i;
+            pageBtn.onclick = () => goToPage(i);
+            paginationPages.appendChild(pageBtn);
+        }
+
+        // Update prev/next buttons
+        document.getElementById('prevPage').disabled = currentPage === 1;
+        document.getElementById('nextPage').disabled = currentPage === totalPages;
+    }
+
+    function changePage(direction) {
+        const totalPages = Math.ceil(filteredOffices.length / itemsPerPage);
+        const newPage = currentPage + direction;
+
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            renderOfficeTable();
+            updatePagination();
+        }
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderOfficeTable();
+        updatePagination();
+    }
+
+    // ==================== Office Details Popup Functions ====================
+    function viewOfficeDetails(officeId) {
+        const office = officeData.find(o => o.id === officeId);
+        if (!office) return;
+
+        currentSelectedOffice = office;
+        const popup = document.getElementById('officeDetailsPopup');
+        const content = document.getElementById('officeDetailsContent');
+
+        // Format date
+        let formattedDate = '-';
+        if (office.foundedDate) {
+            const foundedDate = new Date(office.foundedDate);
+            formattedDate = foundedDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        content.innerHTML = `
+            <div class="office-profile-header">
+                <div class="office-profile-icon">
+                    <i class="fas fa-building"></i>
+                </div>
+                <div class="office-profile-info">
+                    <h2>${office.name}</h2>
+                    <span class="location-badge">${office.region}</span>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <h4>Region</h4>
+                    <p>${office.region}</p>
+                </div>
+                <div class="info-item">
+                    <h4>District</h4>
+                    <p>${office.district}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Ward</h4>
+                    <p>${office.ward}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Street</h4>
+                    <p>${office.street || '-'}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Founded Date</h4>
+                    <p>${formattedDate}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Office ID</h4>
+                    <p>${office.id}</p>
+                </div>
+            </div>
+
+            <div style="margin-top: var(--spacing-xl);">
+                <h4 style="font-size: var(--font-size-xs); color: var(--gray-medium); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;">Full Address</h4>
+                <p style="font-size: var(--font-size-base); color: var(--gray-dark);">
+                    ${office.street ? `${office.street}, ` : ''}
+                    ${office.ward}, ${office.district}, ${office.region}
+                </p>
+            </div>
+        `;
+
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeOfficeDetails() {
+        const popup = document.getElementById('officeDetailsPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        currentSelectedOffice = null;
+    }
+
+    // ==================== Add Office Popup Functions ====================
+    function openAddOfficePopup() {
+        const popup = document.getElementById('addOfficePopup');
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Reset form
+        document.getElementById('addOfficeForm').reset();
+    }
+
+    function closeAddOfficePopup() {
+        const popup = document.getElementById('addOfficePopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    }
+
+    // ==================== Update Office Popup Functions ====================
+    function openUpdateOfficePopup(officeId) {
+        if (!officeId && currentSelectedOffice) {
+            officeId = currentSelectedOffice.id;
+        }
+        
+        const office = officeData.find(o => o.id === officeId);
+        if (!office) return;
+
+        currentSelectedOffice = office;
+        const popup = document.getElementById('updateOfficePopup');
+
+        // Populate form fields
+        document.getElementById('updateOfficeId').value = office.id;
+        document.getElementById('updateOfficeName').value = office.name;
+        document.getElementById('updateOfficeRegion').value = office.region;
+        document.getElementById('updateOfficeDistrict').value = office.district;
+        document.getElementById('updateOfficeWard').value = office.ward;
+        document.getElementById('updateOfficeStreet').value = office.street || '';
+        document.getElementById('updateOfficeFoundedDate').value = office.foundedDate || '';
+
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeUpdateOfficePopup() {
+        const popup = document.getElementById('updateOfficePopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        currentSelectedOffice = null;
+    }
+
+    // ==================== Delete Office Function ====================
+    function deleteOffice(officeId) {
+        if (!confirm('Are you sure you want to delete this office? This action cannot be undone.')) {
+            return;
+        }
+
+        // You can implement AJAX delete here
+        showNotification('Delete functionality would be implemented here. Office ID: ' + officeId, 'info');
+    }
+
+    // ==================== Export Function ====================
+    function exportOfficeData() {
+        // Create CSV content
+        let csv = 'Office Name,Region,District,Ward,Street,Founded Date\n';
+        
+        filteredOffices.forEach(office => {
+            csv += `"${office.name}","${office.region}","${office.district}","${office.ward}","${office.street || ''}","${office.foundedDate || ''}"\n`;
+        });
+        
+        // Create blob and download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `office_data_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        
+        // Show notification
+        showNotification('Office data exported successfully!', 'success');
+    }
+
+
+    function showNotification(message, type = 'info') {
+        // Reuse the notification function from base template
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+        } else {
+            // Fallback notification
+            alert(message);
+        }
+    }
+
+    // ==================== Event Listeners ====================
+    // Close popups with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeOfficeDetails();
+            closeAddOfficePopup();
+            closeUpdateOfficePopup();
+        }
+    });
+
+    // Close popups when clicking outside
+    document.addEventListener('click', function(e) {
+        const officeDetailsPopup = document.getElementById('officeDetailsPopup');
+        const addOfficePopup = document.getElementById('addOfficePopup');
+        const updateOfficePopup = document.getElementById('updateOfficePopup');
+        
+        if (officeDetailsPopup.classList.contains('active')) {
+            if (e.target === officeDetailsPopup) {
+                closeOfficeDetails();
+            }
+        }
+        
+        if (addOfficePopup.classList.contains('active')) {
+            if (e.target === addOfficePopup) {
+                closeAddOfficePopup();
+            }
+        }
+        
+        if (updateOfficePopup.classList.contains('active')) {
+            if (e.target === updateOfficePopup) {
+                closeUpdateOfficePopup();
+            }
+        }
+
+        
+    });
+</script>
+
+{% endblock %}

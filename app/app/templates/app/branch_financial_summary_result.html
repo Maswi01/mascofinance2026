@@ -1,0 +1,371 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load report_tags %}
+{% block content %}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+    .fs-page {
+        max-width: 98vw;
+        margin: 70px auto 60px;
+        padding: 0 16px;
+        font-family: Arial, sans-serif;
+    }
+    .fs-topbar {
+        background: #7fc8d9;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 10px 20px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .fs-card { background: #fff; border: 1px solid #ccc; padding: 0 0 16px; }
+
+    /* ── Letterhead ── */
+    .company-header {
+        display: flex; align-items: center; gap: 14px;
+        padding: 18px 30px 14px;
+        border-bottom: 2px solid #8b0000;
+        justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 72px; height: auto; }
+    .company-name    { font-size: 24px; font-weight: 900; color: #2471a3; text-transform: uppercase; line-height: 1.1; }
+    .company-sub     { font-size: 12px; font-weight: 600; color: #1a1a1a; margin-top: 2px; }
+    .company-contact { font-size: 11px; color: #1a1a1a; margin-top: 2px; }
+
+    .fs-title {
+        font-size: 13px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        margin: 18px 0; text-transform: uppercase;
+    }
+
+    /* ── Table wrapper ── */
+    .scroll-wrap { width: calc(100% - 60px); margin: 0 30px; overflow-x: auto; }
+
+    /* ── Table ── */
+    .fs-table { border-collapse: collapse; font-size: 12px; white-space: nowrap; width: 100%; }
+
+    .fs-table thead tr th {
+        padding: 9px 12px; border: 1px solid #bbb;
+        font-weight: 700; text-align: center; color: #fff;
+    }
+    .th-particular { background: #1a2a4a; text-align: left !important; min-width: 200px; }
+    .th-branches   { background: #1a73c7; letter-spacing: 1px; }
+    .th-branch-col { background: #2196F3; min-width: 120px; }
+    .th-total      { background: #0d5aa7; min-width: 130px; }
+
+    .fs-table td {
+        padding: 8px 12px; border: 1px solid #ddd;
+        text-align: right; color: #1a1a1a;
+        font-size: 12px; vertical-align: middle;
+    }
+    .td-particular {
+        text-align: left !important; font-weight: 500;
+        background: #fff; border-right: 2px solid #c8d4e8 !important; color: #1a1a1a;
+    }
+    .td-total {
+        background: #f0f4ff !important; font-weight: 700 !important;
+        color: #0d3880 !important; border-left: 2px solid #1a73c7 !important;
+    }
+
+    /* ── Row types ── */
+    .fs-table tr.row-opening td { font-weight: 700; }
+
+    .fs-table tr.row-transfer-in td               { background: #f0fff4; color: #1a6b3a; font-weight: 600; }
+    .fs-table tr.row-transfer-in td.td-particular { background: #d6f5e3; color: #1a6b3a; }
+
+    .fs-table tr.row-subtotal td {
+        background: #fafafa; font-weight: 700;
+        border-top: 2px solid #999; border-bottom: 2px solid #999; text-decoration: underline;
+    }
+    .fs-table tr.row-subtotal td.td-particular { background: #f0f0f0; text-decoration: none; }
+
+    /* FOMU — amber/loan tint */
+    .fs-table tr.row-fomu td               { background: #fff8f0; color: #7a3000; font-weight: 600; }
+    .fs-table tr.row-fomu td.td-particular { background: #ffe8d0; color: #7a3000; }
+
+    .fs-table tr.row-matumizi-ofisini td               { background: #f5f5f5; color: #333; font-weight: 600; }
+    .fs-table tr.row-matumizi-ofisini td.td-particular { background: #e8e8e8; color: #333; }
+
+    .fs-table tr.row-matumizi-kituo td               { background: #f0f6ff; color: #1a3a8a; font-weight: 600; }
+    .fs-table tr.row-matumizi-kituo td.td-particular { background: #d8e8ff; color: #1a3a8a; }
+
+    .fs-table tr.row-matumizi-mkurugenzi td               { background: #fdf0ff; color: #5a006b; font-weight: 600; }
+    .fs-table tr.row-matumizi-mkurugenzi td.td-particular { background: #f0d8ff; color: #5a006b; }
+
+    .fs-table tr.row-makato td               { background: #fff0f0; color: #7a0000; font-weight: 600; }
+    .fs-table tr.row-makato td.td-particular { background: #ffd8d8; color: #7a0000; }
+
+    .fs-table tr.row-balance td               { background: #f7f9fb; font-weight: 600; }
+    .fs-table tr.row-balance td.td-particular { background: #eef3fb; }
+
+    .fs-table tr.row-balance-total td {
+        font-weight: 700; font-size: 13px;
+        background: #e8f0fe; border-top: 2px solid #1a73c7;
+    }
+    .fs-table tr.row-balance-total td.td-particular { background: #c4d8f8; }
+
+    .neg  { color: #c62828 !important; font-weight: 600; }
+    .zero { color: #bbb !important; }
+
+    /* ── Action bar ── */
+    .action-row {
+        display: flex; justify-content: space-between;
+        align-items: center; padding: 14px 30px 4px;
+    }
+    .back-link { font-size: 13px; color: #2980b9; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .btn-group { display: flex; gap: 6px; }
+    .save-pdf-btn, .print-btn {
+        padding: 5px 16px; background: #fff;
+        border: 1px solid #888; border-radius: 2px;
+        font-size: 13px; cursor: pointer; color: #333;
+    }
+    .save-pdf-btn:hover, .print-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row, .fs-topbar { display: none !important; }
+        .scroll-wrap { overflow: visible !important; }
+        .fs-table { font-size: 8px !important; }
+        .fs-table td, .fs-table th { padding: 3px 5px !important; }
+    }
+</style>
+
+<div class="fs-page">
+    <div class="fs-topbar no-print">
+        <span>Branch Financial Statement</span>
+    </div>
+
+    <div class="fs-card">
+        <div class="printable" id="fsContent">
+
+            <!-- Letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo" onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515 &nbsp;|&nbsp; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="fs-title">
+                Financial Statement &mdash; {{ start_date|date:"d/m/Y" }} to {{ end_date|date:"d/m/Y" }}
+            </div>
+
+            <div class="scroll-wrap">
+            <table class="fs-table" id="fsTable">
+                <thead>
+                    <tr>
+                        <th class="th-particular" rowspan="2">PARTICULAR</th>
+                        <th class="th-branches" colspan="{{ offices|length }}">BRANCHES</th>
+                        <th class="th-total" rowspan="2">TOTAL</th>
+                    </tr>
+                    <tr>
+                        {% for office in offices %}
+                        <th class="th-branch-col">{{ office.name|upper }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <!-- ══ OPENING BALANCE ══ -->
+                    <tr class="row-opening">
+                        <td class="td-particular">Opening Balance</td>
+                        {% for office in offices %}{% with val=summary.opening_balance|get_item:office.id %}
+                        <td class="{% if val < 0 %}neg{% elif val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total {% if totals.opening_balance < 0 %}neg{% endif %}">{{ totals.opening_balance|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ MAPATO ══ -->
+                    <tr>
+                        <td class="td-particular">MAPATO</td>
+                        {% for office in offices %}{% with val=summary.mapato|get_item:office.id %}
+                        <td class="{% if val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total">{{ totals.mapato|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ NYONGEZA ══ -->
+                    <tr class="row-transfer-in">
+                        <td class="td-particular">NYONGEZA</td>
+                        {% for office in offices %}{% with val=summary.transfers_in|get_item:office.id %}
+                        <td class="{% if val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total">{{ totals.transfers_in|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ HAZINA ══ -->
+                    <tr>
+                        <td class="td-particular">HAZINA</td>
+                        {% for office in offices %}
+                        <td class="zero">0</td>
+                        {% endfor %}
+                        <td class="td-total zero">0</td>
+                    </tr>
+
+                    <!-- ══ INCOME SUBTOTAL ══ -->
+                    <tr class="row-subtotal">
+                        <td class="td-particular"></td>
+                        {% for office in offices %}{% with val=summary.income_subtotal|get_item:office.id %}
+                        <td class="{% if val < 0 %}neg{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total {% if totals.income_subtotal < 0 %}neg{% endif %}">{{ totals.income_subtotal|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ FOMU (Loan Disbursements) ══ -->
+                    <tr class="row-fomu">
+                        <td class="td-particular">FOMU</td>
+                        {% for office in offices %}{% with val=summary.fomu|get_item:office.id %}
+                        <td class="{% if val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total">{{ totals.fomu|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ MATUMIZI OFISINI (expenses only) ══ -->
+                    <tr class="row-matumizi-ofisini">
+                        <td class="td-particular">MATUMIZI OFISINI</td>
+                        {% for office in offices %}{% with val=summary.matumizi_ofisini|get_item:office.id %}
+                        <td class="{% if val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total">{{ totals.matumizi_ofisini|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ MATUMIZI BENKI-[KITUO] ══ -->
+                    <tr class="row-matumizi-kituo">
+                        <td class="td-particular">MATUMIZI BENKI-[KITUO]</td>
+                        {% for office in offices %}{% with val=summary.matumizi_kituo|get_item:office.id %}
+                        <td class="{% if val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total">{{ totals.matumizi_kituo|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ MATUMIZI BENKI-[MKURUGENZI] ══ -->
+                    <tr class="row-matumizi-mkurugenzi">
+                        <td class="td-particular">MATUMIZI BENKI-[MKURUGENZI]</td>
+                        {% for office in offices %}{% with val=summary.matumizi_mkurugenzi|get_item:office.id %}
+                        <td class="{% if val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total">{{ totals.matumizi_mkurugenzi|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ MAKATO BANK ══ -->
+                    <tr class="row-makato">
+                        <td class="td-particular">MAKATO BANK</td>
+                        {% for office in offices %}{% with val=summary.makato_benki|get_item:office.id %}
+                        <td class="{% if val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total">{{ totals.makato_benki|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ OUTFLOW SUBTOTAL ══ -->
+                    <tr class="row-subtotal">
+                        <td class="td-particular"></td>
+                        {% for office in offices %}{% with val=summary.outflow_subtotal|get_item:office.id %}
+                        <td class="{% if val < 0 %}neg{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total {% if totals.outflow_subtotal < 0 %}neg{% endif %}">{{ totals.outflow_subtotal|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ BALANCE CASH ══ -->
+                    <tr class="row-balance">
+                        <td class="td-particular">BALANCE CASH</td>
+                        {% for office in offices %}{% with val=summary.balance_cash|get_item:office.id %}
+                        <td class="{% if val < 0 %}neg{% elif val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total {% if totals.balance_cash < 0 %}neg{% endif %}">{{ totals.balance_cash|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ BALANCE BENKI ══ -->
+                    <tr class="row-balance">
+                        <td class="td-particular">BALANCE BENKI</td>
+                        {% for office in offices %}{% with val=summary.balance_benki|get_item:office.id %}
+                        <td class="{% if val < 0 %}neg{% elif val == 0 %}zero{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total {% if totals.balance_benki < 0 %}neg{% endif %}">{{ totals.balance_benki|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                    <!-- ══ BALANCE TOTAL ══ -->
+                    <tr class="row-balance-total">
+                        <td class="td-particular"></td>
+                        {% for office in offices %}{% with val=summary.balance_total|get_item:office.id %}
+                        <td class="{% if val < 0 %}neg{% endif %}">{{ val|floatformat:0|intcomma }}</td>
+                        {% endwith %}{% endfor %}
+                        <td class="td-total {% if totals.balance_total < 0 %}neg{% endif %}">{{ totals.balance_total|floatformat:0|intcomma }}</td>
+                    </tr>
+
+                </tbody>
+            </table>
+            </div>
+
+        </div><!-- /.printable -->
+
+        <div class="action-row no-print">
+            <a class="back-link" href="{% url 'branch_financial_summary_filter' %}">&#8592; Change date range</a>
+            <div class="btn-group">
+                <button class="save-pdf-btn" onclick="savePDF()">SAVE PDF</button>
+                <button class="print-btn"    onclick="window.print()">PRINT</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function savePDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pw  = doc.internal.pageSize.getWidth();
+
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+    doc.text('MASCO FINANCE CO. LTD', pw / 2, 40, { align: 'center' });
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text('P.O.BOX 30474—KIBAHA | TANZANIA', pw / 2, 52, { align: 'center' });
+    doc.text('Mobile: +255 718 544 515  |  Email: mascofinance@gmail.com', pw / 2, 62, { align: 'center' });
+    doc.setLineWidth(0.8); doc.setDrawColor(139, 0, 0);
+    doc.line(40, 68, pw - 40, 68);
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+    doc.text('FINANCIAL STATEMENT \u2014 {{ start_date|date:"d/m/Y" }} TO {{ end_date|date:"d/m/Y" }}', pw / 2, 82, { align: 'center' });
+
+    const allRows = Array.from(document.querySelectorAll('#fsTable tbody tr'));
+
+    doc.autoTable({
+        html: '#fsTable',
+        startY: 92,
+        styles:      { fontSize: 8, cellPadding: 4 },
+        headStyles:  { fillColor: [26,115,199], textColor: [255,255,255], fontStyle: 'bold' },
+        columnStyles: { 0: { halign: 'left', minCellWidth: 120 } },
+        didParseCell: function(data) {
+            if (data.section !== 'body') return;
+            const tr = allRows[data.row.index];
+            if (!tr) return;
+            if (tr.classList.contains('row-subtotal'))            { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [250,250,250]; data.cell.styles.lineWidth = { top:1.2, bottom:1.2, left:0.2, right:0.2 }; }
+            if (tr.classList.contains('row-opening'))             { data.cell.styles.fontStyle = 'bold'; }
+            if (tr.classList.contains('row-transfer-in'))         { data.cell.styles.fillColor = [240,255,244]; data.cell.styles.textColor = [26,107,58]; }
+            if (tr.classList.contains('row-fomu'))                { data.cell.styles.fillColor = [255,248,240]; data.cell.styles.textColor = [122,48,0]; data.cell.styles.fontStyle = 'bold'; }
+            if (tr.classList.contains('row-matumizi-ofisini'))    { data.cell.styles.fillColor = [245,245,245]; data.cell.styles.textColor = [51,51,51]; }
+            if (tr.classList.contains('row-matumizi-kituo'))      { data.cell.styles.fillColor = [240,246,255]; data.cell.styles.textColor = [26,58,138]; }
+            if (tr.classList.contains('row-matumizi-mkurugenzi')) { data.cell.styles.fillColor = [253,240,255]; data.cell.styles.textColor = [90,0,107]; }
+            if (tr.classList.contains('row-makato'))              { data.cell.styles.fillColor = [255,240,240]; data.cell.styles.textColor = [122,0,0]; }
+            if (tr.classList.contains('row-balance-total'))       { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [200,216,248]; }
+        },
+    });
+
+    doc.save('branch_financial_statement_{{ start_date|date:"d-m-Y" }}_{{ end_date|date:"d-m-Y" }}.pdf');
+}
+</script>
+
+{% endblock %}

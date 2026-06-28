@@ -1,0 +1,298 @@
+{% extends 'app/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<style>
+    .bs-container {
+        max-width: 1200px;
+        margin: 24px auto;
+        background: #fff;
+        border-radius: 14px;
+        padding: 32px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .bs-header {
+        text-align: center;
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 2px dashed #e2e8f0;
+    }
+    .bs-header .icon-circle {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        color: #fff;
+        margin-bottom: 16px;
+    }
+    .bs-header h1 {
+        color: #1e293b;
+        font-size: 32px;
+        margin-bottom: 8px;
+    }
+    .bs-header .as-of { color: #64748b; font-size: 16px; }
+    .bs-header .generated { color: #94a3b8; font-size: 13px; margin-top: 8px; }
+
+    .actions-bar {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+    .btn-action {
+        padding: 10px 18px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        transition: all 0.2s;
+    }
+    .btn-print { background: #0d4a7a; color: #fff; }
+    .btn-excel { background: #16a34a; color: #fff; }
+    .btn-back  { background: #64748b; color: #fff; }
+    .btn-action:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+    .bs-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .bs-section {
+        border-radius: 12px;
+        padding: 24px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+    .bs-section.assets    { background: #f0fdf4; border-color: #bbf7d0; }
+    .bs-section.equity    { background: #eff6ff; border-color: #bfdbfe; }
+
+    .bs-section h3 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        margin-bottom: 16px;
+        color: #1e293b;
+        padding-bottom: 12px;
+        border-bottom: 2px solid rgba(0,0,0,0.06);
+    }
+    .bs-section.assets h3 { color: #15803d; }
+    .bs-section.equity h3 { color: #1d4ed8; }
+
+    .bs-section h3 .icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+
+    .bs-subsection h4 {
+        font-size: 14px;
+        font-weight: 700;
+        color: #475569;
+        margin: 16px 0 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .bs-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        margin-bottom: 6px;
+        background: #fff;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    .bs-row.subtotal {
+        background: #dcfce7;
+        font-weight: 700;
+        color: #15803d;
+        margin-top: 8px;
+    }
+    .bs-section.equity .bs-row.subtotal {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    .bs-row .label { color: #334155; }
+    .bs-row .value { font-weight: 600; color: #0f172a; font-family: 'Courier New', monospace; }
+
+    .bs-total {
+        background: linear-gradient(135deg, #16a34a, #15803d);
+        color: #fff;
+        padding: 18px 22px;
+        border-radius: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 16px;
+        font-weight: 700;
+        font-size: 18px;
+        box-shadow: 0 4px 12px rgba(22,163,74,0.25);
+    }
+    .bs-total .value { font-family: 'Courier New', monospace; font-size: 22px; }
+
+    .bs-grand-total {
+        background: linear-gradient(135deg, #0d4a7a, #0a3d66);
+        color: #fff;
+        padding: 22px 28px;
+        border-radius: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 8px;
+        font-weight: 800;
+        font-size: 20px;
+        box-shadow: 0 6px 18px rgba(13,74,122,0.3);
+    }
+    .bs-grand-total .value { font-family: 'Courier New', monospace; font-size: 24px; }
+
+    .empty-state {
+        text-align: center;
+        padding: 20px;
+        color: #94a3b8;
+        font-style: italic;
+        font-size: 13px;
+    }
+
+    @media print {
+        .actions-bar, .nav-link, nav, footer { display: none !important; }
+        body { background: #fff !important; }
+        .bs-container { box-shadow: none; padding: 0; }
+    }
+
+    @media (max-width: 768px) {
+        .bs-grid { grid-template-columns: 1fr; }
+        .bs-header h1 { font-size: 24px; }
+    }
+</style>
+
+<div class="bs-container">
+    <div class="actions-bar">
+        <a href="{% url 'balance_sheet_filter' %}" class="btn-action btn-back">
+            <i class="fas fa-arrow-left"></i> Change Date
+        </a>
+        <button onclick="window.print()" class="btn-action btn-print">
+            <i class="fas fa-print"></i> Print / PDF
+        </button>
+        <a href="{% url 'balance_sheet_export' %}?as_of_date={{ as_of_date|date:'Y-m-d' }}"
+           class="btn-action btn-excel">
+            <i class="fas fa-file-excel"></i> Export Excel
+        </a>
+    </div>
+
+    <div class="bs-header">
+        <div class="icon-circle"><i class="fas fa-balance-scale"></i></div>
+        <h1>Balance Sheet</h1>
+        <div class="as-of">As of {{ as_of_date_display }}</div>
+        <div class="generated">Generated: {{ generated_at|date:"M d, Y g:i A" }} — {{ branch_name }}</div>
+    </div>
+
+    <div class="bs-grid">
+        <!-- ASSETS -->
+        <div class="bs-section assets">
+            <h3>
+                <span class="icon" style="background:#dcfce7; color:#15803d;">
+                    <i class="fas fa-coins"></i>
+                </span>
+                ASSETS
+            </h3>
+
+            <div class="bs-subsection">
+                <h4>
+                    <i class="fas fa-dollar-sign" style="color:#15803d;"></i>
+                    Current Assets
+                </h4>
+
+                <div class="bs-row">
+                    <span class="label">Cash</span>
+                    <span class="value">{{ cash_in_office|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="bs-row">
+                    <span class="label">Bank</span>
+                    <span class="value">{{ cash_in_bank|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="bs-row">
+                    <span class="label">Receivables</span>
+                    <span class="value">{{ receivables|floatformat:2|intcomma }}</span>
+                </div>
+
+                <div class="bs-row subtotal">
+                    <span class="label">Total Current Assets</span>
+                    <span class="value">{{ total_current_assets|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+
+            <div class="bs-subsection">
+                <h4>
+                    <i class="fas fa-building" style="color:#15803d;"></i>
+                    Fixed Assets
+                </h4>
+                <div class="empty-state">No fixed assets found</div>
+            </div>
+
+            <div class="bs-total">
+                <span>TOTAL ASSETS</span>
+                <span class="value">{{ total_assets|floatformat:2|intcomma }}</span>
+            </div>
+        </div>
+
+        <!-- LIABILITIES & EQUITY -->
+        <div class="bs-section equity">
+            <h3>
+                <span class="icon" style="background:#dbeafe; color:#1d4ed8;">
+                    <i class="fas fa-chart-pie"></i>
+                </span>
+                LIABILITIES & EQUITY
+            </h3>
+
+            <div class="bs-subsection">
+                <h4>
+                    <i class="fas fa-user-circle" style="color:#1d4ed8;"></i>
+                    Equity
+                </h4>
+
+                <div class="bs-row">
+                    <span class="label">Owner Capital</span>
+                    <span class="value">{{ owner_capital|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="bs-row">
+                    <span class="label">Opening Balance Equity</span>
+                    <span class="value">{{ opening_balance_equity|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="bs-row">
+                    <span class="label">Retained Earnings</span>
+                    <span class="value">{{ retained_earnings|floatformat:2|intcomma }}</span>
+                </div>
+
+                <div class="bs-row subtotal">
+                    <span class="label">Total Equity</span>
+                    <span class="value">{{ total_equity|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bs-grand-total">
+        <span>TOTAL LIABILITIES + EQUITY</span>
+        <span class="value">{{ total_liabilities_equity|floatformat:2|intcomma }}</span>
+    </div>
+</div>
+{% endblock %}

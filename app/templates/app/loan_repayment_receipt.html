@@ -1,0 +1,308 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    /* ── Outer wrapper ── */
+    .receipt-page-wrapper {
+        max-width: 860px;
+        margin: 0 auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+    }
+
+    /* ── Page title bar (teal, like screenshot) ── */
+    .receipt-page-title {
+        background: #5bc0de;
+        color: #fff;
+        font-size: 13.5px;
+        font-weight: 700;
+        font-family: Arial, sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 11px 20px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    /* ── Receipt card ── */
+    .receipt-card {
+        background: #fff;
+        border: 1.5px solid #999;
+        padding: 0;
+        font-family: Arial, sans-serif;
+    }
+
+    /* ── Company header ── */
+    .company-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 18px 28px 14px;
+        border-bottom: 2px solid #8b0000;
+        gap: 20px;
+    }
+
+    .company-logo {
+        width: 80px;
+        flex-shrink: 0;
+    }
+
+    .company-logo img {
+        width: 80px;
+        height: auto;
+    }
+
+    
+
+    .company-name {
+        font-size: 24px;
+        font-weight: 900;
+        color: #2471a3;
+        font-family: Arial, sans-serif;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        line-height: 1.2;
+    }
+
+    .company-sub {
+        font-size: 13.5px;
+        color: #1a1a1a;
+        font-family: Arial, sans-serif;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+
+    .company-contact {
+        font-size: 12.5px;
+        color: #1a1a1a;
+        font-family: Arial, sans-serif;
+        margin-top: 2px;
+    }
+
+    /* ── Receipt body ── */
+    .receipt-body {
+        padding: 24px 32px 32px;
+    }
+
+    .receipt-title-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 24px;
+    }
+
+    .receipt-title {
+        font-size: 17px;
+        font-weight: 900;
+        color: #1a1a1a;
+        font-family: Arial, sans-serif;
+        text-decoration: underline;
+        letter-spacing: 0.3px;
+        text-align: center;
+        flex: 1;
+    }
+
+    .receipt-number {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1a1a1a;
+        font-family: Arial, sans-serif;
+        white-space: nowrap;
+        margin-left: 16px;
+        padding-top: 2px;
+    }
+
+    /* ── Receipt fields ── */
+    .receipt-line {
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        color: #1a1a1a;
+        margin-bottom: 16px;
+        line-height: 1.6;
+    }
+
+    .receipt-line .rl-label {
+        font-weight: 400;
+        color: #333;
+    }
+
+    .receipt-line strong {
+        font-weight: 700;
+        text-decoration: underline;
+    }
+
+    /* ── Bottom signature row ── */
+    .signature-row {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-top: 24px;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        color: #1a1a1a;
+    }
+
+    .sig-officer { flex: 1; }
+    .sig-right {
+        display: flex;
+        gap: 32px;
+        align-items: flex-end;
+    }
+
+    .sig-field {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+    }
+
+    .sig-line {
+        display: inline-block;
+        border-bottom: 1.5px solid #1a1a1a;
+        width: 140px;
+        margin-bottom: 2px;
+    }
+
+    /* ── Print button ── */
+    .print-row {
+        display: flex;
+        justify-content: flex-end;
+        padding: 8px 16px 8px;
+        border-top: 1px solid #ddd;
+    }
+
+    .print-btn {
+        padding: 5px 18px;
+        background: #fff;
+        border: 1px solid #888;
+        border-radius: 2px;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+        cursor: pointer;
+        color: #333;
+        transition: background 0.15s;
+    }
+
+    .print-btn:hover { background: #f0f0f0; }
+
+    /* ── Back link ── */
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: #2980b9;
+        font-family: Arial, sans-serif;
+        text-decoration: none;
+        margin-bottom: 10px;
+    }
+
+    .back-link:hover { text-decoration: underline; }
+
+    /* ── Print CSS ── */
+    @media print {
+        body * { visibility: hidden; }
+        .receipt-card, .receipt-card * { visibility: visible; }
+        .receipt-card { position: absolute; top: 0; left: 0; right: 0; border: 1.5px solid #999; }
+        .print-row, .receipt-page-title, .back-link { display: none !important; }
+    }
+</style>
+
+<div class="receipt-page-wrapper">
+
+    <!-- Page title bar -->
+    <div class="receipt-page-title">
+        <span>Customer Loan Repayment Receipt</span>
+        <span style="width:40px;height:16px;background:#fff;display:inline-block;opacity:0.3;"></span>
+    </div>
+
+    <a class="back-link" href="{% url 'loan_receipt_list' %}?client_id={{ repayment.loan_application.client.id }}">
+        ← Back to repayment list
+    </a>
+
+    <!-- ── Receipt card ── -->
+    <div class="receipt-card" id="receiptCard">
+
+        <!-- Company header -->
+        <div class="company-header">
+            <div class="company-logo">
+                <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                     onerror="this.style.display='none'">
+            </div>
+            <div class="company-details">
+                <div class="company-name">MASCO FINANCE CO. LTD</div>
+                <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+            </div>
+        </div>
+
+        <!-- Receipt body -->
+        <div class="receipt-body">
+
+            <!-- Title + receipt number -->
+            <div class="receipt-title-row">
+                <div class="receipt-title">STAKABADHI YA FEDHA</div>
+                <div class="receipt-number">{{ receipt_number }}</div>
+            </div>
+
+            <!-- Jina la Mteja + Tawi -->
+            <div class="receipt-line">
+                <span class="rl-label">Jina la Mteja :</span>
+                <strong>&nbsp;{{ client_fullname }}</strong>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <span class="rl-label">Tawi la :</span>
+                <strong>&nbsp;{{ loan.office|upper }}</strong>
+            </div>
+
+            <!-- Amount received + for which month -->
+            <div class="receipt-line">
+                <span class="rl-label">Nimepokea Tsh</span>
+                <strong>&nbsp;{{ repayment.repayment_amount|floatformat:0|intcomma }} /=</strong>
+                &nbsp;&nbsp;&nbsp;
+                <span class="rl-label">Kwa malipo ya</span>
+                &nbsp;
+                <strong>marejesho ya mkopo wa Mwezi {{ payment_month }}</strong>
+            </div>
+
+            <!-- Remaining balance -->
+            <div class="receipt-line">
+                <span class="rl-label">Deni la mkopo lililobakia ni Tsh</span>
+                <strong>&nbsp;{{ balance_after|floatformat:0|intcomma }} /=</strong>
+            </div>
+
+            <!-- Officer name + signature + date -->
+            <div class="signature-row">
+                <div class="sig-officer">
+                    <span class="rl-label">Jina la muhudumu:</span>
+                    <strong>&nbsp;{{ officer_name }}</strong>
+                </div>
+                <div class="sig-right">
+                    <div class="sig-field">
+                        <span>Saini :</span>
+                        <span class="sig-line"></span>
+                    </div>
+                    <div class="sig-field">
+                        <span>Tarehe:</span>
+                        <strong>&nbsp;{{ payment_date }}</strong>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end receipt-body -->
+
+        <!-- Print button -->
+        <div class="print-row">
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div><!-- end receipt-card -->
+
+</div>
+
+{% endblock %}

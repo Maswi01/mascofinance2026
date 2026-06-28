@@ -1,0 +1,394 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1100px;
+        margin: 20px auto 60px;
+        padding: 0 20px;
+        margin-top: 70px;
+        font-family: Arial, sans-serif;
+    }
+
+    .report-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 28px 40px 20px;
+    }
+
+    /* ── Masco Finance letterhead ── */
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 22px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 80px; height: auto; }
+    .company-name {
+        font-size: 26px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub {
+        font-size: 13px; font-weight: 600; color: #1a1a1a; margin-top: 3px;
+    }
+    .company-contact {
+        font-size: 12px; color: #1a1a1a; margin-top: 2px;
+    }
+
+    /* ── Headings ── */
+    .branch-heading {
+        font-size: 14px; font-weight: 700; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        text-transform: uppercase; margin: 4px 0 8px;
+    }
+    .report-heading {
+        font-size: 13.5px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        text-transform: uppercase; margin-bottom: 16px;
+    }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+        display: flex; flex-wrap: wrap; gap: 12px;
+        align-items: center; justify-content: center;
+        margin-bottom: 20px; padding: 12px 16px;
+        background: #f5f5f5; border: 1px solid #ddd; border-radius: 2px;
+    }
+    .filter-group { display: flex; align-items: center; gap: 7px; }
+    .filter-label {
+        font-size: 11px; font-weight: 700; color: #555;
+        text-transform: uppercase; letter-spacing: 0.7px; white-space: nowrap;
+    }
+    .filter-input {
+        padding: 5px 10px; border: 1px solid #ccc; border-radius: 2px;
+        background: #fff; color: #333; font-size: 12px; font-family: Arial, sans-serif;
+    }
+    .filter-input:focus { outline: none; border-color: #2a9d8f; }
+    .btn-filter {
+        padding: 5px 18px; background: #2a9d8f; color: white; border: none;
+        border-radius: 2px; font-size: 12px; font-weight: 700;
+        cursor: pointer; font-family: Arial, sans-serif;
+    }
+    .btn-filter:hover { background: #21867a; }
+    .btn-reset {
+        padding: 5px 14px; background: #fff; color: #555;
+        border: 1px solid #ccc; border-radius: 2px; font-size: 12px;
+        cursor: pointer; font-family: Arial, sans-serif;
+        text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .btn-reset:hover { background: #f0f0f0; }
+
+    /* ── Summary strip ── */
+    .summary-strip {
+        display: flex; border: 1px solid #ddd;
+        background: #f9f9f9; margin-bottom: 18px;
+    }
+    .summary-item {
+        flex: 1; text-align: center; padding: 10px 8px;
+        border-right: 1px solid #e0e0e0;
+    }
+    .summary-item:last-child { border-right: none; }
+    .s-label {
+        font-size: 10px; font-weight: 700; color: #777;
+        text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px;
+    }
+    .s-value { font-size: 14px; font-weight: 700; color: #1a1a1a; }
+    .s-sub { font-size: 10px; color: #999; margin-top: 2px; }
+
+    /* ── Collection table ── */
+    .exp-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 13px;
+    }
+    .exp-table thead tr th {
+        padding: 9px 14px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 13px;
+        border-bottom: 1px solid #ccc;
+        border-right: 1px solid #e0e0e0;
+        background: #fff;
+    }
+    .exp-table thead th:last-child { border-right: none; }
+    .exp-table th.num { text-align: right; }
+    .exp-table th.ctr { text-align: center; }
+
+    .exp-table tbody tr { border-bottom: 1px solid #ececec; }
+    .exp-table tbody tr:last-child { border-bottom: none; }
+
+    .exp-table td {
+        padding: 8px 14px; color: #1a1a1a;
+        border-right: 1px solid #ececec;
+        vertical-align: middle; font-size: 13px;
+    }
+    .exp-table td:last-child { border-right: none; }
+    .exp-table td.num { text-align: right; white-space: nowrap; }
+    .exp-table td.ctr { text-align: center; }
+
+    /* Date group separator */
+    tr.date-separator td {
+        background: #f5f5f5 !important;
+        border-top: 1px solid #ccc; border-bottom: 1px solid #ddd;
+        padding: 5px 14px; font-size: 11.5px; font-weight: 700;
+        color: #555; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* Grand total row */
+    .grand-total-row td {
+        background: #fce8c8 !important; font-weight: 700; font-size: 13.5px;
+        padding: 10px 14px; border-top: 1px solid #e0c090;
+        border-right: 1px solid #e0c090;
+    }
+    .grand-total-row td:last-child { border-right: none; }
+    .grand-total-row .num {
+        text-decoration: underline; text-align: right; white-space: nowrap;
+    }
+
+    /* No results */
+    .alert-info {
+        background: #e8f4fd; border: 1px solid #b8d9f5; color: #1a5276;
+        padding: 14px 18px; border-radius: 3px; font-size: 13px;
+        text-align: center; margin-top: 10px;
+    }
+
+    /* Statement footer */
+    .statement-footer {
+        display: flex; justify-content: space-between; align-items: flex-end;
+        padding: 16px 0 0; border-top: 1px dashed #ddd;
+        margin-top: 16px; font-size: 12px; color: #555;
+    }
+    .signature-block { text-align: right; }
+    .signature-line {
+        border-bottom: 1px solid #333; width: 180px; margin: 8px 0 4px auto;
+    }
+    .footer-note {
+        text-align: center; padding: 10px 0 0; font-size: 11px; color: #888;
+        border-top: 1px dashed #e2e8f0; margin-top: 12px;
+    }
+
+    /* Action row */
+    .action-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding-top: 12px; margin-top: 6px;
+    }
+    .back-link { font-size: 13px; color: #2980b9; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .btn-print, .btn-export {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; cursor: pointer;
+        color: #333; font-family: Arial, sans-serif;
+    }
+    .btn-print:hover, .btn-export:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .filter-bar, .action-row { display: none !important; }
+        .exp-table { font-size: 10pt; }
+        .exp-table td, .exp-table th { padding: 5px 8px; }
+        .grand-total-row td, tr.date-separator td {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+
+<div class="lp-wrapper">
+
+    <!-- Filter bar -->
+    <!-- <form method="GET" action="{% url 'loan_collection_statement' %}" class="filter-bar">
+        <div class="filter-group">
+            <span class="filter-label">From</span>
+            <input type="date" name="start_date" class="filter-input" value="{{ start_date|default:'' }}">
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">To</span>
+            <input type="date" name="end_date" class="filter-input" value="{{ end_date|default:'' }}">
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Office</span>
+            <select name="office" class="filter-input">
+                <option value="">All Offices</option>
+                {% for office in offices %}
+                <option value="{{ office }}" {% if office_filter == office %}selected{% endif %}>{{ office }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <a href="{% url 'loan_collection_statement' %}" class="btn-reset">&#8635; Reset</a>
+            <button type="submit" class="btn-filter">Generate Statement</button>
+        </div>
+    </form> -->
+
+    <div class="report-card">
+        <div class="printable">
+
+            <!-- Letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474 — KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515 &nbsp;|&nbsp; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <!-- Report title -->
+            <div class="branch-heading">
+                {% if office_filter %}{{ office_filter }} Branch{% else %}All Branches{% endif %}
+            </div>
+            <div class="report-heading">
+                Loan Collection Statement
+                {% if start_date and end_date %}From {{ start_date }} To {{ end_date }}
+                {% elif start_date %}From {{ start_date }}
+                {% elif end_date %}Up To {{ end_date }}
+                {% else %}&mdash; All Collections{% endif %}
+            </div>
+
+            <!-- Summary strip -->
+            <div class="summary-strip">
+                <div class="summary-item">
+                    <div class="s-label">Transactions</div>
+                    <div class="s-value">{{ total_transactions|default:"0" }}</div>
+                    <div class="s-sub">repayment records</div>
+                </div>
+                <div class="summary-item">
+                    <div class="s-label">Total Principal</div>
+                    <div class="s-value">{{ total_principal|floatformat:0|intcomma|default:"0" }}</div>
+                    <div class="s-sub">TZS</div>
+                </div>
+                <div class="summary-item">
+                    <div class="s-label">Total Interest</div>
+                    <div class="s-value">{{ total_interest|floatformat:0|intcomma|default:"0" }}</div>
+                    <div class="s-sub">TZS</div>
+                </div>
+                <div class="summary-item">
+                    <div class="s-label">Total Collected</div>
+                    <div class="s-value">{{ total_collected|floatformat:0|intcomma|default:"0" }}</div>
+                    <div class="s-sub">TZS</div>
+                </div>
+                <div class="summary-item">
+                    <div class="s-label">Office</div>
+                    <div class="s-value" style="font-size:12px;">{{ office_filter|default:"All" }}</div>
+                    <div class="s-sub">filter</div>
+                </div>
+                <div class="summary-item">
+                    <div class="s-label">Generated By</div>
+                    <div class="s-value" style="font-size:12px;">{{ request.user.get_full_name|default:request.user.username }}</div>
+                    <div class="s-sub">{% now "d/m/Y H:i" %}</div>
+                </div>
+            </div>
+
+            <!-- Collection table -->
+            {% if collection_data %}
+            <table class="exp-table">
+                <thead>
+                    <tr>
+                        <th style="width:100px;">Date</th>
+                        <th class="ctr" style="width:40px;">S/N</th>
+                        <th style="width:120px;">Receipt No.</th>
+                        <th>Client Name</th>
+                        <th>Description</th>
+                        <th class="ctr" style="width:70px;">Rate</th>
+                        <th class="num" style="width:130px;">Principal (TZS)</th>
+                        <th class="num" style="width:130px;">Interest (TZS)</th>
+                        <th class="num" style="width:130px;">Total (TZS)</th>
+                        <th style="width:130px;">Processed By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% regroup collection_data by date as date_groups %}
+                    {% for date_group in date_groups %}
+                    <tr class="date-separator">
+                        <td colspan="10">
+                            {{ date_group.grouper|date:"l, d F Y" }}
+                            &nbsp;&mdash;&nbsp; {{ date_group.list|length }} collection{{ date_group.list|length|pluralize }}
+                        </td>
+                    </tr>
+                    {% for item in date_group.list %}
+                    <tr>
+                        <td style="white-space:nowrap; color:#777; font-size:12px;">{{ item.date|date:"d/m/Y" }}</td>
+                        <td class="ctr" style="font-weight:700; font-size:12px;">{{ item.sn }}</td>
+                        <td>{{ item.receipt_no }}</td>
+                        <td>
+                            <strong>{{ item.name }}</strong>
+                            <div style="font-size:11px; color:#999; font-family:monospace;">CLT-{{ item.client_id|stringformat:"06d" }}</div>
+                        </td>
+                        <td style="font-size:12px; color:#444;">{{ item.description }}</td>
+                        <td class="ctr" style="font-size:12px;">{{ item.rate|floatformat:1 }}%</td>
+                        <td class="num">
+                            {% if item.principal > 0 %}{{ item.principal|floatformat:0|intcomma }}
+                            {% else %}<span style="color:#ccc;">—</span>{% endif %}
+                        </td>
+                        <td class="num">
+                            {% if item.interest > 0 %}{{ item.interest|floatformat:0|intcomma }}
+                            {% else %}<span style="color:#ccc;">—</span>{% endif %}
+                        </td>
+                        <td class="num"><strong>{{ item.total|floatformat:0|intcomma }}</strong></td>
+                        <td style="font-size:12px;">{{ item.created_by }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+
+                    <!-- Grand Total -->
+                    <tr class="grand-total-row">
+                        <td colspan="6"><strong>GRAND TOTAL</strong></td>
+                        <td class="num"><strong>{{ total_principal|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ total_interest|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ total_collected|floatformat:0|intcomma }}</strong></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {% else %}
+            <div class="alert-info">
+                No collections found for the selected period.
+            </div>
+            {% endif %}
+
+            
+
+        </div><!-- end printable -->
+
+        <div class="action-row">
+            <a class="back-link" href="{% url 'loan_collection_statement' %}">← Change filters</a>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+                <button class="btn-print" onclick="window.print()">PRINT</button>
+            </div>
+        </div>
+
+    </div><!-- end report-card -->
+</div><!-- end lp-wrapper -->
+
+<script>
+    function exportCSV() {
+        const headers = ['Date','S/N','Receipt No','Client Name','Description','Rate','Principal','Interest','Total','Processed By'];
+        const rows = document.querySelectorAll('tbody tr:not(.date-separator):not(.grand-total-row)');
+        let csv = headers.join(',') + '\n';
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 10) {
+                const data = Array.from(cells).map(c => `"${c.textContent.trim().replace(/"/g,'""')}"`);
+                csv += data.join(',') + '\n';
+            }
+        });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = 'masco_collection_statement.csv'; a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.ctrlKey && e.key === 'p') { e.preventDefault(); window.print(); }
+        if (e.ctrlKey && e.key === 'e') { e.preventDefault(); exportCSV(); }
+    });
+</script>
+
+{% endblock %}

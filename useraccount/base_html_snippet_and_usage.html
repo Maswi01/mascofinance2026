@@ -1,0 +1,105 @@
+{# ═══════════════════════════════════════════════════════════════════════════
+   FILE: app/templates/app/base.html
+   Find the HQ Registrations submenu (the <li> block that starts with
+   "Register Staff") and add this ONE line anywhere inside the <div class="submenu">:
+   ═══════════════════════════════════════════════════════════════════════════ #}
+
+{# ── Paste this line inside the HQ Registrations submenu ── #}
+{% if request.user.is_superuser %}
+<a href="{% url 'roles_list' %}" class="submenu-item">
+    <i class="fas fa-shield-alt"></i> Role & Permissions
+</a>
+{% endif %}
+
+
+{# ═══════════════════════════════════════════════════════════════════════════
+   HOW TO GUARD BUTTONS IN ANY TEMPLATE
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Step 1 – load the tag library at the top of the template:
+       {% load permission_tags %}
+
+   Step 2 – wrap any button / link with a permission check:
+
+   PATTERN A – inline {% if %} block (most flexible):
+   ────────────────────────────────────────────────────
+   {% user_has_perm request.user 'loans-delete' as can_delete %}
+   {% if can_delete %}
+       <a href="{% url 'delete_loan' loan.id %}" class="btn btn-danger">
+           <i class="fas fa-trash"></i> Delete
+       </a>
+   {% endif %}
+
+   PATTERN B – inclusion tag shortcut (one-liner):
+   ────────────────────────────────────────────────
+   {% perm_button request.user 'loans-create' 'New Loan' url=create_url btn_class='btn-primary' icon='fa-plus' %}
+
+   ═══════════════════════════════════════════════════════════════════════════
+   REAL EXAMPLES FROM YOUR PROJECT
+   ═══════════════════════════════════════════════════════════════════════════
+
+   ── loans.html / loan list page ──────────────────────────────────────────
+   {% load permission_tags %}
+   {% user_has_perm request.user 'loans-create' as can_create_loan %}
+   {% user_has_perm request.user 'loans-delete' as can_delete_loan %}
+   {% user_has_perm request.user 'loans-approve' as can_approve_loan %}
+
+   {% if can_create_loan %}
+   <a href="{% url 'loan_application' %}" class="btn btn-primary">
+       <i class="fas fa-plus"></i> New Loan
+   </a>
+   {% endif %}
+
+   ...inside the table row...
+   {% if can_delete_loan %}
+   <a href="{% url 'delete_loan' loan.id %}" class="btn btn-danger btn-sm">Delete</a>
+   {% endif %}
+   {% if can_approve_loan %}
+   <a href="{% url 'toggle_loan_approve' loan.id %}" class="btn btn-success btn-sm">Approve</a>
+   {% endif %}
+
+
+   ── clients.html ─────────────────────────────────────────────────────────
+   {% load permission_tags %}
+   {% user_has_perm request.user 'clients-create' as can_add_client %}
+   {% user_has_perm request.user 'clients-edit'   as can_edit_client %}
+   {% user_has_perm request.user 'clients-delete' as can_del_client %}
+
+   {% if can_add_client %}
+   <a href="{% url 'client_add' %}" class="btn btn-primary">Add Client</a>
+   {% endif %}
+
+
+   ── expense.html ─────────────────────────────────────────────────────────
+   {% load permission_tags %}
+   {% user_has_perm request.user 'expenses-create' as can_add_expense %}
+   {% if can_add_expense %}
+   <a href="{% url 'expense_add' %}" class="btn btn-primary">Add Expense</a>
+   {% endif %}
+
+
+   ── In views.py (server-side guard) ──────────────────────────────────────
+   from django.shortcuts import redirect
+   from django.contrib import messages
+
+   def delete_loan(request, loan_id):
+       if not request.user.has_system_perm('loans-delete'):
+           messages.error(request, "You do not have permission to delete loans.")
+           return redirect('loans')
+       ...
+
+   ═══════════════════════════════════════════════════════════════════════════
+   FULL LIST OF PERMISSION CODENAMES
+   ═══════════════════════════════════════════════════════════════════════════
+   Users:        user-list, user-create, user-show, user-edit, user-delete
+   Branches:     branch-list, branch-create, branch-edit, branch-show, branch-delete
+   Loans:        loans-list, loans-create, loans-show, loans-edit, loans-delete,
+                 loans-approve, loans-topup, loans-repay, loans-repay-edit, loans-repay-delete
+   Clients:      clients-list, clients-create, clients-edit, clients-delete
+   Savings:      savings-list, savings-create, savings-edit, savings-delete
+   Expenses:     expenses-list, expenses-create, expenses-edit, expenses-delete
+   Transactions: transactions-list, transactions-create, transactions-edit, transactions-delete
+   Salary:       salary-list, salary-create, salary-edit, salary-delete, salary-pay
+   Reports:      reports-loans-issued, reports-loans-owed, reports-repayment-schedule,
+                 reports-financial, reports-expenses, reports-salary-slip
+   ═══════════════════════════════════════════════════════════════════════════ #}

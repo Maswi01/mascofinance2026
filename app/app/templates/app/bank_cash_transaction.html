@@ -1,0 +1,1565 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    /* ==================== Bank/Cash Transaction Page Styles ==================== */
+    .transaction-container {
+        padding: var(--spacing-md);
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Summary Cards */
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .summary-card {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        box-shadow: var(--shadow-md);
+        transition: var(--transition-base);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .summary-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--primary-blue), var(--accent-purple));
+    }
+
+    .summary-card.total::before {
+        background: linear-gradient(to bottom, var(--primary-blue), var(--dark-blue));
+    }
+
+    .summary-card.income::before {
+        background: linear-gradient(to bottom, var(--accent-green), #34d399);
+    }
+
+    .summary-card.expense::before {
+        background: linear-gradient(to bottom, var(--accent-orange), #fbbf24);
+    }
+
+    .summary-card.balance::before {
+        background: linear-gradient(to bottom, #8b5cf6, #a78bfa);
+    }
+
+    .summary-card-content {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .summary-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: var(--border-radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--font-size-lg);
+        color: var(--white);
+        background: var(--primary-blue);
+        flex-shrink: 0;
+    }
+
+    .summary-card.income .summary-icon {
+        background: var(--accent-green);
+    }
+
+    .summary-card.expense .summary-icon {
+        background: var(--accent-orange);
+    }
+
+    .summary-card.balance .summary-icon {
+        background: #8b5cf6;
+    }
+
+    .summary-text h3 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-3xl);
+        font-weight: 700;
+        color: var(--gray-dark);
+        margin-bottom: 4px;
+    }
+
+    .summary-text p {
+        color: var(--gray-medium);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    /* Search and Filter Bar */
+    .search-filter-bar {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 300px;
+        position: relative;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 20px 12px 45px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--gray-medium);
+        font-size: var(--font-size-base);
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: var(--spacing-md);
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        padding: 10px 15px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        color: var(--gray-dark);
+        background: var(--white);
+        cursor: pointer;
+        min-width: 150px;
+        transition: var(--transition-base);
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: var(--spacing-sm);
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        border: none;
+        outline: none;
+    }
+
+    .btn-primary {
+        background: var(--primary-blue);
+        color: var(--white);
+    }
+
+    .btn-primary:hover {
+        background: var(--dark-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1.5px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+        background: var(--white);
+        border-color: var(--primary-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Transaction Table */
+    .table-container {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .transaction-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .transaction-table thead {
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+    }
+
+    .transaction-table th {
+        padding: var(--spacing-md) var(--spacing-lg);
+        text-align: left;
+        color: var(--white);
+        font-weight: 600;
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family-heading);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .transaction-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: var(--transition-fast);
+    }
+
+    .transaction-table tbody tr:hover {
+        background: rgba(45, 106, 227, 0.05);
+    }
+
+    .transaction-table td {
+        padding: var(--spacing-md) var(--spacing-lg);
+        color: var(--gray-dark);
+        font-size: var(--font-size-sm);
+    }
+
+    .transaction-info {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .transaction-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--border-radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-blue);
+        color: var(--white);
+        font-size: var(--font-size-lg);
+        flex-shrink: 0;
+    }
+
+    .transaction-id {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+    }
+
+    .source-badge, .destination-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+
+    .source-badge {
+        background: rgba(45, 106, 227, 0.1);
+        color: var(--primary-blue);
+        border: 1px solid rgba(45, 106, 227, 0.2);
+    }
+
+    .destination-badge {
+        background: rgba(34, 197, 94, 0.1);
+        color: #16a34a;
+        border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .office-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        background: rgba(139, 92, 246, 0.1);
+        color: #7c3aed;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .amount {
+        font-weight: 600;
+        font-family: var(--font-family-heading);
+        color: #16a34a;
+    }
+
+    .action-buttons-cell {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+    }
+
+    .icon-btn:hover {
+        background: var(--white);
+        transform: translateY(-2px);
+    }
+
+    .icon-btn.view:hover {
+        color: var(--primary-blue);
+        border-color: var(--primary-blue);
+    }
+
+    .icon-btn.edit:hover {
+        color: var(--accent-green);
+        border-color: var(--accent-green);
+    }
+
+    .icon-btn.delete:hover {
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-lg);
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .pagination-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background: var(--primary-blue);
+        color: var(--white);
+        border-color: var(--primary-blue);
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-pages {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+
+    .page-number {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    .page-number.active {
+        background: var(--primary-blue);
+        color: var(--white);
+        border-color: var(--primary-blue);
+    }
+
+    .page-number:hover:not(.active) {
+        background: var(--gray-light);
+        border-color: var(--primary-blue);
+    }
+
+    /* Popup Overlay */
+    .popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        display: none;
+        justify-content: flex-end;
+        align-items: center;
+        z-index: 2000;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .popup-overlay.active {
+        display: flex;
+    }
+
+    /* Transaction Details Popup */
+    .transaction-details-popup {
+        width: 500px;
+        height: 100vh;
+        background: var(--white);
+        box-shadow: var(--shadow-xl);
+        transform: translateX(100%);
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .transaction-details-popup {
+        transform: translateX(0);
+    }
+
+    .popup-header {
+        padding: var(--spacing-lg);
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+        color: var(--white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .popup-title {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        font-weight: 600;
+    }
+
+    .close-popup {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        color: var(--white);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition-fast);
+    }
+
+    .close-popup:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+
+    .popup-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
+    }
+
+    .transaction-profile-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+        padding-bottom: var(--spacing-lg);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .transaction-profile-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: var(--border-radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-blue);
+        color: var(--white);
+        font-size: var(--font-size-2xl);
+        border: 4px solid #e2e8f0;
+        box-shadow: var(--shadow-md);
+    }
+
+    .transaction-profile-info h2 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        color: var(--gray-dark);
+        margin-bottom: var(--spacing-xs);
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .info-item {
+        margin-bottom: var(--spacing-md);
+    }
+
+    .info-item h4 {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .info-item p {
+        font-size: var(--font-size-base);
+        color: var(--gray-dark);
+        font-weight: 500;
+    }
+
+    .popup-footer {
+        padding: var(--spacing-lg);
+        background: var(--gray-light);
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--spacing-md);
+    }
+
+    /* Add Transaction Popup */
+    .add-transaction-popup {
+        width: 600px;
+        max-width: 90vw;
+        height: 90vh;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .add-transaction-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-md);
+    }
+
+    .form-group {
+        margin-bottom: var(--spacing-md);
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        color: var(--gray-dark);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .form-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 12px center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 40px;
+    }
+
+    /* Update Transaction Popup */
+    .update-transaction-popup {
+        width: 600px;
+        max-width: 90vw;
+        height: 90vh;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .update-transaction-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .search-filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-box {
+            min-width: 100%;
+        }
+
+        .filter-controls {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .transaction-table {
+            display: block;
+            overflow-x: auto;
+        }
+
+        .transaction-details-popup {
+            width: 100%;
+        }
+
+        .add-transaction-popup,
+        .update-transaction-popup {
+            width: 95vw;
+            height: 95vh;
+            margin: 2.5vh auto;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .summary-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .action-buttons {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .transaction-profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+</style>
+
+<div class="transaction-container">
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card total" onclick="filterTransaction('all')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="totalTransactions">0</h3>
+                    <p>Total Transactions</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card income" onclick="filterTransaction('bank')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-university"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="totalBankAmount">0</h3>
+                    <p>Total Bank Amount</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card expense" onclick="filterTransaction('cash')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="totalCashAmount">0</h3>
+                    <p>Total Cash Amount</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card balance">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="totalAmount">0</h3>
+                    <p>Total Amount</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Bar -->
+    <div class="search-filter-bar">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" 
+                   class="search-input" 
+                   placeholder="Search transactions by office, source, destination..."
+                   id="searchInput"
+                   onkeyup="searchTransaction()">
+        </div>
+
+        <div class="filter-controls">
+            <select class="filter-select" id="sourceFilter" onchange="filterTransaction()">
+                <option value="">All Sources</option>
+                <option value="bank">Bank</option>
+                <option value="cash">Cash</option>
+            </select>
+
+            <select class="filter-select" id="destinationFilter" onchange="filterTransaction()">
+                <option value="">All Destinations</option>
+                <option value="bank">Bank</option>
+                <option value="cash">Cash</option>
+            </select>
+
+            <select class="filter-select" id="officeFilter" onchange="filterTransaction()">
+                <option value="">All Offices</option>
+                {% for office in offices %}
+                <option value="{{ office.id }}">{{ office.name }}</option>
+                {% endfor %}
+            </select>
+
+            <input type="date" 
+                   class="filter-select" 
+                   id="dateFromFilter" 
+                   onchange="filterTransaction()"
+                   placeholder="From Date">
+
+            <input type="date" 
+                   class="filter-select" 
+                   id="dateToFilter" 
+                   onchange="filterTransaction()"
+                   placeholder="To Date">
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="exportTransactionData()">
+                    <i class="fas fa-download"></i>
+                    Export
+                </button>
+                <button class="btn btn-primary" onclick="openAddTransactionPopup()">
+                    <i class="fas fa-plus-circle"></i>
+                    Add Transaction
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Table -->
+    <div class="table-container">
+        <table class="transaction-table">
+            <thead>
+                <tr>
+                    <th>Transaction ID</th>
+                    <th>Office</th>
+                    <th>Source</th>
+                    <th>Destination</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="transactionTableBody">
+                {% for transaction in transactions %}
+                <tr data-id="{{ transaction.id }}" data-source="{{ transaction.source|lower }}" data-destination="{{ transaction.destination|lower }}" data-office="{{ transaction.office_from.id }}">
+                    <td>
+                        <div class="transaction-info">
+                            <div class="transaction-icon">
+                                <i class="fas fa-exchange-alt"></i>
+                            </div>
+                            <div>
+                                <div class="transaction-id">ID: {{ transaction.id }}</div>
+                                <div class="transaction-id">{{ transaction.created_at|date:"Y-m-d H:i" }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="office-badge">
+                            <i class="fas fa-building office-icon"></i>
+                            {{ transaction.office_from.name }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="source-badge">
+                            <i class="fas fa-{% if transaction.source == 'bank' %}university{% else %}money-bill-wave{% endif %}"></i>
+                            {{ transaction.source|title }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="destination-badge">
+                            <i class="fas fa-{% if transaction.destination == 'bank' %}university{% else %}money-bill-wave{% endif %}"></i>
+                            {{ transaction.destination|title }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="amount">
+                            {{ transaction.amount|floatformat:2 }}
+                        </span>
+                    </td>
+                    <td>{{ transaction.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <div class="action-buttons-cell">
+                            <button class="icon-btn view" onclick="viewTransactionDetails({{ transaction.id }})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="icon-btn edit" onclick="openUpdateTransactionPopup({{ transaction.id }})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="icon-btn delete" onclick="deleteTransaction({{ transaction.id }})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: var(--spacing-xl); color: var(--gray-medium);">
+                        No transactions found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+        <button class="pagination-btn" onclick="changePage(-1)" id="prevPage">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        
+        <div class="pagination-pages" id="paginationPages">
+            <!-- Page numbers will be generated by JavaScript -->
+        </div>
+        
+        <button class="pagination-btn" onclick="changePage(1)" id="nextPage">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        
+        <div style="margin-left: var(--spacing-md); font-size: var(--font-size-sm); color: var(--gray-medium);">
+            Showing <span id="startIndex">1</span>-<span id="endIndex">0</span> of <span id="totalItems">0</span> transactions
+        </div>
+    </div>
+</div>
+
+<!-- Transaction Details Popup -->
+<div class="popup-overlay" id="transactionDetailsPopup">
+    <div class="transaction-details-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Transaction Details</h2>
+            <button class="close-popup" onclick="closeTransactionDetails()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content" id="transactionDetailsContent">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" onclick="closeTransactionDetails()">
+                Close
+            </button>
+            <button class="btn btn-primary" onclick="openUpdateTransactionPopup()">
+                <i class="fas fa-edit"></i>
+                Edit Transaction
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Transaction Popup -->
+<div class="popup-overlay" id="addTransactionPopup">
+    <div class="add-transaction-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Add Bank/Cash Transaction</h2>
+            <button class="close-popup" onclick="closeAddTransactionPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <form id="addTransactionForm" method="post" action="{% url 'bank_cash_transaction_add' %}">
+                {% csrf_token %}
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">Office *</label>
+                        <select name="office_from" class="form-control form-select" required>
+                            <option value="">Select Office</option>
+                            {% for office in offices %}
+                            <option value="{{ office.id }}">{{ office.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Source *</label>
+                        <select name="source" class="form-control form-select" required>
+                            <option value="">Select Source</option>
+                            <option value="bank">Bank</option>
+                            <option value="cash">Cash</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Destination *</label>
+                        <select name="destination" class="form-control form-select" required>
+                            <option value="">Select Destination</option>
+                            <option value="bank">Bank</option>
+                            <option value="cash">Cash</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label class="form-label">Amount *</label>
+                        <input type="number" 
+                               name="amount" 
+                               class="form-control" 
+                               step="0.01"
+                               min="0"
+                               placeholder="Enter amount"
+                               required>
+                    </div>
+                </div>
+
+                <div class="popup-footer">
+                    <button class="btn btn-secondary" type="button" onclick="closeAddTransactionPopup()">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-save"></i>
+                        Add Transaction
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Transaction Popup -->
+<div class="popup-overlay" id="updateTransactionPopup">
+    <div class="update-transaction-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Update Transaction</h2>
+            <button class="close-popup" onclick="closeUpdateTransactionPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <form id="updateTransactionForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="transaction_id" id="updateTransactionId">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">Office *</label>
+                        <select name="office_from" id="updateOfficeFrom" class="form-control form-select" required>
+                            <option value="">Select Office</option>
+                            {% for office in offices %}
+                            <option value="{{ office.id }}">{{ office.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Source *</label>
+                        <select name="source" id="updateSource" class="form-control form-select" required>
+                            <option value="">Select Source</option>
+                            <option value="bank">Bank</option>
+                            <option value="cash">Cash</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Destination *</label>
+                        <select name="destination" id="updateDestination" class="form-control form-select" required>
+                            <option value="">Select Destination</option>
+                            <option value="bank">Bank</option>
+                            <option value="cash">Cash</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label class="form-label">Amount *</label>
+                        <input type="number" 
+                               name="amount" 
+                               id="updateAmount"
+                               class="form-control" 
+                               step="0.01"
+                               min="0"
+                               required>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" type="button" onclick="closeUpdateTransactionPopup()">
+                Cancel
+            </button>
+            <button class="btn btn-primary" type="submit" form="updateTransactionForm">
+                <i class="fas fa-save"></i>
+                Update Transaction
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== Transaction Data from Django ====================
+    // Convert Django template data to JavaScript array
+    const transactionData = [
+        {% for transaction in transactions %}
+        {
+            id: {{ transaction.id }},
+            officeFrom: {
+                id: {{ transaction.office_from.id }},
+                name: "{{ transaction.office_from.name|escapejs }}",
+                region: "{{ transaction.office_from.region|escapejs }}"
+            },
+            source: "{{ transaction.source|lower|escapejs }}",
+            destination: "{{ transaction.destination|lower|escapejs }}",
+            amount: parseFloat("{{ transaction.amount|default:0 }}"),
+            createdAt: "{{ transaction.created_at|date:'Y-m-d H:i:s'|default:'' }}",
+            date: "{{ transaction.created_at|date:'Y-m-d'|default:'' }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Office data for filters
+    const officeData = [
+        {% for office in offices %}
+        {
+            id: {{ office.id }},
+            name: "{{ office.name|escapejs }}",
+            region: "{{ office.region|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // ==================== Global Variables ====================
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let filteredTransactions = [...transactionData];
+    let currentSelectedTransaction = null;
+
+    // ==================== Initialize Page ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSummaryCards();
+        renderTransactionTable();
+        updatePagination();
+        
+        // Add event listeners for table rows
+        document.querySelectorAll('#transactionTableBody tr[data-id]').forEach(row => {
+            row.addEventListener('click', function(e) {
+                // Don't trigger on action buttons
+                if (!e.target.closest('.action-buttons-cell')) {
+                    const transactionId = parseInt(this.getAttribute('data-id'));
+                    viewTransactionDetails(transactionId);
+                }
+            });
+        });
+    });
+
+    // ==================== Summary Cards Functions ====================
+    function updateSummaryCards() {
+        const total = transactionData.length;
+        
+        // Calculate total amount from bank source
+        const bankAmount = transactionData
+            .filter(t => t.source === 'bank')
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        // Calculate total amount from cash source
+        const cashAmount = transactionData
+            .filter(t => t.source === 'cash')
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        // Calculate total amount
+        const totalAmount = transactionData.reduce((sum, t) => sum + t.amount, 0);
+
+        document.getElementById('totalTransactions').textContent = total;
+        document.getElementById('totalBankAmount').textContent = bankAmount.toFixed(2);
+        document.getElementById('totalCashAmount').textContent = cashAmount.toFixed(2);
+        document.getElementById('totalAmount').textContent = totalAmount.toFixed(2);
+    }
+
+    // ==================== Transaction Table Functions ====================
+    function renderTransactionTable() {
+        const tableBody = document.getElementById('transactionTableBody');
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentTransactions = filteredTransactions.slice(startIndex, endIndex);
+
+        // If we already have server-rendered rows, just hide/show them
+        const allRows = document.querySelectorAll('#transactionTableBody tr[data-id]');
+        
+        if (allRows.length > 0) {
+            // Hide all rows
+            allRows.forEach(row => row.style.display = 'none');
+            
+            // Show only filtered rows for current page
+            currentTransactions.forEach((transaction, index) => {
+                const row = document.querySelector(`#transactionTableBody tr[data-id="${transaction.id}"]`);
+                if (row) {
+                    row.style.display = '';
+                }
+            });
+            
+            // Handle no results
+            const noResultsRow = document.querySelector('#transactionTableBody tr:not([data-id])');
+            if (noResultsRow) {
+                noResultsRow.style.display = filteredTransactions.length === 0 ? '' : 'none';
+            }
+        }
+
+        // Update pagination info
+        document.getElementById('startIndex').textContent = filteredTransactions.length > 0 ? startIndex + 1 : 0;
+        document.getElementById('endIndex').textContent = Math.min(endIndex, filteredTransactions.length);
+        document.getElementById('totalItems').textContent = filteredTransactions.length;
+    }
+
+    // ==================== Search and Filter Functions ====================
+    function searchTransaction() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const sourceFilter = document.getElementById('sourceFilter').value.toLowerCase();
+        const destinationFilter = document.getElementById('destinationFilter').value.toLowerCase();
+        const officeFilter = document.getElementById('officeFilter').value;
+        const dateFromFilter = document.getElementById('dateFromFilter').value;
+        const dateToFilter = document.getElementById('dateToFilter').value;
+
+        filteredTransactions = transactionData.filter(transaction => {
+            // Search term filter
+            const matchesSearch = searchTerm === '' || 
+                transaction.officeFrom.name.toLowerCase().includes(searchTerm) ||
+                transaction.source.toLowerCase().includes(searchTerm) ||
+                transaction.destination.toLowerCase().includes(searchTerm) ||
+                transaction.amount.toString().includes(searchTerm) ||
+                transaction.date.includes(searchTerm);
+
+            // Source filter
+            const matchesSource = sourceFilter === '' || 
+                                 transaction.source === sourceFilter;
+
+            // Destination filter
+            const matchesDestination = destinationFilter === '' || 
+                                      transaction.destination === destinationFilter;
+
+            // Office filter
+            const matchesOffice = officeFilter === '' || 
+                                 transaction.officeFrom.id == officeFilter;
+
+            // Date range filter
+            let matchesDate = true;
+            if (dateFromFilter) {
+                matchesDate = matchesDate && transaction.date >= dateFromFilter;
+            }
+            if (dateToFilter) {
+                matchesDate = matchesDate && transaction.date <= dateToFilter;
+            }
+
+            return matchesSearch && matchesSource && matchesDestination && matchesOffice && matchesDate;
+        });
+
+        currentPage = 1;
+        renderTransactionTable();
+        updatePagination();
+    }
+
+    function filterTransaction(filter = '') {
+        if (filter === 'bank') {
+            filteredTransactions = transactionData.filter(t => t.source === 'bank' || t.destination === 'bank');
+        } else if (filter === 'cash') {
+            filteredTransactions = transactionData.filter(t => t.source === 'cash' || t.destination === 'cash');
+        } else {
+            filteredTransactions = [...transactionData];
+        }
+        
+        currentPage = 1;
+        renderTransactionTable();
+        updatePagination();
+    }
+
+    // ==================== Pagination Functions ====================
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+        const paginationPages = document.getElementById('paginationPages');
+        
+        paginationPages.innerHTML = '';
+
+        // Show max 5 page numbers
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = `page-number ${i === currentPage ? 'active' : ''}`;
+            pageBtn.textContent = i;
+            pageBtn.onclick = () => goToPage(i);
+            paginationPages.appendChild(pageBtn);
+        }
+
+        // Update prev/next buttons
+        document.getElementById('prevPage').disabled = currentPage === 1;
+        document.getElementById('nextPage').disabled = currentPage === totalPages;
+    }
+
+    function changePage(direction) {
+        const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+        const newPage = currentPage + direction;
+
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            renderTransactionTable();
+            updatePagination();
+        }
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderTransactionTable();
+        updatePagination();
+    }
+
+    // ==================== Transaction Details Popup Functions ====================
+    function viewTransactionDetails(transactionId) {
+        const transaction = transactionData.find(t => t.id === transactionId);
+        if (!transaction) return;
+
+        currentSelectedTransaction = transaction;
+        const popup = document.getElementById('transactionDetailsPopup');
+        const content = document.getElementById('transactionDetailsContent');
+
+        // Format date
+        let formattedDate = '-';
+        if (transaction.createdAt) {
+            const transactionDate = new Date(transaction.createdAt);
+            formattedDate = transactionDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Determine icon based on source/destination
+        let icon = 'fa-exchange-alt';
+        let sourceIcon = transaction.source === 'bank' ? 'fa-university' : 'fa-money-bill-wave';
+        let destIcon = transaction.destination === 'bank' ? 'fa-university' : 'fa-money-bill-wave';
+
+        content.innerHTML = `
+            <div class="transaction-profile-header">
+                <div class="transaction-profile-icon">
+                    <i class="fas ${icon}"></i>
+                </div>
+                <div class="transaction-profile-info">
+                    <h2>Transaction #${transaction.id}</h2>
+                    <span class="source-badge" style="margin-right: 5px;">
+                        <i class="fas ${sourceIcon}"></i> ${transaction.source.toUpperCase()}
+                    </span>
+                    <i class="fas fa-arrow-right" style="color: var(--gray-medium); margin: 0 5px;"></i>
+                    <span class="destination-badge">
+                        <i class="fas ${destIcon}"></i> ${transaction.destination.toUpperCase()}
+                    </span>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <h4>Office</h4>
+                    <p>${transaction.officeFrom.name}</p>
+                    <small style="color: var(--gray-medium);">${transaction.officeFrom.region}</small>
+                </div>
+                <div class="info-item">
+                    <h4>Amount</h4>
+                    <p style="font-size: var(--font-size-xl); font-weight: 600; color: #16a34a">
+                        ${transaction.amount.toFixed(2)}
+                    </p>
+                </div>
+                <div class="info-item">
+                    <h4>Source</h4>
+                    <p>${transaction.source.toUpperCase()}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Destination</h4>
+                    <p>${transaction.destination.toUpperCase()}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Transaction Date</h4>
+                    <p>${formattedDate}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Transaction ID</h4>
+                    <p>${transaction.id}</p>
+                </div>
+            </div>
+
+            <div style="margin-top: var(--spacing-xl); padding: var(--spacing-lg); background: rgba(45, 106, 227, 0.05); border-radius: var(--border-radius-md);">
+                <h4 style="font-size: var(--font-size-xs); color: var(--gray-medium); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;">Transaction Summary</h4>
+                <p style="font-size: var(--font-size-base); color: var(--gray-dark);">
+                    Transaction from <strong>${transaction.source.toUpperCase()}</strong> 
+                    to <strong>${transaction.destination.toUpperCase()}</strong> 
+                    for <strong>${transaction.officeFrom.name}</strong> on ${formattedDate}
+                </p>
+            </div>
+        `;
+
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeTransactionDetails() {
+        const popup = document.getElementById('transactionDetailsPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        currentSelectedTransaction = null;
+    }
+
+    // ==================== Add Transaction Popup Functions ====================
+    function openAddTransactionPopup() {
+        const popup = document.getElementById('addTransactionPopup');
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Reset form
+        document.getElementById('addTransactionForm').reset();
+    }
+
+    function closeAddTransactionPopup() {
+        const popup = document.getElementById('addTransactionPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    }
+
+    // ==================== Update Transaction Popup Functions ====================
+    function openUpdateTransactionPopup(transactionId) {
+        if (!transactionId && currentSelectedTransaction) {
+            transactionId = currentSelectedTransaction.id;
+        }
+        
+        const transaction = transactionData.find(t => t.id === transactionId);
+        if (!transaction) return;
+
+        currentSelectedTransaction = transaction;
+        const popup = document.getElementById('updateTransactionPopup');
+
+        // Populate form fields
+        document.getElementById('updateTransactionId').value = transaction.id;
+        document.getElementById('updateOfficeFrom').value = transaction.officeFrom.id;
+        document.getElementById('updateSource').value = transaction.source;
+        document.getElementById('updateDestination').value = transaction.destination;
+        document.getElementById('updateAmount').value = transaction.amount;
+
+        // Set form action
+        document.getElementById('updateTransactionForm').action = `/bank-cash-transaction/update/${transaction.id}/`;
+
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeUpdateTransactionPopup() {
+        const popup = document.getElementById('updateTransactionPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        currentSelectedTransaction = null;
+    }
+
+    // ==================== Delete Transaction Function ====================
+    function deleteTransaction(transactionId) {
+        if (!confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
+            return;
+        }
+
+        // You can implement AJAX delete here
+        // For now, show a notification
+        showNotification('Delete functionality would be implemented here. Transaction ID: ' + transactionId, 'info');
+        
+        // In a real implementation, you would:
+        // 1. Send AJAX request to delete endpoint
+        // 2. Remove transaction from transactionData array
+        // 3. Update the UI
+        // 4. Show success/error notification
+    }
+
+    // ==================== Export Function ====================
+    function exportTransactionData() {
+        // Create CSV content
+        let csv = 'Transaction ID,Office,Source,Destination,Amount,Date\n';
+        
+        filteredTransactions.forEach(transaction => {
+            csv += `${transaction.id},${transaction.officeFrom.name},${transaction.source},${transaction.destination},${transaction.amount.toFixed(2)},"${transaction.date}"\n`;
+        });
+        
+        // Create blob and download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bank_cash_transactions_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        
+        // Show notification
+        showNotification('Transaction data exported successfully!', 'success');
+    }
+
+    function showNotification(message, type = 'info') {
+        // Reuse the notification function from base template
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+        } else {
+            // Fallback notification
+            alert(message);
+        }
+    }
+
+    // ==================== Event Listeners ====================
+    // Close popups with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeTransactionDetails();
+            closeAddTransactionPopup();
+            closeUpdateTransactionPopup();
+        }
+    });
+
+    // Close popups when clicking outside
+    document.addEventListener('click', function(e) {
+        const transactionDetailsPopup = document.getElementById('transactionDetailsPopup');
+        const addTransactionPopup = document.getElementById('addTransactionPopup');
+        const updateTransactionPopup = document.getElementById('updateTransactionPopup');
+        
+        if (transactionDetailsPopup.classList.contains('active')) {
+            if (e.target === transactionDetailsPopup) {
+                closeTransactionDetails();
+            }
+        }
+        
+        if (addTransactionPopup.classList.contains('active')) {
+            if (e.target === addTransactionPopup) {
+                closeAddTransactionPopup();
+            }
+        }
+        
+        if (updateTransactionPopup.classList.contains('active')) {
+            if (e.target === updateTransactionPopup) {
+                closeUpdateTransactionPopup();
+            }
+        }
+    });
+</script>
+{% endblock %}

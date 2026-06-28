@@ -1,0 +1,97 @@
+{% extends 'app/base.html' %}
+
+{% block content %}
+<style>
+    .filter-container {
+        max-width: 800px;
+        margin: 40px auto;
+        background: #fff;
+        border-radius: 14px;
+        padding: 36px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .filter-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+    .filter-header .icon-circle {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #f0abfc, #c026d3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        font-size: 28px;
+        color: #fff;
+    }
+    .filter-header h2 { color: #1e293b; font-size: 24px; margin-bottom: 8px; }
+    .filter-header p  { color: #64748b; font-size: 14px; }
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    .form-group input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+    .form-group input:focus {
+        outline: none;
+        border-color: #c026d3;
+        box-shadow: 0 0 0 3px rgba(192,38,211,0.1);
+    }
+    .btn-submit {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #c026d3, #9333ea);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 15px;
+        cursor: pointer;
+        margin-top: 8px;
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(192,38,211,0.3); }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+</style>
+
+<div class="filter-container">
+    <div class="filter-header">
+        <div class="icon-circle"><i class="fas fa-calculator"></i></div>
+        <h2>Trial Balance</h2>
+        <p>Select the period for your trial balance report</p>
+    </div>
+
+    <form method="GET" action="{% url 'trial_balance_report' %}">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Start Date <span style="color:#dc2626;">*</span></label>
+                <input type="date" name="start_date"
+                       value="{{ default_start|date:'Y-m-d' }}" required>
+            </div>
+            <div class="form-group">
+                <label>End Date <span style="color:#dc2626;">*</span></label>
+                <input type="date" name="end_date"
+                       value="{{ today|date:'Y-m-d' }}" required>
+            </div>
+        </div>
+        <button type="submit" class="btn-submit">
+            <i class="fas fa-calculator"></i> Generate Report
+        </button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,401 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 900px;
+        margin: 30px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+    }
+
+    .lp-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 32px 50px 40px;
+    }
+
+    .part-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1a1a1a;
+        letter-spacing: 0.5px;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #999;
+        margin-bottom: 36px;
+        font-family: Arial, sans-serif;
+        text-transform: uppercase;
+    }
+
+    .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 22px;
+    }
+
+    .form-row label {
+        width: 210px;
+        flex-shrink: 0;
+        font-size: 14px;
+        color: #333;
+        font-family: Arial, sans-serif;
+        text-align: right;
+        padding-right: 24px;
+    }
+
+    .form-row .field-wrap {
+        flex: 1;
+        max-width: 430px;
+    }
+
+    .form-row input[type="text"],
+    .form-row input[type="number"],
+    .form-row input[type="date"],
+    .form-row select {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1px solid #ccc;
+        border-radius: 2px;
+        font-size: 13.5px;
+        font-family: Arial, sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.15s;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 32px;
+    }
+
+    .form-row select:focus,
+    .form-row input:focus {
+        border-color: #1abc9c;
+        box-shadow: 0 0 0 2px rgba(26,188,156,0.12);
+    }
+
+    .form-row input[type="number"],
+    .form-row input[type="date"] {
+        background-image: none;
+        padding-right: 12px;
+    }
+
+    .form-row input[readonly] {
+        background: #f0f0f0;
+        background-image: none;
+        color: #555;
+        cursor: not-allowed;
+    }
+
+    /* ── Attachment field ──────────────────────────────────────── */
+    .form-row input[type="file"] {
+        width: 100%;
+        padding: 7px 10px;
+        border: 1px dashed #ccc;
+        border-radius: 2px;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+        color: #555;
+        background: #fafafa;
+        box-sizing: border-box;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+    .form-row input[type="file"]:hover,
+    .form-row input[type="file"]:focus {
+        border-color: #1abc9c;
+        background: #f0fdf8;
+    }
+    .attach-hint {
+        font-size: 11px;
+        color: #888;
+        margin-top: 4px;
+        font-family: Arial, sans-serif;
+    }
+
+    .form-divider {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 8px 0 24px;
+    }
+
+    .form-actions {
+        text-align: center;
+        padding-top: 8px;
+    }
+
+    .submit-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 36px;
+        background: #1abc9c;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: 0.5px;
+        transition: background 0.15s;
+    }
+
+    .submit-btn:hover { background: #16a085; }
+
+    .alert-success {
+        background: #d4edda; border: 1px solid #c3e6cb; color: #155724;
+        padding: 10px 16px; border-radius: 3px; font-size: 13px;
+        font-family: Arial, sans-serif; margin-bottom: 18px;
+    }
+
+    .alert-error {
+        background: #fde8e8; border: 1px solid #f5c6c6; color: #b00;
+        padding: 10px 16px; border-radius: 3px; font-size: 13px;
+        font-family: Arial, sans-serif; margin-bottom: 18px;
+    }
+
+    .balance-strip {
+        display: flex;
+        gap: 24px;
+        background: #f0fdf8;
+        border: 1px solid #c3e6cb;
+        border-radius: 3px;
+        padding: 10px 20px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+    }
+
+    .balance-strip .b-item { display: flex; flex-direction: column; gap: 1px; }
+
+    .balance-strip .b-label {
+        font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.5px; color: #1abc9c; font-family: Arial, sans-serif;
+    }
+
+    .balance-strip .b-value {
+        font-size: 14px; font-weight: 700; color: #2c3e50; font-family: Arial, sans-serif;
+    }
+
+    @media (max-width: 650px) {
+        .form-row { flex-direction: column; align-items: flex-start; }
+        .form-row label { width: 100%; text-align: left; padding-right: 0; margin-bottom: 5px; }
+        .form-row .field-wrap { max-width: 100%; width: 100%; }
+        .lp-card { padding: 20px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="lp-card">
+
+        <div class="part-title">Branch Office Transaction</div>
+
+        {% if messages %}
+            {% for msg in messages %}
+            <div class="alert-{% if 'success' in msg.tags %}success{% else %}error{% endif %}">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% if branch_balance %}
+        <div class="balance-strip">
+            <div class="b-item">
+                <span class="b-label">Office</span>
+                <span class="b-value">{{ user_office.name }}</span>
+            </div>
+            <div class="b-item">
+                <span class="b-label">Cash Balance</span>
+                <span class="b-value">TZS {{ branch_balance.office_balance|floatformat:0|intcomma }}</span>
+            </div>
+            <div class="b-item">
+                <span class="b-label">Bank Balance</span>
+                <span class="b-value">TZS {{ branch_balance.bank_balance|floatformat:0|intcomma }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="POST" id="mainForm" action="{% url 'bank_cash_transaction' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- office_from is auto-filled from logged-in user — not editable -->
+            <input type="hidden" name="office_from" value="{{ user_office.id }}">
+
+            
+
+            <!-- ── Transaction type ── -->
+            <div class="form-row">
+                <label>Transaction type</label>
+                <div class="field-wrap">
+                    <select name="transaction_type" id="transactionType" onchange="onTypeChange()">
+                        <option value="">— Select type —</option>
+                        <option value="bank_cash">Transfer to Bank / Cash</option>
+                        <option value="branch">Transfer to Branch</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- ── Shown for "Transfer to Bank/Cash" ── -->
+            <div class="form-row" id="row_destination" style="display:none;">
+                <label>Transfer to</label>
+                <div class="field-wrap">
+                    <select name="destination" id="destinationSelect">
+                        <option value="bank">Bank</option>
+                        <option value="cash">Cash</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- ── Shown for "Transfer to Branch" ── -->
+            <div class="form-row" id="row_branch" style="display:none;">
+                <label>Transfer to Branch</label>
+                <div class="field-wrap">
+                    <select name="office_to" id="officeToBranchSelect">
+                        <option value="">— Select branch —</option>
+                        {% for office in offices %}
+                            {% if office != user_office %}
+                            <option value="{{ office.id }}">{{ office.name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- ── Shown for "Transfer to Branch": deduct from cash or bank ── -->
+            <div class="form-row" id="row_method" style="display:none;">
+                <label>Deduct from</label>
+                <div class="field-wrap">
+                    <select name="transaction_method" id="transactionMethod">
+                        <option value="cash">Cash</option>
+                        <option value="bank">Bank</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- ── Office (readonly) ── -->
+            <div class="form-row">
+                <label>Office</label>
+                <div class="field-wrap">
+                    <input type="text" value="{{ user_office.name|default:'—' }}" readonly>
+                </div>
+            </div>
+
+            <!-- ── Amount ── -->
+            <div class="form-row">
+                <label>Amount</label>
+                <div class="field-wrap">
+                    <input type="text" id="amountDisplay" placeholder="0" inputmode="numeric" autocomplete="off">
+                    <input type="hidden" name="amount" id="amountHidden">
+                </div>
+            </div>
+
+            <!-- ── Transaction Date ── -->
+            <div class="form-row">
+                <label>Transaction Date</label>
+                <div class="field-wrap">
+                    <input type="date" name="transaction_date" id="transactionDate" required>
+                </div>
+            </div>
+
+            <!-- ── Attachment (optional) ── -->
+            <div class="form-row">
+                <label>Attachment</label>
+                <div class="field-wrap">
+                    <input type="file" name="attachment" id="attachmentInput" accept="*/*">
+                    <div class="attach-hint">Optional</div>
+                </div>
+            </div>
+
+            <hr class="form-divider">
+
+            <div class="form-actions">
+                <button type="submit" class="submit-btn">
+                    <i class="fas fa-check-circle"></i> SUBMIT
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<script>
+const URL_BANK_CASH = "{% url 'bank_cash_transaction' %}";
+const URL_BRANCH    = "{% url 'branches_transaction_add' %}";
+
+/* Set today's date */
+document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+
+function onTypeChange() {
+    const type       = document.getElementById('transactionType').value;
+    const form       = document.getElementById('mainForm');
+    const rowDest    = document.getElementById('row_destination');
+    const rowBranch  = document.getElementById('row_branch');
+    const rowMethod  = document.getElementById('row_method');
+
+    rowDest.style.display   = 'none';
+    rowBranch.style.display = 'none';
+    rowMethod.style.display = 'none';
+
+    if (type === 'bank_cash') {
+        rowDest.style.display = 'flex';
+        form.action = URL_BANK_CASH;
+    } else if (type === 'branch') {
+        rowBranch.style.display = 'flex';
+        rowMethod.style.display = 'flex';
+        form.action = URL_BRANCH;
+    }
+}
+
+/* ── Amount comma formatting ── */
+const amountDisplay = document.getElementById('amountDisplay');
+const amountHidden  = document.getElementById('amountHidden');
+
+amountDisplay.addEventListener('input', function () {
+    // Strip everything except digits
+    let raw = this.value.replace(/[^0-9]/g, '');
+    // Format with commas
+    this.value = raw ? Number(raw).toLocaleString('en-US') : '';
+    // Keep hidden field as plain integer for the server
+    amountHidden.value = raw;
+});
+
+/* Validate amount is filled before submit */
+document.getElementById('mainForm').addEventListener('submit', function(e) {
+    const type = document.getElementById('transactionType').value;
+
+    if (!type) {
+        e.preventDefault();
+        alert('Please select a transaction type.');
+        return;
+    }
+
+    if (!amountHidden.value || Number(amountHidden.value) < 1) {
+        e.preventDefault();
+        alert('Please enter a valid amount.');
+        amountDisplay.focus();
+        return;
+    }
+
+    if (type === 'bank_cash') {
+        const dest = document.getElementById('destinationSelect').value;
+        const src  = dest === 'bank' ? 'cash' : 'bank';
+
+        let srcInput = document.getElementById('autoSource');
+        if (!srcInput) {
+            srcInput = document.createElement('input');
+            srcInput.type = 'hidden';
+            srcInput.id   = 'autoSource';
+            srcInput.name = 'source';
+            this.appendChild(srcInput);
+        }
+        srcInput.value = src;
+    }
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1300px;
+        margin: 20px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .report-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 24px 30px 24px;
+    }
+
+    /* ── Letterhead ── */
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 16px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 76px; height: auto; }
+    .company-name {
+        font-size: 25px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub  { font-size: 12.5px; font-weight: 600; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 3px; }
+    .company-contact { font-size: 11.5px; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 2px; }
+
+    /* ── Headings ── */
+    .branch-heading {
+        font-size: 13.5px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin: 14px 0 6px;
+        text-transform: uppercase;
+    }
+    .report-heading {
+        font-size: 13px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        font-family: Arial, sans-serif; margin-bottom: 16px;
+        text-transform: uppercase;
+    }
+
+    /* ── Table ── */
+    .loan-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 12px;
+    }
+    .loan-table thead tr { background: #fff; }
+    .loan-table th {
+        padding: 8px 8px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 11.5px;
+        border-top: 2px solid #1a1a1a;
+        border-bottom: 2px solid #1a1a1a;
+        border-right: 1px solid #ccc;
+        white-space: nowrap; background: #fff;
+    }
+    .loan-table th:last-child { border-right: none; }
+    .loan-table th.num { text-align: right; }
+
+    .loan-table tbody tr { border-bottom: 1px solid #e8e8e8; }
+    .loan-table tbody tr:hover { background: #f5f9ff; }
+    .loan-table td {
+        padding: 6px 8px; color: #1a1a1a;
+        border-right: 1px solid #ececec;
+        vertical-align: middle; font-size: 12px;
+    }
+    .loan-table td:last-child { border-right: none; }
+    .loan-table td.num { text-align: right; }
+
+    /* Balance = 0 → faint */
+    .balance-zero { color: #999; }
+
+    /* Grand total row */
+    .grand-total-row td {
+        background: #d4b97a !important;
+        font-weight: 700; font-size: 12.5px;
+        padding: 8px 8px;
+        border-top: 2px solid #b89650;
+        border-right: 1px solid #b89650;
+    }
+    .grand-total-row td:last-child { border-right: none; }
+
+    /* Action row */
+    .action-row {
+        display: flex; justify-content: flex-end; align-items: center;
+        padding-top: 14px; border-top: 1px solid #ddd; margin-top: 10px;
+    }
+    .print-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; font-family: Arial, sans-serif;
+        cursor: pointer; color: #333;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row { display: none !important; }
+        .loan-table { font-size: 9pt; }
+        .loan-table th, .loan-table td { padding: 4px 5px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="report-card">
+
+        <div class="printable">
+
+            <!-- Letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="branch-heading">{{ branch_name }} BRANCH</div>
+            <div class="report-heading">LOAN REPORT</div>
+
+            <table class="loan-table">
+                <thead>
+                    <tr>
+                        <th>S/N</th>
+                        <th>Name</th>
+                        <th>Check No.</th>
+                        <th>Mobile No.</th>
+                        <th>Loan Type</th>
+                        <th class="num">Loan Amount</th>
+                        <th class="num">Interest Amount</th>
+                        <th class="num">Total</th>
+                        <th class="num">Paid Amount</th>
+                        <th class="num">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.check_no }}</td>
+                        <td>{{ row.mobile }}</td>
+                        <td>{{ row.loan_type }}</td>
+                        <td class="num">{{ row.loan_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.interest_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">{{ row.total_amount|floatformat:0|intcomma }}</td>
+                        <td class="num">
+                            {% if row.paid_amount %}{{ row.paid_amount|floatformat:0|intcomma }}{% endif %}
+                        </td>
+                        <td class="num {% if row.balance == 0 %}balance-zero{% endif %}">
+                            {{ row.balance|floatformat:0|intcomma }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" style="text-align:center;padding:30px;color:#aaa;font-style:italic;">
+                            No loan records found for this branch.
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if rows %}
+                    <tr class="grand-total-row">
+                        <td colspan="5"><strong>GRAND TOTAL</strong></td>
+                        <td class="num"><strong>{{ grand_loan_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ grand_interest_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ grand_total_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ grand_paid_amount|floatformat:0|intcomma }}</strong></td>
+                        <td class="num"><strong>{{ grand_balance|floatformat:0|intcomma }}</strong></td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+        </div><!-- end printable -->
+
+        <div class="action-row">
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

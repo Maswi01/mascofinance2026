@@ -1,0 +1,176 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 1000px; margin: 20px auto 60px;
+        padding: 0 20px; font-family: Arial, sans-serif; margin-top: 70px;
+    }
+    .report-card {
+        background: #fff; border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07); padding: 28px 40px 20px;
+    }
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 22px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 80px; height: auto; }
+    .company-name {
+        font-size: 26px; font-weight: 900; color: #2471a3;
+        text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub  { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-top: 3px; }
+    .company-contact { font-size: 12px; color: #1a1a1a; margin-top: 2px; }
+    .branch-heading {
+        font-size: 14px; font-weight: 700; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        text-transform: uppercase; margin: 4px 0 8px;
+    }
+    .report-heading {
+        font-size: 13.5px; font-weight: 900; color: #1a1a1a;
+        text-decoration: underline; text-align: center;
+        text-transform: uppercase; margin-bottom: 22px;
+    }
+    .exp-table {
+        width: 100%; border-collapse: collapse;
+        font-family: Arial, sans-serif; font-size: 13px;
+    }
+    .exp-table thead tr th {
+        padding: 9px 14px; text-align: left; font-weight: 700;
+        color: #1a1a1a; font-size: 13px;
+        border-bottom: 1px solid #ccc;
+        border-right: 1px solid #e0e0e0;
+        background: #fff;
+    }
+    .exp-table thead th:last-child { border-right: none; }
+    .exp-table th.num { text-align: right; }
+    .exp-table tbody tr { border-bottom: 1px solid #ececec; }
+    .exp-table tbody tr:last-child { border-bottom: none; }
+    .exp-table td {
+        padding: 8px 14px; color: #1a1a1a;
+        border-right: 1px solid #ececec;
+        vertical-align: top; font-size: 13px;
+    }
+    .exp-table td:last-child { border-right: none; }
+    .exp-table td.num { text-align: right; white-space: nowrap; }
+    .date-cell   { white-space: nowrap; vertical-align: top; }
+    .date-hidden { color: transparent; user-select: none; }
+    .grand-total-row td {
+        background: #fce8c8 !important; font-weight: 700; font-size: 13.5px;
+        padding: 10px 14px; border-top: 1px solid #e0c090;
+        border-right: 1px solid #e0c090;
+    }
+    .grand-total-row td:last-child { border-right: none; }
+    .grand-total-amount {
+        text-decoration: underline; font-weight: 700;
+        text-align: right; white-space: nowrap;
+    }
+    .alert-info {
+        background: #e8f4fd; border: 1px solid #b8d9f5; color: #1a5276;
+        padding: 14px 18px; border-radius: 3px; font-size: 13px;
+        text-align: center; margin-top: 10px;
+    }
+    .action-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding-top: 12px; margin-top: 6px;
+    }
+    .back-link {
+        font-size: 13px; color: #2980b9; text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .print-btn {
+        padding: 5px 18px; background: #fff; border: 1px solid #888;
+        border-radius: 2px; font-size: 13px; cursor: pointer; color: #333;
+    }
+    .print-btn:hover { background: #f0f0f0; }
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row { display: none !important; }
+        .exp-table { font-size: 10pt; }
+        .exp-table td, .exp-table th { padding: 5px 8px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="report-card">
+        <div class="printable">
+
+            <!-- Letterhead -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474 — KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515 &nbsp;|&nbsp; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="branch-heading">{{ branch_name }} BRANCH</div>
+            <div class="report-heading">
+                Bank Charges Statement From {{ date_from_display }} To {{ date_to_display }}
+            </div>
+
+            {% if rows %}
+            <table class="exp-table">
+                <thead>
+                    <tr>
+                        <th style="width:110px;">Date</th>
+                        <th style="width:120px;">Receipt No.</th>
+                        <th>Description</th>
+                        <th class="num" style="width:130px;">Amount (TZS)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td class="date-cell {% if row.hide_date %}date-hidden{% endif %}">
+                            {{ row.date|date:"d/m/Y" }}
+                        </td>
+                        <td>
+                            {% if row.attachment %}
+                            <a href="{{ row.attachment }}" target="_blank" style="color:#2980b9; text-decoration:none;">
+                                {{ row.receipt_no }} &#128196;
+                            </a>
+                            {% else %}
+                            {{ row.receipt_no }}
+                            {% endif %}
+                        </td>
+                        <td>{{ row.description }}</td>
+                        <td class="num">{{ row.amount|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <tr class="grand-total-row">
+                        <td colspan="3"><strong>GRAND TOTAL</strong></td>
+                        <td class="grand-total-amount">
+                            <strong>{{ grand_total|floatformat:0|intcomma }}</strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {% else %}
+            <div class="alert-info">
+                No bank charges found for <strong>{{ branch_name }}</strong>
+                between {{ date_from_display }} and {{ date_to_display }}.
+            </div>
+            {% endif %}
+
+        </div><!-- end printable -->
+
+        <div class="action-row">
+            <a class="back-link" href="{% url 'bank_charges_filter' %}">← Change date range</a>
+            <button class="print-btn" onclick="window.print()">PRINT</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

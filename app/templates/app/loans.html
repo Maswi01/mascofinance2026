@@ -1,0 +1,1924 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    /* ==================== Loan Application Page Styles ==================== */
+    .loan-container {
+        padding: var(--spacing-md);
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Summary Cards */
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .summary-card {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        box-shadow: var(--shadow-md);
+        transition: var(--transition-base);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .summary-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--primary-blue), var(--accent-purple));
+    }
+
+    .summary-card.total::before {
+        background: linear-gradient(to bottom, var(--primary-blue), var(--dark-blue));
+    }
+
+    .summary-card.pending::before {
+        background: linear-gradient(to bottom, var(--accent-orange), #fbbf24);
+    }
+
+    .summary-card.approved::before {
+        background: linear-gradient(to bottom, var(--accent-green), #34d399);
+    }
+
+    .summary-card.rejected::before {
+        background: linear-gradient(to bottom, #ef4444, #f87171);
+    }
+
+    .summary-card-content {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .summary-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: var(--border-radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--font-size-lg);
+        color: var(--white);
+        background: var(--primary-blue);
+        flex-shrink: 0;
+    }
+
+    .summary-card.pending .summary-icon {
+        background: var(--accent-orange);
+    }
+
+    .summary-card.approved .summary-icon {
+        background: var(--accent-green);
+    }
+
+    .summary-card.rejected .summary-icon {
+        background: #ef4444;
+    }
+
+    .summary-text h3 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-3xl);
+        font-weight: 700;
+        color: var(--gray-dark);
+        margin-bottom: 4px;
+    }
+
+    .summary-text p {
+        color: var(--gray-medium);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    /* Search and Filter Bar */
+    .search-filter-bar {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 300px;
+        position: relative;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 20px 12px 45px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--gray-medium);
+        font-size: var(--font-size-base);
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: var(--spacing-md);
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        padding: 10px 15px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        color: var(--gray-dark);
+        background: var(--white);
+        cursor: pointer;
+        min-width: 150px;
+        transition: var(--transition-base);
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: var(--spacing-sm);
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        border: none;
+        outline: none;
+    }
+
+    .btn-primary {
+        background: var(--primary-blue);
+        color: var(--white);
+    }
+
+    .btn-primary:hover {
+        background: var(--dark-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1.5px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+        background: var(--white);
+        border-color: var(--primary-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Loan Table */
+    .table-container {
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .loan-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .loan-table thead {
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+    }
+
+    .loan-table th {
+        padding: var(--spacing-md) var(--spacing-lg);
+        text-align: left;
+        color: var(--white);
+        font-weight: 600;
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family-heading);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .loan-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: var(--transition-fast);
+    }
+
+    .loan-table tbody tr:hover {
+        background: rgba(45, 106, 227, 0.05);
+    }
+
+    .loan-table td {
+        padding: var(--spacing-md) var(--spacing-lg);
+        color: var(--gray-dark);
+        font-size: var(--font-size-sm);
+    }
+
+    .loan-info {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .loan-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--border-radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-blue);
+        color: var(--white);
+        font-size: var(--font-size-lg);
+        flex-shrink: 0;
+    }
+
+    .loan-id {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+    }
+
+    .loan-status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+
+    .loan-status.pending {
+        background: rgba(245, 158, 11, 0.1);
+        color: #d97706;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .loan-status.approved {
+        background: rgba(34, 197, 94, 0.1);
+        color: #16a34a;
+        border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .loan-status.rejected {
+        background: rgba(239, 68, 68, 0.1);
+        color: #dc2626;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .client-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        background: rgba(45, 106, 227, 0.1);
+        color: var(--primary-blue);
+        border: 1px solid rgba(45, 106, 227, 0.2);
+    }
+
+    .client-badge .client-icon {
+        font-size: var(--font-size-xs);
+    }
+
+    .amount {
+        font-weight: 600;
+        font-family: var(--font-family-heading);
+        color: var(--gray-dark);
+    }
+
+    .action-buttons-cell {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--gray-light);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+    }
+
+    .icon-btn:hover {
+        background: var(--white);
+        transform: translateY(-2px);
+    }
+
+    .icon-btn.view:hover {
+        color: var(--primary-blue);
+        border-color: var(--primary-blue);
+    }
+
+    .icon-btn.edit:hover {
+        color: var(--accent-green);
+        border-color: var(--accent-green);
+    }
+
+    .icon-btn.delete:hover {
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-lg);
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .pagination-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background: var(--primary-blue);
+        color: var(--white);
+        border-color: var(--primary-blue);
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-pages {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+
+    .page-number {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--gray-dark);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+    }
+
+    .page-number.active {
+        background: var(--primary-blue);
+        color: var(--white);
+        border-color: var(--primary-blue);
+    }
+
+    .page-number:hover:not(.active) {
+        background: var(--gray-light);
+        border-color: var(--primary-blue);
+    }
+
+    /* Popup Overlay */
+    .popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        animation: fadeIn 0.3s ease-out;
+        padding: var(--spacing-md);
+    }
+
+    .popup-overlay.active {
+        display: flex;
+    }
+
+    /* Loan Details Popup */
+    .loan-details-popup {
+        width: 600px;
+        max-width: 90vw;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .loan-details-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    .popup-header {
+        padding: var(--spacing-lg);
+        background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+        color: var(--white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .popup-title {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        font-weight: 600;
+    }
+
+    .close-popup {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        color: var(--white);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition-fast);
+    }
+
+    .close-popup:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+
+    .popup-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
+    }
+
+    .loan-profile-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+        padding-bottom: var(--spacing-lg);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .loan-profile-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: var(--border-radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-blue);
+        color: var(--white);
+        font-size: var(--font-size-2xl);
+        border: 4px solid #e2e8f0;
+        box-shadow: var(--shadow-md);
+    }
+
+    .loan-profile-info h2 {
+        font-family: var(--font-family-heading);
+        font-size: var(--font-size-xl);
+        color: var(--gray-dark);
+        margin-bottom: var(--spacing-xs);
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .info-item h4 {
+        font-size: var(--font-size-xs);
+        color: var(--gray-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .info-item p {
+        font-size: var(--font-size-base);
+        color: var(--gray-dark);
+        font-weight: 500;
+    }
+
+    .popup-footer {
+        padding: var(--spacing-lg);
+        background: var(--gray-light);
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--spacing-md);
+    }
+
+    /* Add Loan Popup */
+    .add-loan-popup {
+        width: 600px;
+        max-width: 90vw;
+        max-height: 90vh;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .add-loan-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-md);
+    }
+
+    .form-group {
+        margin-bottom: var(--spacing-md);
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        color: var(--gray-dark);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: var(--border-radius-md);
+        font-size: var(--font-size-sm);
+        transition: var(--transition-base);
+        background: var(--white);
+        color: var(--gray-dark);
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(45, 106, 227, 0.1);
+    }
+
+    .form-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 12px center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 40px;
+    }
+
+    /* Update Loan Popup */
+    .update-loan-popup {
+        width: 600px;
+        max-width: 90vw;
+        max-height: 90vh;
+        background: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .popup-overlay.active .update-loan-popup {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .search-filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-box {
+            min-width: 100%;
+        }
+
+        .filter-controls {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .loan-table {
+            display: block;
+            overflow-x: auto;
+        }
+
+        .add-loan-popup,
+        .update-loan-popup {
+            width: 95vw;
+            max-height: 95vh;
+            margin: auto;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .summary-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .action-buttons {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .loan-profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+</style>
+
+<div class="loan-container">
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card total" onclick="filterLoan('all')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-file-contract"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="totalLoans">-</h3>
+                    <p>Total Loans</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card pending" onclick="filterLoan('Pending')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="pendingLoans">-</h3>
+                    <p>Pending Loans</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card approved" onclick="filterLoan('Approved')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="approvedLoans">-</h3>
+                    <p>Approved Loans</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card rejected" onclick="filterLoan('Rejected')">
+            <div class="summary-card-content">
+                <div class="summary-icon">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="summary-text">
+                    <h3 id="rejectedLoans">-</h3>
+                    <p>Rejected Loans</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Bar -->
+    <div class="search-filter-bar">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" 
+                   class="search-input" 
+                   placeholder="Search loans by client, loan type, or amount..."
+                   id="searchInput"
+                   onkeyup="searchLoan()">
+        </div>
+
+        <div class="filter-controls">
+            <select class="filter-select" id="statusFilter" onchange="filterLoan()">
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+
+            <select class="filter-select" id="typeFilter" onchange="filterLoan()">
+                <option value="">All Types</option>
+                {% for loan_type in loan_types %}
+                <option value="{{ loan_type }}">{{ loan_type }}</option>
+                {% endfor %}
+            </select>
+
+            <input type="date" 
+                   class="filter-select" 
+                   id="dateFromFilter" 
+                   onchange="filterLoan()"
+                   placeholder="From Date">
+
+            <input type="date" 
+                   class="filter-select" 
+                   id="dateToFilter" 
+                   onchange="filterLoan()"
+                   placeholder="To Date">
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="exportLoanData()">
+                    <i class="fas fa-download"></i>
+                    Export
+                </button>
+                <button class="btn btn-primary" onclick="openAddLoanPopup()">
+                    <i class="fas fa-plus-circle"></i>
+                    New Loan Application
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loan Table -->
+    <div class="table-container">
+        <table class="loan-table">
+            <thead>
+                <tr>
+                    <th>Loan ID</th>
+                    <th>Client</th>
+                    <th>Loan Type</th>
+                    <th>Amount</th>
+                    <th>Interest Rate</th>
+                    <th>Term</th>
+                    <th>1st Repayment</th>
+                    <th>Status</th>
+                    <th>Applied On</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="loanTableBody">
+                {% for loan in loans %}
+                <tr data-id="{{ loan.id }}" data-status="{{ loan.status|lower }}">
+                    <td>
+                        <div class="loan-info">
+                            <div class="loan-icon">
+                                <i class="fas fa-file-contract"></i>
+                            </div>
+                            <div>
+                                <div class="loan-id">#{{ loan.id }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="client-badge">
+                            <i class="fas fa-user client-icon"></i>
+                            {{ loan.client.firstname }} {{ loan.client.lastname }}
+                        </span>
+                    </td>
+                    <td>{{ loan.loan_type }}</td>
+                    <td>
+                        <span class="amount">
+                            {{ loan.loan_amount|floatformat:2 }}
+                        </span>
+                    </td>
+                    <td>{{ loan.interest_rate }}%</td>
+                    <td>{{ loan.payment_period_months }} months</td>
+                    <td>{{ loan.first_repayment_date|date:"Y-m-d" }}</td>
+                    <td>
+                        <span class="loan-status {{ loan.status|lower }}">
+                            {{ loan.status }}
+                        </span>
+                    </td>
+                    <td>{{ loan.application_date|date:"Y-m-d" }}</td>
+                    <td>
+                        <div class="action-buttons-cell">
+                            <a href="{% url 'fomu_mkopo' loan.id %}" class="icon-btn" style="background: var(--accent-orange); color: white;" title="Fomu Mkopo (PDF Form)">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
+                            <button class="icon-btn view" onclick="viewLoanDetails({{ loan.id }})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="icon-btn edit" onclick="openUpdateLoanPopup({{ loan.id }})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <!-- to repayment page -->
+                            <a href="{% url 'loan_repayment' loan.id %}" class="icon-btn" title="Manage Repayments">
+                                <i class="fas fa-coins"></i>
+                            </a>
+                            <!-- In the action buttons cell, add this button -->
+                            <button class="icon-btn" onclick="openTopupPopup({{ loan.id }})" title="Request Topup" 
+                                    style="background: var(--accent-purple); color: white;">
+                                <i class="fas fa-arrow-up"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: var(--spacing-xl); color: var(--gray-medium);">
+                        No loan applications found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+        <button class="pagination-btn" onclick="changePage(-1)" id="prevPage">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        
+        <div class="pagination-pages" id="paginationPages">
+            <!-- Page numbers will be generated by JavaScript -->
+        </div>
+        
+        <button class="pagination-btn" onclick="changePage(1)" id="nextPage">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        
+        <div style="margin-left: var(--spacing-md); font-size: var(--font-size-sm); color: var(--gray-medium);">
+            Showing <span id="startIndex">1</span>-<span id="endIndex">0</span> of <span id="totalItems">0</span> loans
+        </div>
+    </div>
+</div>
+
+<!-- Loan Details Popup -->
+<div class="popup-overlay" id="loanDetailsPopup">
+    <div class="loan-details-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Loan Application Details</h2>
+            <button class="close-popup" onclick="closeLoanDetails()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content" id="loanDetailsContent">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" onclick="closeLoanDetails()">
+                Close
+            </button>
+            <button class="btn btn-primary" onclick="openUpdateLoanPopup()">
+                <i class="fas fa-edit"></i>
+                Edit Loan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Loan Popup -->
+<div class="popup-overlay" id="addLoanPopup">
+    <div class="add-loan-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">New Loan Application</h2>
+            <button class="close-popup" onclick="closeAddLoanPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <form id="addLoanForm" method="post" action="{% url 'loan_application' %}">
+                {% csrf_token %}
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Client *</label>
+                        <select name="client" class="form-control form-select" required>
+                            <option value="">Select Client</option>
+                            <!-- You'll need to pass clients from context -->
+                            {% for client in clients %}
+                            <option value="{{ client.id }}">{{ client.firstname }} {{ client.lastname }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Loan Amount *</label>
+                        <input type="number" 
+                               name="amount" 
+                               class="form-control" 
+                               step="0.01"
+                               min="0"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Loan Type *</label>
+                        <select name="loan_type" class="form-control form-select" required>
+                            <option value="">Select Type</option>
+                            <option value="maendeleo">Maendeleo</option>
+                            <option value="dharura">Dharura</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Interest Rate (%) *</label>
+                        <input type="number" 
+                               name="interest_rate" 
+                               class="form-control" 
+                               step="0.01"
+                               min="0"
+                               max="100"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Payment Term (Months) *</label>
+                        <input type="number" 
+                               name="term_months" 
+                               class="form-control" 
+                               min="1"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Application Date</label>
+                        <input type="date" 
+                               name="application_date" 
+                               class="form-control"
+                               value="{{ today|date:'Y-m-d' }}">
+                    </div>
+
+                    <!-- transaction_method -->
+                    <div class="form-group">
+                        <label for="transaction_method">Transaction Method</label>
+                        <select name="transaction_method" id="transaction_method" class="form-control" required>
+                            <option value="">-- Select Method --</option>
+                            <option value="bank">Bank</option>
+                            <option value="cash">Cash</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label class="form-label">Loan Purpose</label>
+                        <textarea name="purpose" 
+                                  class="form-control" 
+                                  rows="3"
+                                  placeholder="Describe the purpose of the loan..."></textarea>
+                    </div>
+                </div>
+
+                <div class="popup-footer">
+                    <button class="btn btn-secondary" type="button" onclick="closeAddLoanPopup()">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-save"></i>
+                        Submit Application
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Loan Popup -->
+<div class="popup-overlay" id="updateLoanPopup">
+    <div class="update-loan-popup">
+        <div class="popup-header">
+            <h2 class="popup-title">Update Loan Application</h2>
+            <button class="close-popup" onclick="closeUpdateLoanPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <form id="updateLoanForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="loan_id" id="updateLoanId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Loan Amount *</label>
+                        <input type="number" 
+                               name="amount" 
+                               id="updateLoanAmount"
+                               class="form-control" 
+                               step="0.01"
+                               min="0"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Loan Type *</label>
+                        <select name="loan_type" id="updateLoanType" class="form-control form-select" required>
+                            <option value="">Select Type</option>
+                            <option value="maendeleo">Maendeleo</option>
+                            <option value="dharura">Dharura</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Interest Rate (%) *</label>
+                        <input type="number" 
+                               name="interest_rate" 
+                               id="updateInterestRate"
+                               class="form-control" 
+                               step="0.01"
+                               min="0"
+                               max="100"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Payment Term (Months) *</label>
+                        <input type="number" 
+                               name="term_months" 
+                               id="updateTermMonths"
+                               class="form-control" 
+                               min="1"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Status *</label>
+                        <select name="status" id="updateLoanStatus" class="form-control form-select" required>
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label class="form-label">Loan Purpose</label>
+                        <textarea name="purpose" 
+                                  id="updateLoanPurpose"
+                                  class="form-control" 
+                                  rows="3"
+                                  placeholder="Describe the purpose of the loan..."></textarea>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="popup-footer">
+            <button class="btn btn-secondary" type="button" onclick="closeUpdateLoanPopup()">
+                Cancel
+            </button>
+            <button class="btn btn-primary" type="submit" form="updateLoanForm">
+                <i class="fas fa-save"></i>
+                Update Loan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Topup Popup -->
+<div class="popup-overlay" id="topupPopup">
+    <div class="add-loan-popup" style="max-width: 500px;">
+        <div class="popup-header" style="background: linear-gradient(135deg, var(--accent-purple), #7c3aed);">
+            <h2 class="popup-title">Loan Topup Request</h2>
+            <button class="close-popup" onclick="closeTopupPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <div id="topupLoanInfo" style="background: var(--gray-light); padding: var(--spacing-md); border-radius: var(--border-radius-md); margin-bottom: var(--spacing-lg);">
+                <!-- Will be populated by JavaScript -->
+            </div>
+            
+            <form id="topupForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="loan_id" id="topupLoanId">
+                
+                <div class="form-group">
+                    <label class="form-label">Outstanding Balance</label>
+                    <div class="form-control" style="background: #f8fafc; font-weight: 600;" id="displayOutstanding">0.00</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Topup Amount * <span style="color: var(--accent-orange);">(Must be > Outstanding)</span></label>
+                    <div class="input-group" style="position: relative;">
+                        <span style="position: absolute; left: 12px; top: 12px; color: var(--gray-medium);">TSh</span>
+                        <input type="number" 
+                               name="topup_amount" 
+                               id="topupAmount"
+                               class="form-control" 
+                               style="padding-left: 45px;"
+                               step="0.01"
+                               min="0"
+                               required
+                               oninput="calculateTopup()">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Interest Rate (%) *</label>
+                    <input type="number" 
+                           name="interest_rate" 
+                           id="topupInterestRate"
+                           class="form-control" 
+                           step="0.01"
+                           min="0"
+                           max="100"
+                           value="15"
+                           required>
+                </div>
+
+                <!-- transaction_method -->
+                    <div class="form-group">
+                        <label for="transaction_method">Transaction Method</label>
+                        <select name="transaction_method" id="transaction_method" class="form-control" required>
+                            <option value="">-- Select Method --</option>
+                            <option value="bank">Bank</option>
+                            <option value="cash">Cash</option>
+                        </select>
+                    </div>
+                
+                <!-- Calculation Results -->
+                <div id="topupCalculation" style="background: rgba(45, 106, 227, 0.05); padding: var(--spacing-md); border-radius: var(--border-radius-md); margin: var(--spacing-md) 0; display: none;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Topup Amount:</span>
+                        <span id="calcTopupAmount">0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Outstanding Balance:</span>
+                        <span id="calcOutstanding">0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: var(--font-size-lg); color: var(--accent-green); border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 8px;">
+                        <span>You Receive:</span>
+                        <span id="calcNetAmount">0.00</span>
+                    </div>
+                </div>
+                
+                <div class="popup-footer" style="padding: var(--spacing-lg) 0 0;">
+                    <button class="btn btn-secondary" type="button" onclick="closeTopupPopup()">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" type="submit" style="background: var(--accent-purple);" id="submitTopupBtn" disabled>
+                        <i class="fas fa-arrow-up"></i>
+                        Submit Topup Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== Loan Data from Django ====================
+    // Convert Django template data to JavaScript array
+    const loanData = [
+        {% for loan in loans %}
+        {
+            id: {{ loan.id }},
+            client: {
+                id: {{ loan.client.id }},
+                name: "{{ loan.client.firstname }} {{ loan.client.lastname|escapejs }}",
+                email: "{{ loan.client.email|escapejs|default:'' }}",
+                phone: "{{ loan.client.phone|escapejs|default:'' }}"
+            },
+            loanAmount: parseFloat("{{ loan.loan_amount|default:0 }}"),
+            loanPurpose: "{{ loan.loan_purpose|escapejs|default:'' }}",
+            loanType: "{{ loan.loan_type|escapejs|default:'' }}",
+            interestRate: parseFloat("{{ loan.interest_rate|default:0 }}"),
+            paymentPeriodMonths: parseInt("{{ loan.payment_period_months|default:0 }}"),
+            applicationDate: "{{ loan.application_date|date:'Y-m-d'|default:'' }}",
+            status: "{{ loan.status|escapejs|default:'Pending' }}",
+            monthlyInstallment: parseFloat("{{ loan.monthly_installment|default:0 }}"),
+            interestAmount: parseFloat("{{ loan.interest_amount|default:0 }}"),
+            totalInterestAmount: parseFloat("{{ loan.total_interest_amount|default:0 }}"),
+            totalRepaymentAmount: parseFloat("{{ loan.total_repayment_amount|default:0 }}"),
+            repaymentAmountRemaining: parseFloat("{{ loan.repayment_amount_remaining|default:0 }}"),
+            processedBy: "{{ loan.processed_by.get_full_name|escapejs|default:'' }}",
+            createdAt: "{{ loan.created_at|date:'Y-m-d H:i'|default:'' }}",
+            updatedAt: "{{ loan.updated_at|date:'Y-m-d H:i'|default:'' }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Get unique loan types for filter
+    const loanTypes = [...new Set(loanData.map(loan => loan.loanType))].filter(type => type);
+
+    // ==================== Global Variables ====================
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let filteredLoans = [...loanData];
+    let currentSelectedLoan = null;
+
+    // ==================== Initialize Page ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSummaryCards();
+        renderLoanTable();
+        updatePagination();
+        
+        // Add event listeners for table rows
+        document.querySelectorAll('#loanTableBody tr[data-id]').forEach(row => {
+            row.addEventListener('click', function(e) {
+                // Don't trigger on action buttons
+                if (!e.target.closest('.action-buttons-cell')) {
+                    const loanId = parseInt(this.getAttribute('data-id'));
+                    viewLoanDetails(loanId);
+                }
+            });
+        });
+        
+        // Populate loan type filter
+        const typeFilter = document.getElementById('typeFilter');
+        loanTypes.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type;
+            option.textContent = type;
+            typeFilter.appendChild(option);
+        });
+    });
+
+    // ==================== Summary Cards Functions ====================
+    function updateSummaryCards() {
+        const total = loanData.length;
+        
+        // Count loans by status
+        const pending = loanData.filter(loan => loan.status === 'Pending').length;
+        const approved = loanData.filter(loan => loan.status === 'Approved').length;
+        const rejected = loanData.filter(loan => loan.status === 'Rejected').length;
+
+        document.getElementById('totalLoans').textContent = total;
+        document.getElementById('pendingLoans').textContent = pending;
+        document.getElementById('approvedLoans').textContent = approved;
+        document.getElementById('rejectedLoans').textContent = rejected;
+    }
+
+    // ==================== Loan Table Functions ====================
+    function renderLoanTable() {
+        const tableBody = document.getElementById('loanTableBody');
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentLoans = filteredLoans.slice(startIndex, endIndex);
+
+        // If we already have server-rendered rows, just hide/show them
+        const allRows = document.querySelectorAll('#loanTableBody tr[data-id]');
+        
+        if (allRows.length > 0) {
+            // Hide all rows
+            allRows.forEach(row => row.style.display = 'none');
+            
+            // Show only filtered rows for current page
+            currentLoans.forEach((loan, index) => {
+                const row = document.querySelector(`#loanTableBody tr[data-id="${loan.id}"]`);
+                if (row) {
+                    row.style.display = '';
+                }
+            });
+            
+            // Handle no results
+            const noResultsRow = document.querySelector('#loanTableBody tr:not([data-id])');
+            if (noResultsRow) {
+                noResultsRow.style.display = filteredLoans.length === 0 ? '' : 'none';
+            }
+        }
+
+        // Update pagination info
+        document.getElementById('startIndex').textContent = filteredLoans.length > 0 ? startIndex + 1 : 0;
+        document.getElementById('endIndex').textContent = Math.min(endIndex, filteredLoans.length);
+        document.getElementById('totalItems').textContent = filteredLoans.length;
+    }
+
+    // ==================== Search and Filter Functions ====================
+    function searchLoan() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const typeFilter = document.getElementById('typeFilter').value;
+        const dateFromFilter = document.getElementById('dateFromFilter').value;
+        const dateToFilter = document.getElementById('dateToFilter').value;
+
+        filteredLoans = loanData.filter(loan => {
+            // Search term filter
+            const matchesSearch = searchTerm === '' || 
+                loan.client.name.toLowerCase().includes(searchTerm) ||
+                loan.loanType.toLowerCase().includes(searchTerm) ||
+                loan.loanAmount.toString().includes(searchTerm) ||
+                loan.loanPurpose.toLowerCase().includes(searchTerm);
+
+            // Status filter
+            const matchesStatus = statusFilter === '' || 
+                                loan.status === statusFilter;
+
+            // Type filter
+            const matchesType = typeFilter === '' || 
+                               loan.loanType === typeFilter;
+
+            // Date range filter
+            let matchesDate = true;
+            if (dateFromFilter) {
+                matchesDate = matchesDate && loan.applicationDate >= dateFromFilter;
+            }
+            if (dateToFilter) {
+                matchesDate = matchesDate && loan.applicationDate <= dateToFilter;
+            }
+
+            return matchesSearch && matchesStatus && matchesType && matchesDate;
+        });
+
+        currentPage = 1;
+        renderLoanTable();
+        updatePagination();
+    }
+
+    function filterLoan(filter = '') {
+        if (filter === 'Pending') {
+            filteredLoans = loanData.filter(loan => loan.status === 'Pending');
+        } else if (filter === 'Approved') {
+            filteredLoans = loanData.filter(loan => loan.status === 'Approved');
+        } else if (filter === 'Rejected') {
+            filteredLoans = loanData.filter(loan => loan.status === 'Rejected');
+        } else {
+            filteredLoans = [...loanData];
+        }
+        
+        currentPage = 1;
+        renderLoanTable();
+        updatePagination();
+    }
+
+    // ==================== Pagination Functions ====================
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredLoans.length / itemsPerPage);
+        const paginationPages = document.getElementById('paginationPages');
+        
+        paginationPages.innerHTML = '';
+
+        // Show max 5 page numbers
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = `page-number ${i === currentPage ? 'active' : ''}`;
+            pageBtn.textContent = i;
+            pageBtn.onclick = () => goToPage(i);
+            paginationPages.appendChild(pageBtn);
+        }
+
+        // Update prev/next buttons
+        document.getElementById('prevPage').disabled = currentPage === 1;
+        document.getElementById('nextPage').disabled = currentPage === totalPages;
+    }
+
+    function changePage(direction) {
+        const totalPages = Math.ceil(filteredLoans.length / itemsPerPage);
+        const newPage = currentPage + direction;
+
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            renderLoanTable();
+            updatePagination();
+        }
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderLoanTable();
+        updatePagination();
+    }
+
+    // ==================== Loan Details Popup Functions ====================
+    function viewLoanDetails(loanId) {
+        const loan = loanData.find(l => l.id === loanId);
+        if (!loan) return;
+
+        currentSelectedLoan = loan;
+        const popup = document.getElementById('loanDetailsPopup');
+        const content = document.getElementById('loanDetailsContent');
+
+        // Format date
+        let formattedDate = '-';
+        if (loan.applicationDate) {
+            const loanDate = new Date(loan.applicationDate);
+            formattedDate = loanDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Determine icon and color based on loan status
+        let icon = 'fa-file-contract';
+        let statusColor = '';
+        
+        switch(loan.status) {
+            case 'Approved':
+                icon = 'fa-check-circle';
+                statusColor = '#16a34a';
+                break;
+            case 'Rejected':
+                icon = 'fa-times-circle';
+                statusColor = '#dc2626';
+                break;
+            case 'Pending':
+                icon = 'fa-clock';
+                statusColor = '#d97706';
+                break;
+        }
+
+        // Calculate monthly payment if not already calculated
+        let monthlyPayment = loan.monthlyInstallment;
+        if (!monthlyPayment && loan.loanAmount > 0 && loan.interestRate > 0 && loan.paymentPeriodMonths > 0) {
+            const monthlyRate = loan.interestRate / 100 / 12;
+            monthlyPayment = loan.loanAmount * monthlyRate * Math.pow(1 + monthlyRate, loan.paymentPeriodMonths) / 
+                            (Math.pow(1 + monthlyRate, loan.paymentPeriodMonths) - 1);
+            monthlyPayment = Math.round(monthlyPayment * 100) / 100;
+        }
+
+        content.innerHTML = `
+            <div class="loan-profile-header">
+                <div class="loan-profile-icon" style="background: ${statusColor}">
+                    <i class="fas ${icon}"></i>
+                </div>
+                <div class="loan-profile-info">
+                    <h2>Loan Application #${loan.id}</h2>
+                    <span class="loan-status ${loan.status.toLowerCase()}">
+                        ${loan.status}
+                    </span>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <h4>Client Name</h4>
+                    <p>${loan.client.name}</p>
+                    <small style="color: var(--gray-medium);">
+                        ${loan.client.email}<br>
+                        ${loan.client.phone}
+                    </small>
+                </div>
+                <div class="info-item">
+                    <h4>Loan Type</h4>
+                    <p>${loan.loanType}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Loan Amount</h4>
+                    <p style="font-size: var(--font-size-xl); font-weight: 600; color: var(--primary-blue)">
+                        ${loan.loanAmount.toFixed(2)}
+                    </p>
+                </div>
+                <div class="info-item">
+                    <h4>Interest Rate</h4>
+                    <p>${loan.interestRate.toFixed(2)}%</p>
+                </div>
+                <div class="info-item">
+                    <h4>Payment Term</h4>
+                    <p>${loan.paymentPeriodMonths} months</p>
+                </div>
+                <div class="info-item">
+                    <h4>Application Date</h4>
+                    <p>${formattedDate}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Monthly Installment</h4>
+                    <p style="font-weight: 600;">${monthlyPayment.toFixed(2)}</p>
+                </div>
+                <div class="info-item">
+                    <h4>Processed By</h4>
+                    <p>${loan.processedBy}</p>
+                </div>
+                <div class="info-item full-width">
+                    <h4>Loan Purpose</h4>
+                    <p>${loan.loanPurpose || 'Not specified'}</p>
+                </div>
+            </div>
+
+            <div style="margin-top: var(--spacing-xl); padding: var(--spacing-lg); background: rgba(45, 106, 227, 0.05); border-radius: var(--border-radius-md);">
+                <h4 style="font-size: var(--font-size-xs); color: var(--gray-medium); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;">Loan Summary</h4>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-md);">
+                    <div>
+                        <small style="color: var(--gray-medium);">Total Repayment:</small>
+                        <p style="font-weight: 600; color: var(--gray-dark);">
+                            ${(loan.totalRepaymentAmount || (loan.loanAmount * (1 + loan.interestRate/100))).toFixed(2)}
+                        </p>
+                    </div>
+                    <div>
+                        <small style="color: var(--gray-medium);">Remaining Balance:</small>
+                        <p style="font-weight: 600; color: ${loan.repaymentAmountRemaining > 0 ? '#dc2626' : '#16a34a'}">
+                            ${loan.repaymentAmountRemaining.toFixed(2)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLoanDetails() {
+        const popup = document.getElementById('loanDetailsPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        currentSelectedLoan = null;
+    }
+
+    // ==================== Add Loan Popup Functions ====================
+    function openAddLoanPopup() {
+        const popup = document.getElementById('addLoanPopup');
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Reset form
+        document.getElementById('addLoanForm').reset();
+        
+        // Set today's date as default
+        const today = new Date().toISOString().split('T')[0];
+        document.querySelector('input[name="application_date"]').value = today;
+    }
+
+    function closeAddLoanPopup() {
+        const popup = document.getElementById('addLoanPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    }
+
+    // ==================== Update Loan Popup Functions ====================
+    function openUpdateLoanPopup(loanId) {
+        if (!loanId && currentSelectedLoan) {
+            loanId = currentSelectedLoan.id;
+        }
+        
+        const loan = loanData.find(l => l.id === loanId);
+        if (!loan) return;
+
+        currentSelectedLoan = loan;
+        const popup = document.getElementById('updateLoanPopup');
+
+        // Populate form fields
+        document.getElementById('updateLoanId').value = loan.id;
+        document.getElementById('updateLoanAmount').value = loan.loanAmount;
+        document.getElementById('updateLoanType').value = loan.loanType;
+        document.getElementById('updateInterestRate').value = loan.interestRate;
+        document.getElementById('updateTermMonths').value = loan.paymentPeriodMonths;
+        document.getElementById('updateLoanStatus').value = loan.status;
+        document.getElementById('updateLoanPurpose').value = loan.loanPurpose || '';
+
+        // Update form action URL
+        const form = document.getElementById('updateLoanForm');
+        form.action = `/loan-application/update/${loan.id}/`;
+
+        popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        closeLoanDetails();
+    }
+
+    function closeUpdateLoanPopup() {
+        const popup = document.getElementById('updateLoanPopup');
+        popup.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        currentSelectedLoan = null;
+    }
+
+    // ==================== Export Function ====================
+    function exportLoanData() {
+        // Create CSV content
+        let csv = 'Loan ID,Client,Loan Type,Amount,Interest Rate,Term (Months),Status,Application Date\n';
+        
+        filteredLoans.forEach(loan => {
+            csv += `${loan.id},"${loan.client.name}","${loan.loanType}",${loan.loanAmount.toFixed(2)},${loan.interestRate.toFixed(2)},${loan.paymentPeriodMonths},"${loan.status}","${loan.applicationDate}"\n`;
+        });
+        
+        // Create blob and download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `loan_applications_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        
+        // Show notification
+        showNotification('Loan data exported successfully!', 'success');
+    }
+
+    function showNotification(message, type = 'info') {
+        // Reuse the notification function from base template
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+        } else {
+            // Fallback notification
+            alert(message);
+        }
+    }
+
+    // ==================== Event Listeners ====================
+    // Close popups with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLoanDetails();
+            closeAddLoanPopup();
+            closeUpdateLoanPopup();
+        }
+    });
+
+    // Close popups when clicking outside
+    document.addEventListener('click', function(e) {
+        const loanDetailsPopup = document.getElementById('loanDetailsPopup');
+        const addLoanPopup = document.getElementById('addLoanPopup');
+        const updateLoanPopup = document.getElementById('updateLoanPopup');
+        
+        if (loanDetailsPopup.classList.contains('active')) {
+            if (e.target === loanDetailsPopup) {
+                closeLoanDetails();
+            }
+        }
+        
+        if (addLoanPopup.classList.contains('active')) {
+            if (e.target === addLoanPopup) {
+                closeAddLoanPopup();
+            }
+        }
+        
+        if (updateLoanPopup.classList.contains('active')) {
+            if (e.target === updateLoanPopup) {
+                closeUpdateLoanPopup();
+            }
+        }
+    });
+
+
+
+
+
+// ==================== Topup Functions ====================
+
+let currentTopupLoan = null;
+let outstandingBalance = 0;
+
+function openTopupPopup(loanId) {
+    // First check eligibility
+    fetch(`/api/check-topup-eligibility/${loanId}/`)
+        .then(response => response.json())
+        .then(data => {
+            
+                // Find loan data
+                const loan = loanData.find(l => l.id === loanId);
+                if (!loan) return;
+                
+                currentTopupLoan = loan;
+                outstandingBalance = data.outstanding_balance;
+                
+                // Populate loan info
+                document.getElementById('topupLoanInfo').innerHTML = `
+                    <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--accent-purple); color: white; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">{loan.client.name}</div>
+                            <div style="font-size: var(--font-size-xs); color: var(--gray-medium);">Loan #${loan.id} - ${loan.loanType}</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-sm); margin-top: var(--spacing-sm);">
+                        <div>
+                            <small style="color: var(--gray-medium);">Original Amount:</small>
+                            <div style="font-weight: 600;">${loan.loanAmount.toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <small style="color: var(--gray-medium);">Outstanding:</small>
+                            <div style="font-weight: 600; color: #dc2626;">${outstandingBalance.toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('displayOutstanding').textContent = outstandingBalance.toFixed(2);
+                document.getElementById('topupLoanId').value = loanId;
+                document.getElementById('topupForm').action = `/loan-topup/${loanId}/`;
+                
+                // Reset form
+                document.getElementById('topupAmount').value = '';
+                document.getElementById('topupInterestRate').value = loan.interestRate || 15;
+                document.getElementById('topupCalculation').style.display = 'none';
+                document.getElementById('submitTopupBtn').disabled = false; // Enable button by default
+                
+                // Show popup
+                document.getElementById('topupPopup').classList.add('active');
+                document.body.style.overflow = 'hidden';
+            
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error checking topup eligibility');
+        });
+}
+
+function closeTopupPopup() {
+    document.getElementById('topupPopup').classList.remove('active');
+    document.body.style.overflow = 'auto';
+    currentTopupLoan = null;
+}
+
+function calculateTopup() {
+    const topupAmount = parseFloat(document.getElementById('topupAmount').value) || 0;
+    
+    if (topupAmount > outstandingBalance) {
+        const netAmount = topupAmount - outstandingBalance;
+        
+        // Show calculation
+        document.getElementById('topupCalculation').style.display = 'block';
+        document.getElementById('calcTopupAmount').textContent = topupAmount.toFixed(2);
+        document.getElementById('calcOutstanding').textContent = outstandingBalance.toFixed(2);
+        document.getElementById('calcNetAmount').textContent = netAmount.toFixed(2);
+    } else {
+        document.getElementById('topupCalculation').style.display = 'none';
+    }
+}
+
+// Form submission validation
+document.getElementById('topupForm').addEventListener('submit', function(e) {
+    const topupAmount = parseFloat(document.getElementById('topupAmount').value) || 0;
+    
+    // Check if topup amount is valid
+    if (topupAmount <= outstandingBalance) {
+        e.preventDefault(); // Stop form submission
+        
+        // Show error message in a nice way
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.style.cssText = `
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: var(--border-radius-md);
+            margin-bottom: 15px;
+            font-size: var(--font-size-sm);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        `;
+        errorDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+            <span>Topup amount must be greater than outstanding balance (${outstandingBalance.toFixed(2)})</span>
+        `;
+        
+        // Remove any existing error message
+        const existingError = document.querySelector('#topupForm .error-message');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        // Insert error message at the top of the form
+        const form = document.getElementById('topupForm');
+        form.insertBefore(errorDiv, form.firstChild);
+        
+        // Highlight the input field
+        document.getElementById('topupAmount').style.borderColor = '#ef4444';
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.remove();
+            }
+            document.getElementById('topupAmount').style.borderColor = '';
+        }, 5000);
+    }
+});
+
+// Remove error styling when user starts typing
+document.getElementById('topupAmount').addEventListener('input', function() {
+    this.style.borderColor = '';
+    const existingError = document.querySelector('#topupForm .error-message');
+    if (existingError) {
+        existingError.remove();
+    }
+});
+
+// Close popup with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeTopupPopup();
+    }
+});
+
+// Close when clicking outside
+document.addEventListener('click', function(e) {
+    const popup = document.getElementById('topupPopup');
+    if (popup.classList.contains('active') && e.target === popup) {
+        closeTopupPopup();
+    }
+});
+
+
+
+
+
+</script>
+{% endblock %}

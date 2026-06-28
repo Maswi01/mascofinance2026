@@ -1,0 +1,223 @@
+{% extends 'app/base.html' %}
+{% block content %}
+{% load humanize %}
+
+<style>
+  a { text-decoration: none; }
+
+  .roles-page { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; margin-top: 70px; }
+
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
+  }
+  .page-header h2 {
+    margin: 0; color: #0d4a7a; font-size: 1.5rem; font-weight: 700;
+    display: flex; align-items: center; gap: .6rem;
+  }
+  .page-header h2 i { color: #0fc0c0; }
+
+  .btn-primary-teal {
+    background: #0fc0c0; color: #fff; border: none;
+    padding: .55rem 1.3rem; border-radius: 8px; font-weight: 600;
+    font-size: .9rem; cursor: pointer; display: inline-flex;
+    align-items: center; gap: .5rem; transition: background .2s;
+  }
+  .btn-primary-teal:hover { background: #0aadad; }
+
+  .roles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.4rem;
+  }
+
+  .role-card {
+    background: #fff; border-radius: 12px;
+    border: 1px solid #e2f0f0;
+    box-shadow: 0 2px 8px rgba(13,74,122,.07);
+    overflow: hidden; transition: box-shadow .2s, transform .2s;
+  }
+  .role-card:hover { box-shadow: 0 6px 24px rgba(15,192,192,.2); transform: translateY(-3px); }
+
+  .role-card-header {
+    background: linear-gradient(135deg, #0d4a7a 0%, #0a3d66 100%);
+    padding: 1.1rem 1.3rem; display: flex; align-items: center; gap: .75rem;
+  }
+  .role-icon {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: rgba(255,255,255,.18); display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .role-icon i { color: #f5c842; font-size: 1.1rem; }
+  .role-title { color: #fff; font-weight: 700; font-size: 1rem; margin: 0; }
+  .role-desc  { color: rgba(255,255,255,.75); font-size: .8rem; margin: .2rem 0 0; }
+
+  .role-card-body { padding: 1rem 1.3rem; }
+
+  .perm-summary {
+    display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem;
+  }
+  .perm-badge {
+    background: #e8f8f8; color: #0d4a7a;
+    padding: .2rem .65rem; border-radius: 20px;
+    font-size: .75rem; font-weight: 600;
+    border: 1px solid #b2e8e8;
+  }
+  .perm-count {
+    font-size: .82rem; color: #6b7280; margin-bottom: .9rem;
+  }
+  .perm-count strong { color: #0d4a7a; }
+
+  .role-card-footer {
+    padding: .8rem 1.3rem; border-top: 1px solid #f0f4f8;
+    display: flex; gap: .6rem; justify-content: flex-end;
+  }
+
+  .btn-edit {
+    background: #0fc0c0; color: #fff; border: none;
+    padding: .4rem 1rem; border-radius: 6px; font-size: .82rem;
+    font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: .35rem;
+    transition: background .2s;
+  }
+  .btn-edit:hover { background: #0aadad; }
+
+  .btn-delete {
+    background: transparent; color: #dc2626;
+    border: 1px solid #fca5a5; padding: .4rem 1rem;
+    border-radius: 6px; font-size: .82rem; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center;
+    gap: .35rem; transition: all .2s;
+  }
+  .btn-delete:hover { background: #fef2f2; border-color: #dc2626; }
+
+  .empty-state {
+    text-align: center; padding: 3rem 1rem; color: #6b7280;
+  }
+  .empty-state i { font-size: 3rem; color: #d1d5db; margin-bottom: 1rem; }
+
+  /* Delete confirm modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 9000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-box {
+    background: #fff; border-radius: 14px;
+    padding: 2rem; max-width: 420px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    text-align: center;
+  }
+  .modal-box h3 { color: #0d4a7a; margin: 0 0 .6rem; }
+  .modal-box p  { color: #6b7280; font-size: .9rem; margin: 0 0 1.5rem; }
+  .modal-actions { display: flex; gap: .8rem; justify-content: center; }
+  .btn-cancel {
+    background: #f3f4f6; color: #374151; border: none;
+    padding: .55rem 1.4rem; border-radius: 8px;
+    font-weight: 600; cursor: pointer; transition: background .2s;
+  }
+  .btn-cancel:hover { background: #e5e7eb; }
+  .btn-confirm-delete {
+    background: #dc2626; color: #fff; border: none;
+    padding: .55rem 1.4rem; border-radius: 8px;
+    font-weight: 600; cursor: pointer; transition: background .2s;
+  }
+  .btn-confirm-delete:hover { background: #b91c1c; }
+</style>
+
+<div class="roles-page">
+  <!-- Header -->
+  <div class="page-header">
+    <h2><i class="fas fa-shield-alt"></i> Role Management</h2>
+    <a href="{% url 'role_create' %}" class="btn-primary-teal">
+      <i class="fas fa-plus"></i> Add New Role
+    </a>
+  </div>
+
+  <!-- Roles grid -->
+  {% if roles %}
+  <div class="roles-grid">
+    {% for role in roles %}
+    {% with perms=role.role_permissions.all perm_count=role.role_permissions.count %}
+    <div class="role-card">
+      <div class="role-card-header">
+        <div class="role-icon"><i class="fas fa-user-tag"></i></div>
+        <div>
+          <p class="role-title">{{ role.title }}</p>
+          {% if role.description %}
+          <p class="role-desc">{{ role.description|truncatechars:60 }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="role-card-body">
+        <p class="perm-count">
+          <strong>{{ perm_count }}</strong> permission{{ perm_count|pluralize }} assigned
+        </p>
+
+        <!-- Show permission groups as badges -->
+        <div class="perm-summary">
+          {% for rp in perms|slice:":8" %}
+          <span class="perm-badge">{{ rp.permission.codename }}</span>
+          {% endfor %}
+          {% if perm_count > 8 %}
+          <span class="perm-badge" style="background:#f0f4f8; color:#6b7280;">
+            +{{ perm_count|add:"-8" }} more
+          </span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="role-card-footer">
+        <a href="{% url 'role_edit' role.id %}" class="btn-edit">
+          <i class="fas fa-edit"></i> Edit
+        </a>
+        <button class="btn-delete"
+                onclick="confirmDelete({{ role.id }}, '{{ role.title|escapejs }}')">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-shield-alt"></i>
+    <p>No roles created yet. Click <strong>Add New Role</strong> to get started.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <h3><i class="fas fa-exclamation-triangle" style="color:#dc2626"></i> Delete Role</h3>
+    <p id="deleteModalMsg">Are you sure you want to delete this role?</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <form id="deleteForm" method="post" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-confirm-delete">Yes, Delete</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function confirmDelete(roleId, roleName) {
+  document.getElementById('deleteModalMsg').textContent =
+    `Are you sure you want to delete the role "${roleName}"? Users with this role will lose their permissions.`;
+  document.getElementById('deleteForm').action = `/account/roles/${roleId}/delete/`;
+  document.getElementById('deleteModal').classList.add('active');
+}
+function closeModal() {
+  document.getElementById('deleteModal').classList.remove('active');
+}
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}

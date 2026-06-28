@@ -1,0 +1,111 @@
+
+{% load static %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <link rel = "shortcut icon" type = "x-icon" href="{% static 'app/images/logo.png' %}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIES CO LTD Website Management</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <script src="https://kit.fontawesome.com/90ee3bc580.js" crossorigin="anonymous"></script>
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <!-- sweet alert -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- SweetAlert2 CDN for popup-->
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #6c63ff, #c8c6ff);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .btn-primary {
+            background-color: #6c63ff;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #574bff;
+        }
+        .form-control:focus {
+            border-color: #6c63ff;
+            box-shadow: 0 0 5px rgba(108, 99, 255, 0.5);
+        }
+    </style>
+    
+</head>
+<body>
+
+<!-- Django Messages + SweetAlert -->
+{% if messages %}
+    <script>
+        {% for message in messages %}
+            Swal.fire({
+                title: "{% if message.tags == 'success' %}Success!{% elif message.tags == 'error' %}Error!{% elif message.tags == 'warning' %}Warning!{% else %}Notice{% endif %}",
+                text: "{{ message|escapejs }}",
+                icon: "{{ message.tags }}",
+                confirmButtonText: "OK"
+            });
+        {% endfor %}
+    </script>
+{% endif %}
+<!-- end -->
+
+<div class="container mt-2">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card p-4">
+                <div class="card-body">
+                    <h3 class="text-center mb-4">Sign Up</h3>
+                    <form method="post" action="">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" name="username" placeholder="Enter your username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" name="firstname" placeholder="Enter your first name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" name="lastname" placeholder="Enter your last name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="lastName" class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" placeholder="Enter seller Email required">
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" name="password1" placeholder="Enter seller password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirm Password</label>
+                            <input type="password" class="form-control" name="password2" placeholder="Confirm seller password" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Register</button>
+                        </div>
+                        <!-- <div class="text-center mt-3">
+                            <span>Already have an account? <a href="{% url 'signin' %}" class="text-decoration-none">Sign In</a></span>
+                        </div> -->
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'administrator/index.js' %}"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
+</body>
+</html>

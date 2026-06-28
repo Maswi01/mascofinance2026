@@ -1,0 +1,197 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+<style>
+    {# ...identical styles as bank_transfer_expenses_result.html... #}
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 20px 40px 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+    }
+    .company-header {
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 0 12px; border-bottom: 2px solid #8b0000;
+        margin-bottom: 16px; justify-content: center; text-align: center;
+    }
+    .company-logo img { width: 76px; height: auto; }
+    .company-name {
+        font-size: 25px; font-weight: 900; color: #2471a3;
+        font-family: Arial, sans-serif; text-transform: uppercase; line-height: 1.1;
+    }
+    .company-sub  { font-size: 12.5px; font-weight: 600; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 3px; }
+    .company-contact { font-size: 11.5px; color: #1a1a1a; font-family: Arial, sans-serif; margin-top: 2px; }
+    .page-title-bar {
+        display: flex; align-items: center;
+        background: linear-gradient(90deg, #1a73c7 0%, #2196F3 60%, #64b5f6 100%);
+        border-radius: 4px 4px 0 0;
+        padding: 0 20px; height: 46px;
+    }
+    .page-title-bar h2 {
+        color: #fff; font-size: 14px; font-weight: 600;
+        letter-spacing: 1.2px; text-transform: uppercase; margin: 0;
+    }
+    .report-card {
+        background: #fff; border-radius: 0 0 6px 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 30px 36px 28px;
+    }
+    .btn-back {
+        display: inline-flex; align-items: center; gap: 6px;
+        color: #1a73c7; font-size: 13px; font-family: 'Poppins', sans-serif;
+        text-decoration: none; margin-bottom: 20px; transition: color 0.15s;
+    }
+    .btn-back:hover { color: #1557a0; }
+    #printArea { max-width: 800px; margin: 0 auto; }
+    .report-title {
+        text-align: center; font-size: 14px; font-weight: 700;
+        color: #1a2a4a; text-decoration: underline; text-transform: uppercase;
+        letter-spacing: 0.5px; margin-bottom: 20px;
+    }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .report-table thead tr { background: #f7f9fb; }
+    .report-table th {
+        padding: 10px 16px; text-align: left; font-weight: 600;
+        color: #444; font-size: 12.5px; border: 1px solid #cdd4da; white-space: nowrap;
+    }
+    .report-table th.col-sn, .report-table td.col-sn { text-align: center; width: 70px; }
+    .report-table th.col-amt, .report-table td.col-amt { text-align: right; }
+    .report-table tbody tr { border-bottom: 1px solid #eef1f5; transition: background 0.1s; }
+    .report-table tbody tr:hover { background: #f5f8ff; }
+    .report-table td { padding: 10px 16px; color: #333; border: 1px solid #dde3ea; vertical-align: middle; }
+    .total-row td {
+        background: #c9b882 !important; color: #3a2a00 !important;
+        font-weight: 700; font-size: 13.5px; border-color: #b8a070 !important;
+    }
+    .report-hr { border: none; border-top: 2px solid #c09a40; margin: 24px 0 16px; }
+    .action-bar { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .btn-action {
+        padding: 7px 18px; border-radius: 4px; font-size: 13px; font-weight: 500;
+        font-family: 'Poppins', sans-serif; cursor: pointer; border: 1px solid #cdd4da;
+        background: #fff; color: #333; display: inline-flex; align-items: center;
+        gap: 6px; transition: all 0.18s;
+    }
+    .btn-action:hover { background: #f0f6ff; border-color: #1a73c7; color: #1a73c7; }
+    @media print {
+        body * { visibility: hidden; }
+        #printArea, #printArea * { visibility: visible; }
+        #printArea { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+        .no-print { display: none !important; }
+        .page-title-bar { display: none; }
+        .report-table tbody tr:hover { background: none; }
+    }
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 16px; margin-top: 60px; }
+        .report-card { padding: 16px; }
+        .company-header { flex-direction: column; text-align: center; }
+        .report-table { display: block; overflow-x: auto; }
+    }
+</style>
+
+<div class="page-wrapper">
+
+    <div class="page-title-bar">
+        <h2>Branch to HQ Transfers</h2>  {# ← changed #}
+    </div>
+
+    <div class="report-card">
+        <a href="{% url 'branch_to_hq_expenses_filter' %}" class="btn-back no-print">  {# ← changed #}
+            <i class="fas fa-arrow-left"></i> Back to Filter
+        </a>
+
+        <div id="printArea">
+
+            <div class="company-header">
+                <div class="company-logo">
+                    <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo"
+                         onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <div class="company-name">MASCO FINANCE CO. LTD</div>
+                    <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                    <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+                </div>
+            </div>
+
+            {# ← changed: report title reflects branch → HQ direction #}
+            <div class="report-title">
+                Branch to HQ Transfer Expenses From {{ date_from|date:"d/m/Y" }} To {{ date_to|date:"d/m/Y" }}
+            </div>
+
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th class="col-sn">S/N.</th>
+                        <th>Branch</th>
+                        <th class="col-amt">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in branch_summary %}
+                    <tr>
+                        <td class="col-sn">{{ forloop.counter }}</td>
+                        <td>{{ row.branch_name }}</td>
+                        <td class="col-amt">
+                            {% if row.total_amount %}
+                                {{ row.total_amount|floatformat:0|intcomma }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="text-align:center; padding:40px; color:#aaa;">
+                            <i class="fas fa-inbox" style="font-size:32px; display:block; margin-bottom:10px;"></i>
+                            No data found for selected date range.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="2" style="font-weight:700; padding-left:16px;">Grand Total</td>
+                        <td class="col-amt">{{ grand_total|floatformat:0|intcomma }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <hr class="report-hr">
+        </div>
+
+        <div class="action-bar no-print">
+            <button class="btn-action" onclick="savePDF()">
+                <i class="fas fa-file-pdf"></i> Save PDF
+            </button>
+            <button class="btn-action" onclick="window.print()">
+                <i class="fas fa-print"></i> Print
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function savePDF() {
+        if (typeof html2pdf !== 'undefined') {
+            const opt = {
+                margin:      [10, 10, 10, 10],
+                filename:    'branch_to_hq_expenses_{{ date_from|date:"d-m-Y" }}_to_{{ date_to|date:"d-m-Y" }}.pdf',  {# ← changed #}
+                image:       { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(document.getElementById('printArea')).save();
+        } else {
+            window.print();
+        }
+    }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+    integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnQ=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+{% endblock %}

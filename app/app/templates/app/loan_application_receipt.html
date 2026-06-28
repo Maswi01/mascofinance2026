@@ -1,0 +1,330 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+<div class="main-content">
+
+    <div class="receipt-wrapper" id="receiptContent">
+
+        <!-- ================= HEADER ================= -->
+        <div class="receipt-header">
+            <div class="logo-section">
+                <img src="{% static 'useraccount/mascoLogo.png' %}" alt="Masco Logo">
+            </div>
+
+            <div class="company-section">
+                <h1>MASCO FINANCE CO. LTD</h1>
+                <p>P.O.BOX 30474—KIBAHA | TANZANIA</p>
+                <p>Mobile: +255 718 544 515; Email: mascofinance@gmail.com</p>
+            </div>
+        </div>
+
+        <div class="header-divider"></div>
+
+        <!-- ================= TITLE ================= -->
+        <div class="receipt-title-row">
+            <h2>STAKABADHI YA FEDHA</h2>
+            <span class="receipt-number">
+                {{ loan.id|stringformat:"06d" }}
+            </span>
+        </div>
+
+        <!-- ================= CLIENT SECTION ================= -->
+        <div class="receipt-body">
+
+            <p>
+                Jina la Mteja :
+                <strong>{{ loan.client.firstname }} {{ loan.client.middlename }} {{ loan.client.lastname }}</strong>
+                &nbsp;&nbsp;&nbsp;
+                Tawi la :
+                <strong>{{ loan.office }}</strong>
+            </p>
+
+            <p>
+                Nimepokea Tsh
+                <strong>{{ total_paid|floatformat:0|intcomma }}/=</strong>
+                Kwa malipo ya
+                <strong>marejesho ya mkopo wa {{ loan.first_repayment_date|date:"F/Y" }}</strong>
+            </p>
+
+            <p>
+                Deni la mkopo lililobakia ni Tsh
+                <strong>{{ loan.repayment_amount_remaining|floatformat:0|intcomma }}/=</strong>
+            </p>
+
+            <br>
+
+            <div class="signature-row">
+                <div>
+                    Jina la mhudumu:
+                    <strong>{{ loan.processed_by.get_full_name }}</strong>
+                </div>
+
+                <div>
+                    Saini :
+                    <span class="sign-line"></span>
+                </div>
+
+                <div>
+                    Tarehe:
+                    <strong>{{ loan.application_date|date:"d/m/Y" }}</strong>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ================= INSTALLMENT SCHEDULE ================= -->
+        <div class="installment-section">
+            <h3>RATIBA YA MAREJESHO YA MKOPO</h3>
+
+            <table class="installment-table">
+                <thead>
+                    <tr>
+                        <th>Phase</th>
+                        <th>Due Date</th>
+                        <th>Principal</th>
+                        <th>Interest</th>
+                        <th>Total Payment</th>
+                        <th>Remaining Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for installment in installment_schedule %}
+                    <tr class="{% if installment.is_current %}current-installment{% endif %}">
+                        <td>{{ installment.phase }}</td>
+                        <td>{{ installment.due_date|date:"M Y" }}</td>
+                        <td>TZS {{ installment.principal|floatformat:2|intcomma }}</td>
+                        <td>TZS {{ installment.interest|floatformat:2|intcomma }}</td>
+                        <td>TZS {{ installment.total_payment|floatformat:2|intcomma }}</td>
+                        <td>TZS {{ installment.remaining_balance|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- ================= ACTION BUTTON ================= -->
+    <div class="receipt-actions">
+        <button onclick="downloadAsPDF()" class="print-btn">PRINT</button>
+    </div>
+
+</div>
+
+<!-- ================= STYLES ================= -->
+<style>
+.receipt-wrapper{
+    max-width: 1000px;
+    margin: 20px auto;
+    background:#fff;
+    border:1px solid #ccc;
+    padding:30px;
+}
+
+.receipt-header{
+    display:flex;
+    align-items:center;
+    gap:20px;
+}
+
+.logo-section img{
+    height:90px;
+}
+
+.company-section h1{
+    margin:0;
+    font-size:28px;
+    color:#1f4e79;
+    font-weight:700;
+}
+
+.company-section p{
+    margin:2px 0;
+    font-size:14px;
+}
+
+.header-divider{
+    border-bottom:3px solid #8b0000;
+    margin:15px 0;
+}
+
+.receipt-title-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+}
+
+.receipt-title-row h2{
+    text-decoration:underline;
+    font-weight:700;
+    margin:0;
+}
+
+.receipt-number{
+    font-weight:700;
+}
+
+.receipt-body p{
+    font-size:16px;
+    margin:12px 0;
+}
+
+.signature-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:30px;
+}
+
+.sign-line{
+    display:inline-block;
+    width:150px;
+    border-bottom:1px solid #000;
+}
+
+.installment-section{
+    margin-top:40px;
+}
+
+.installment-section h3{
+    text-align:center;
+    margin-bottom:15px;
+}
+
+.installment-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:14px;
+}
+
+.installment-table th{
+    border:1px solid #ccc;
+    padding:8px;
+    background:#f1f1f1;
+}
+
+.installment-table td{
+    border:1px solid #ccc;
+    padding:8px;
+}
+
+.current-installment{
+    background:#e6f7ff;
+    font-weight:bold;
+}
+
+.receipt-actions{
+    text-align:right;
+    margin-top:20px;
+}
+
+.print-btn{
+    padding:8px 20px;
+    border:1px solid #333;
+    background:#eee;
+    cursor:pointer;
+}
+
+/* PRINT STYLE */
+@media print{
+    .receipt-actions{
+        display:none;
+    }
+    body{
+        background:#fff;
+    }
+}
+</style>
+
+<!-- ================= JS ================= -->
+<!-- JavaScript for Printing and PDF -->
+<script>
+    // Print Receipt
+    function printReceipt() {
+        const receiptContent = document.getElementById('receiptContent').innerHTML;
+        const originalContent = document.body.innerHTML;
+        
+        document.body.innerHTML = receiptContent;
+        window.print();
+        document.body.innerHTML = originalContent;
+        location.reload(); // Reload to restore navigation
+    }
+    
+    // Download as PDF (using jsPDF library)
+    function downloadAsPDF() {
+        // Add jsPDF library dynamically
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        script.onload = function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            // Get receipt element
+            const element = document.getElementById('receiptContent');
+            
+            // Use html2canvas for better rendering
+            const html2canvasScript = document.createElement('script');
+            html2canvasScript.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+            html2canvasScript.onload = function() {
+                html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: true,
+                    windowWidth: element.scrollWidth,
+                    windowHeight: element.scrollHeight
+                }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgWidth = 210; // A4 width in mm
+                    const pageHeight = 295; // A4 height in mm
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    
+                    let heightLeft = imgHeight;
+                    let position = 0;
+                    
+                    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                    
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        doc.addPage();
+                        doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+                    
+                    // Save the PDF
+                    doc.save(`Loan-Receipt-{{ loan.id }}-{{ loan.application_date|date:'Ymd' }}.pdf`);
+                });
+            };
+            document.head.appendChild(html2canvasScript);
+        };
+        document.head.appendChild(script);
+    }
+    
+    // Show loading state for PDF download
+    document.addEventListener('DOMContentLoaded', function() {
+        const pdfBtn = document.querySelector('.pdf-btn');
+        if (pdfBtn) {
+            pdfBtn.addEventListener('click', function() {
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                }, 5000);
+            });
+        }
+    });
+</script>
+
+{% endblock %}
+
+

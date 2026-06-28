@@ -1,0 +1,91 @@
+{% extends 'app/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<style>
+    .filter-container {
+        max-width: 720px;
+        margin: 40px auto;
+        background: #fff;
+        border-radius: 14px;
+        padding: 36px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .filter-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+    .filter-header .icon-circle {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        font-size: 28px;
+        color: #fff;
+    }
+    .filter-header h2 {
+        color: #1e293b;
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+    .filter-header p { color: #64748b; font-size: 14px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    .form-group input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    .form-group input:focus {
+        outline: none;
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139,92,246,0.1);
+    }
+    .btn-submit {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 15px;
+        cursor: pointer;
+        margin-top: 8px;
+        transition: all 0.2s;
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(139,92,246,0.3); }
+</style>
+
+<div class="filter-container">
+    <div class="filter-header">
+        <div class="icon-circle"><i class="fas fa-balance-scale"></i></div>
+        <h2>Balance Sheet</h2>
+        <p>Select the date for your balance sheet report</p>
+    </div>
+
+    <form method="GET" action="{% url 'balance_sheet_report' %}">
+        <div class="form-group">
+            <label for="as_of_date">As of Date <span style="color:#dc2626;">*</span></label>
+            <input type="date" id="as_of_date" name="as_of_date"
+                   value="{{ today|date:'Y-m-d' }}" required>
+        </div>
+        <button type="submit" class="btn-submit">
+            <i class="fas fa-balance-scale"></i> Generate Balance Sheet
+        </button>
+    </form>
+</div>
+{% endblock %}

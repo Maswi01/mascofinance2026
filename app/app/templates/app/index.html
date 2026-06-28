@@ -1,0 +1,420 @@
+{% extends 'app/base.html' %}
+{% block content %}
+{% load humanize %}
+
+<style>
+    a { text-decoration: none; }
+
+    .office-metrics-section {
+        margin: 2rem 0;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #0d4a7a;
+        font-family: 'Source Sans 3', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    .section-title i { color: #0fc0c0; }
+
+    .date-filter-form {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: #f8f9fa;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 1px solid #d0f0f0;
+    }
+    .date-input-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .date-input-group label { color: #0d4a7a; font-weight: 600; font-size: 0.85rem; }
+    .date-input-group input[type="date"] {
+        padding: 0.4rem 0.75rem;
+        border: 1px solid #b2e8e8;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: #0d4a7a;
+        background: white;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .date-input-group input[type="date"]:focus {
+        border-color: #0fc0c0;
+        box-shadow: 0 0 0 3px rgba(15,192,192,0.1);
+    }
+    .filter-actions { display: flex; align-items: center; gap: 0.5rem; }
+    .btn-filter {
+        background: #0fc0c0; color: white; border: none;
+        padding: 0.4rem 1.2rem; border-radius: 6px;
+        font-weight: 600; font-size: 0.85rem; cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    .btn-filter:hover { background: #0aadad; }
+    .btn-reset {
+        background: transparent; color: #0d4a7a;
+        border: 1px solid #d0f0f0; padding: 0.4rem 1rem;
+        border-radius: 6px; font-weight: 500; font-size: 0.85rem;
+        cursor: pointer; transition: all 0.2s ease;
+    }
+    .btn-reset:hover { background: #f0fbfb; border-color: #0fc0c0; }
+
+    .selected-date-badge {
+        background: #e8f8f8; color: #0d4a7a;
+        padding: 0.25rem 1rem; border-radius: 20px;
+        font-size: 0.85rem; font-weight: 600;
+        border: 1px solid #0fc0c0;
+    }
+    .selected-date-badge i { margin-right: 0.3rem; color: #0fc0c0; }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .metric-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        border: 1px solid #d0f0f0;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .metric-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(15,192,192,0.25);
+    }
+
+    .metric-header {
+        padding: 1rem 1.2rem;
+        background: linear-gradient(135deg, #0fc0c0 0%, #2dd4d4 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .metric-header::after {
+        content: '';
+        position: absolute;
+        top: -18px; right: -18px;
+        width: 80px; height: 80px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.15);
+        pointer-events: none;
+    }
+    .metric-title {
+        display: flex; align-items: center; gap: 0.85rem;
+        position: relative; z-index: 1;
+    }
+    .metric-icon {
+        width: 46px; height: 46px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem; flex-shrink: 0;
+        background: rgba(255,255,255,0.25); color: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    .metric-title h4 {
+        margin: 0; font-size: 0.95rem; font-weight: 700;
+        letter-spacing: 0.3px; color: #fff;
+    }
+    .metric-total {
+        margin: 0.25rem 0 0 0; font-size: 0.82rem;
+        color: rgba(255,255,255,0.92); font-weight: 500;
+    }
+
+    .office-list {
+        padding: 0.85rem 1rem;
+    }
+
+    .office-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.65rem 0.85rem;
+        margin-bottom: 0.45rem;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #e2f8f8;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+        position: relative;
+    }
+    .office-item:last-child { margin-bottom: 0; }
+    .office-item:hover { background-color: #f0fbfb; border-color: #b2e8e8; }
+
+    /* Active item — has value > 0 */
+    .office-item.has-value {
+        border-color: #0fc0c0;
+        background: linear-gradient(135deg, #f0fffe 0%, #ffffff 100%);
+    }
+
+    .office-name { font-weight: 600; color: #0d4a7a; font-size: 0.88rem; }
+    .office-value {
+        font-weight: 700; color: #0d4a7a;
+        display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem;
+    }
+    .office-count {
+        background: #d0f5f5; color: #0aadad;
+        padding: 0.1rem 0.5rem; border-radius: 4px;
+        font-size: 0.78rem; font-weight: 700;
+    }
+
+    /* ── NEW / ACTIVE badge ── */
+    .activity-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        background: linear-gradient(135deg, #ff6b35, #ff4500);
+        color: #fff;
+        font-size: 0.65rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 0.15rem 0.45rem;
+        border-radius: 20px;
+        text-transform: uppercase;
+        box-shadow: 0 2px 6px rgba(255,69,0,0.45);
+        animation: pulse-badge 1.8s ease-in-out infinite;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .activity-badge .badge-flame { font-size: 0.75rem; }
+
+    @keyframes pulse-badge {
+        0%, 100% { transform: scale(1);   box-shadow: 0 2px 6px rgba(255,69,0,0.45); }
+        50%       { transform: scale(1.08); box-shadow: 0 4px 12px rgba(255,69,0,0.65); }
+    }
+
+    .no-data {
+        text-align: center; padding: 2rem 1rem;
+        color: #7f8c8d; font-style: italic; font-size: 0.88rem;
+    }
+
+    .office-list::-webkit-scrollbar { width: 5px; }
+    .office-list::-webkit-scrollbar-track { background: #f1fbfb; border-radius: 3px; }
+    .office-list::-webkit-scrollbar-thumb { background: #9ae0e0; border-radius: 3px; }
+    .office-list::-webkit-scrollbar-thumb:hover { background: #0fc0c0; }
+
+    @media (max-width: 768px) {
+        .section-header { flex-direction: column; align-items: flex-start; }
+        .date-filter-form { width: 100%; flex-wrap: wrap; }
+        .date-input-group { width: 100%; }
+        .date-input-group input[type="date"] { flex: 1; }
+        .filter-actions { width: 100%; justify-content: flex-end; }
+        .metrics-grid { grid-template-columns: 1fr; }
+        .metric-header { padding: 0.75rem 1rem; }
+        .office-item { padding: 0.5rem 0.7rem; }
+    }
+</style>
+
+
+<main class="main-content">
+    <div class="office-metrics-section">
+        <div class="section-header">
+            <h3 class="section-title">
+                <i class="fas fa-chart-line"></i>
+                Summary for
+                {% if selected_date %}
+                <span class="selected-date-badge">
+                    <i class="far fa-calendar-alt"></i> {{ selected_date|date:"F d, Y" }}
+                </span>
+                {% else %}
+                <span class="selected-date-badge">
+                    <i class="far fa-calendar-alt"></i> {{ today|date:"F d, Y" }}
+                </span>
+                {% endif %}
+            </h3>
+
+            <form method="get" action="{% url 'index' %}" class="date-filter-form">
+                <div class="date-input-group">
+                    <label for="filter_date"><i class="far fa-calendar-alt"></i></label>
+                    <input type="date" id="filter_date" name="date"
+                           value="{{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}"
+                           max="{{ today|date:'Y-m-d' }}">
+                </div>
+                <div class="filter-actions">
+                    <button type="submit" class="btn-filter">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    {% if selected_date %}
+                    <a href="{% url 'index' %}" class="btn-reset">
+                        <i class="fas fa-times"></i> Reset
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <div class="metrics-grid">
+
+            <!-- Loans Card -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <div class="metric-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                        <div>
+                            <h4>Loans Processed</h4>
+                            <p class="metric-total">
+                                {% with loans_by_office|dictsortreversed:"amount" as sorted_loans %}
+                                Total: {{ sorted_loans.0.amount|floatformat:2|intcomma|default:"0.00" }}
+                                {% endwith %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="office-list">
+                    {% for item in loans_by_office %}
+                    <a href="{% url 'branches_loan_report' %}?start_date={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&end_date={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&office={{ item.office }}">
+                        <div class="office-item {% if item.amount %}has-value{% endif %}">
+                            <span class="office-name">{{ item.office }}</span>
+                            <span class="office-value">
+                                {{ item.amount|floatformat:2|intcomma }}
+                                <span class="office-count">[{{ item.count }}]</span>
+                                {% if item.amount %}
+                                <span class="activity-badge">
+                                    <span class="badge-flame">🔥</span> New
+                                </span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <div class="no-data">No loans processed for this date</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Expenses Card -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <div class="metric-icon"><i class="fas fa-money-bill-wave"></i></div>
+                        <div>
+                            <h4>Expenses</h4>
+                            <p class="metric-total">
+                                {% with expenses_by_office|dictsortreversed:"amount" as sorted_expenses %}
+                                Total: {{ sorted_expenses.0.amount|floatformat:2|intcomma|default:"0.00" }}
+                                {% endwith %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="office-list">
+                    {% for item in expenses_by_office %}
+                    <a href="{% url 'expense_report' %}?start_date={{ display_date|date:'Y-m-d' }}&end_date={{ display_date|date:'Y-m-d' }}{% if item.office %}&office={{ item.office|urlencode }}{% endif %}">
+                        <div class="office-item {% if item.amount %}has-value{% endif %}">
+                            <span class="office-name">{{ item.office }}</span>
+                            <span class="office-value">
+                                {{ item.amount|floatformat:2|intcomma }}
+                                <span class="office-count">[{{ item.count }}]</span>
+                                {% if item.amount %}
+                                <span class="activity-badge">
+                                    <span class="badge-flame">🔥</span> New
+                                </span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <div class="no-data">No expenses recorded for this date</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Repayments Card -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <div class="metric-icon"><i class="fas fa-cash-register"></i></div>
+                        <div>
+                            <h4>Repayments</h4>
+                            <p class="metric-total">
+                                {% with repayments_by_office|dictsortreversed:"amount" as sorted_repayments %}
+                                Total: {{ sorted_repayments.0.amount|floatformat:2|intcomma|default:"0.00" }}
+                                {% endwith %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="office-list">
+                    {% for item in repayments_by_office %}
+                    <a href="{% url 'loan_collection_statement' %}?start_date={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&end_date={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&office={{ item.office }}">
+                        <div class="office-item {% if item.amount %}has-value{% endif %}">
+                            <span class="office-name">{{ item.office }}</span>
+                            <span class="office-value">
+                                {{ item.amount|floatformat:2|intcomma }}
+                                <span class="office-count">[{{ item.count }}]</span>
+                                {% if item.amount %}
+                                <span class="activity-badge">
+                                    <span class="badge-flame">🔥</span> New
+                                </span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <div class="no-data">No repayments for this date</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Transactions Card -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <div class="metric-icon"><i class="fas fa-exchange-alt"></i></div>
+                        <div>
+                            <h4>Transactions</h4>
+                            <p class="metric-total">
+                                {% with transactions_by_office|dictsortreversed:"amount" as sorted_transactions %}
+                                Total: {{ sorted_transactions.0.amount|floatformat:2|intcomma|default:"0.00" }}
+                                {% endwith %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="office-list">
+                    {% for item in transactions_by_office %}
+                    <a href="{% url 'bank_transfer_expenses' %}?date_from={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&date_to={{ selected_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}&office={{ item.office }}">
+                        <div class="office-item {% if item.amount %}has-value{% endif %}">
+                            <span class="office-name">{{ item.office }}</span>
+                            <span class="office-value">
+                                {{ item.amount|floatformat:2|intcomma }}
+                                <span class="office-count">[{{ item.count }}]</span>
+                                {% if item.amount %}
+                                <span class="activity-badge">
+                                    <span class="badge-flame">🔥</span> New
+                                </span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <div class="no-data">No transactions for this date</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+{% endblock %}

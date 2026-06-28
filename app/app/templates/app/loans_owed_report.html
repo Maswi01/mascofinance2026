@@ -1,0 +1,360 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+{% load permission_tags %}
+{% user_has_perm request.user 'loans-approve' as can_approve_loans %}
+
+<style>
+    .lor-wrapper {
+        max-width: 100%;
+        margin: 10px auto 60px;
+        padding: 0 10px;
+        font-family: Arial, sans-serif;
+    }
+
+    .company-header {
+        display: flex; align-items: center; gap: 14px;
+        padding: 14px 20px 12px; border-bottom: 2px solid #8b0000;
+        justify-content: center; text-align: center; margin-bottom: 16px;
+    }
+    .company-logo img { width: 68px; height: auto; }
+    .company-name { font-size: 22px; font-weight: 900; color: #2471a3; text-transform: uppercase; line-height: 1.1; }
+    .company-sub  { font-size: 11px; font-weight: 700; color: #1a1a1a; margin-top: 2px; }
+    .company-contact { font-size: 10px; color: #1a1a1a; margin-top: 2px; }
+
+    .lor-branch  { font-size: 13px; font-weight: 700; text-decoration: underline; text-align: center; text-transform: uppercase; margin: 10px 0 4px; }
+    .lor-title   { font-size: 12px; font-weight: 900; text-decoration: underline; text-align: center; text-transform: uppercase; margin-bottom: 4px; }
+    .lor-month-h { font-size: 12.5px; font-weight: 700; text-decoration: underline; text-align: center; text-transform: uppercase; margin: 18px 0 6px; }
+
+    .gold-divider { border: none; border-top: 2px solid #c8a84b; margin: 14px 0 18px; }
+    .table-scroll { overflow-x: auto; }
+
+    .lot-table {
+        width: 100%; border-collapse: collapse;
+        font-size: 10.5px; font-family: Arial, sans-serif; min-width: 900px;
+    }
+    .lot-table th, .lot-table td {
+        border: 1px solid #bbb; padding: 3px 4px;
+        white-space: nowrap; vertical-align: middle;
+    }
+
+    .th-month { background:#fff; text-align:center; font-weight:700; font-size:10.5px; color:#1a1a1a; border-bottom:none; }
+    .th-paid  { background:#27ae60; color:#fff; font-weight:700; text-align:center; font-size:10px; border:1px solid #bbb; }
+    .th-out   { background:#fff; color:#1a1a1a; font-weight:700; text-align:center; font-size:10px; border:1px solid #bbb; }
+    .th-fixed { background:#fff; font-weight:700; text-align:center; font-size:10.5px; border:1px solid #bbb; }
+
+    .td-paid-amt  { background:#fff; text-align:right; color:#000; font-weight:600; }
+    .td-tick      { background:#fff; text-align:center; color:#27ae60; font-weight:900; font-size:13px; }
+    .td-tick-out  { background:#fff; text-align:center; color:#27ae60; font-weight:900; font-size:13px; }
+    .td-out-val   { background:#96534a; color:#fff; text-align:right; font-weight:600; }
+    .td-out-empty { text-align:right; background:#fff; }
+    .td-double-tick { background:#fff; text-align:center; color:#27ae60; font-weight:900; font-size:13px; letter-spacing:3px; }
+    .td-num { text-align:right; }
+
+    .lot-grand td { background:#d4b97a !important; font-weight:700; border-top:2px solid #b89650; }
+    .lot-grand td.td-num { text-align:right; }
+
+    .approve-row { display:flex; justify-content:flex-end; margin-top:4px; margin-bottom:2px; }
+    .approve-btn { padding:4px 16px; background:#fff; border:1px solid #888; border-radius:2px; font-size:12px; cursor:pointer; color:#333; }
+    .approve-btn:hover { background:#f0f0f0; }
+
+    .hama-section { margin-top:32px; }
+
+    .action-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0 12px; flex-wrap:wrap; gap:8px; }
+    .back-link { font-size:13px; color:#2980b9; text-decoration:none; }
+    .back-link:hover { text-decoration:underline; }
+    .print-btn { padding:5px 16px; background:#fff; border:1px solid #888; border-radius:2px; font-size:13px; cursor:pointer; color:#333; }
+
+    .th-select { background:#2471a3; color:#fff; font-weight:700; text-align:center; font-size:10.5px; border:1px solid #bbb; }
+    .td-select { text-align:center; vertical-align:middle; background:#eaf4fb; border:1px solid #bbb; padding:3px 6px; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .printable, .printable * { visibility: visible; }
+        .printable { position: absolute; top: 0; left: 0; right: 0; }
+        .action-row, .approve-row, .no-print { display: none !important; }
+        .lot-table { font-size: 7pt; }
+        .lot-table th, .lot-table td { padding: 1px 2px; }
+    }
+</style>
+
+<div class="lor-wrapper">
+
+    <div class="action-row no-print">
+        <a class="back-link" href="{% url 'loans_owed_summary' %}">← Back to Summary</a>
+        <button class="print-btn" onclick="window.print()">PRINT</button>
+    </div>
+
+    <div class="printable">
+
+        <div class="company-header">
+            <div class="company-logo">
+                <img src="{% static 'app/masco_logo.png' %}" alt="Masco Logo" onerror="this.style.display='none'">
+            </div>
+            <div>
+                <div class="company-name">MASCO FINANCE CO. LTD</div>
+                <div class="company-sub">P.O.BOX 30474—KIBAHA | TANZANIA</div>
+                <div class="company-contact">Mobile: +255 718 544 515; Email: mascofinance@gmail.com</div>
+            </div>
+        </div>
+
+        <div class="lor-branch">{{ branch_name }} BRANCH</div>
+        <div class="lor-title">CASH REPAYMENT LOANS OWED REPORT</div>
+
+        {% for section in month_sections %}
+
+            {% if not forloop.first %}<hr class="gold-divider">{% endif %}
+            <div class="lor-month-h">{{ section.label }}</div>
+
+            <form method="POST" action="{% url 'loans_owed_approve' %}">
+                {% csrf_token %}
+                <input type="hidden" name="section_key" value="{{ section.key }}">
+
+                <div class="table-scroll">
+                <table class="lot-table">
+                    <thead>
+                        <tr>
+                            <th class="th-fixed" rowspan="2" style="min-width:24px;">S/N</th>
+                            <th class="th-fixed" rowspan="2" style="min-width:130px;">Name</th>
+                            <th class="th-fixed" rowspan="2" style="min-width:80px;">Check No</th>
+                            <th class="th-fixed" rowspan="2" style="min-width:80px;">Loan ID</th>
+                            {% for mh in section.month_headers %}
+                            <th class="th-month" colspan="2">{{ mh }}</th>
+                            {% endfor %}
+                            <th class="th-fixed" rowspan="2">Total Paid</th>
+                            <th class="th-fixed" rowspan="2">Loaned Amount</th>
+                            <th class="th-fixed" rowspan="2">Total Amount</th>
+                            <th class="th-fixed" rowspan="2">Balance</th>
+                            <th class="th-fixed" rowspan="2" style="min-width:90px;">Mobile No</th>
+                            <th class="th-select no-print" rowspan="2" style="min-width:55px;">Select</th>
+                        </tr>
+                        <tr>
+                            {% for mh in section.month_headers %}
+                            <th class="th-paid">Paid</th>
+                            <th class="th-out">Out</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in section.rows %}
+<tr>
+    <td style="text-align:center;">{{ forloop.counter }}</td>
+    <td>{{ row.name }}</td>
+    <td>{{ row.check_no }}</td>
+    <td style="font-size:10px;">{{ row.loan_id_label }}</td>
+
+{% for cell in row.cells %}
+    {% if cell.type == 'tick' %}
+        <td class="td-paid-amt">{% if cell.paid %}{{ cell.paid|floatformat:0|intcomma }}{% endif %}</td>
+        <td class="td-tick">✓</td>
+
+    {% elif cell.type == 'tick_no_paid' %}
+        <td class="td-paid-amt"></td>
+        <td class="td-tick">✓</td>
+
+    {% elif cell.type == 'tick_out' %}
+        <td class="td-paid-amt">{% if cell.paid %}{{ cell.paid|floatformat:0|intcomma }}{% endif %}</td>
+        <td class="td-tick-out">✓</td>
+
+    {% elif cell.type == 'partial' %}
+        <td class="td-paid-amt">{% if cell.paid %}{{ cell.paid|floatformat:0|intcomma }}{% endif %}</td>
+        <td class="td-out-val">{{ cell.out|floatformat:0|intcomma }}</td>
+
+    {% elif cell.type == 'out_only' %}
+        <td class="td-paid-amt"></td>
+        <td class="td-out-val">{{ cell.out|floatformat:0|intcomma }}</td>
+
+    {% elif cell.type == 'future_out' %}
+        <td class="td-out-empty"></td>
+        <td class="td-out-empty">{{ cell.out|floatformat:0|intcomma }}</td>
+
+    {% elif cell.type == 'extra_paid' %}
+        <td class="td-paid-amt">{{ cell.paid|floatformat:0|intcomma }}</td>
+        <td class="td-out-empty"></td>
+
+    {% else %}
+        <td></td><td></td>
+    {% endif %}
+{% endfor %}
+
+    <td class="td-num">{{ row.total_paid|floatformat:0|intcomma }}</td>
+    <td class="td-num">{{ row.loaned_amount|floatformat:0|intcomma }}</td>
+    <td class="td-num">{{ row.total_amount|floatformat:0|intcomma }}</td>
+
+    {% if row.is_fully_paid %}
+    <td class="td-double-tick">✓ ✓</td>
+    {% else %}
+    <td class="td-num">{{ row.balance|floatformat:0|intcomma }}</td>
+    {% endif %}
+
+    <td>{{ row.mobile }}</td>
+
+    {% if can_approve_loans%}
+    <td class="td-select no-print">
+        {% if row.is_fully_paid %}
+            <input type="checkbox" name="loan_ids" value="{{ row.loan_id }}"
+                   title="Fully paid — click to approve"
+                   style="width:16px;height:16px;cursor:pointer;">
+        {% else %}
+            <input type="checkbox" disabled
+                   title="Cannot approve — loan not fully paid"
+                   style="width:16px;height:16px;opacity:0.3;cursor:not-allowed;">
+        {% endif %}
+    </td>
+    {% endif %}
+
+</tr>
+{% endfor %}
+
+                        <tr class="lot-grand">
+                            <td colspan="4"><strong>GRAND TOTAL</strong></td>
+                            {% for ct in section.col_totals %}
+                            <td class="td-num"><strong>{% if ct.paid %}{{ ct.paid|floatformat:0|intcomma }}{% else %}0{% endif %}</strong></td>
+                            <td class="td-num"><strong>{% if ct.out %}{{ ct.out|floatformat:0|intcomma }}{% else %}0{% endif %}</strong></td>
+                            {% endfor %}
+                            <td class="td-num"><strong>{{ section.total_paid|floatformat:0|intcomma }}</strong></td>
+                            <td class="td-num"><strong>{{ section.total_loaned|floatformat:0|intcomma }}</strong></td>
+                            <td class="td-num"><strong>{{ section.total_amount|floatformat:0|intcomma }}</strong></td>
+                            <td class="td-num"><strong>{{ section.total_balance|floatformat:0|intcomma }}</strong></td>
+                            <td></td>
+                            <td class="no-print"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+
+                <div class="approve-row no-print">
+                    <button type="submit" class="approve-btn">APPROVE SELECTED LOANS</button>
+                </div>
+            </form>
+
+        {% empty %}
+        <p style="text-align:center;color:#aaa;font-style:italic;margin:30px 0;">
+            No active loans found for the last 12 months.
+        </p>
+        {% endfor %}
+
+        {% if hama_sections %}
+        <div class="hama-section">
+            {% for hama in hama_sections %}
+
+                <hr class="gold-divider">
+                <div class="lor-month-h">{{ hama.label }}</div>
+
+                <div class="table-scroll">
+                <table class="lot-table">
+                    <thead>
+                        <tr>
+                            <th class="th-fixed" rowspan="2" style="min-width:24px;">S/N</th>
+                            <th class="th-fixed" rowspan="2" style="min-width:130px;">Name</th>
+                            <th class="th-fixed" rowspan="2" style="min-width:80px;">Check No</th>
+                            <th class="th-fixed" rowspan="2" style="min-width:80px;">Loan Type</th>
+                            {% for mh in hama.month_headers %}
+                            <th class="th-month" colspan="2">{{ mh }}</th>
+                            {% endfor %}
+                            <th class="th-fixed" rowspan="2">Total Paid</th>
+                            <th class="th-fixed" rowspan="2">Loaned Amount</th>
+                            <th class="th-fixed" rowspan="2">Interest</th>
+                            <th class="th-fixed" rowspan="2">Total Amount</th>
+                            <th class="th-fixed" rowspan="2">Balance</th>
+                            <th class="th-fixed" rowspan="2" style="min-width:90px;">Mobile No</th>
+                        </tr>
+                        <tr>
+                            {% for mh in hama.month_headers %}
+                            <th class="th-paid">Paid</th>
+                            <th class="th-out">Out</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in hama.rows %}
+                        <tr>
+                            <td style="text-align:center;">{{ forloop.counter }}</td>
+                            <td>{{ row.name }}</td>
+                            <td>{{ row.check_no }}</td>
+                            <td style="font-size:10px;">{{ row.loan_id_label }}</td>
+
+                            {% for cell in row.cells %}
+                                {% if cell.type == 'tick' %}
+                                    <td class="td-paid-amt">{{ cell.paid|floatformat:0|intcomma }}</td>
+                                    <td class="td-tick">✓</td>
+
+                                {% elif cell.type == 'tick_no_paid' %}
+                                    <td class="td-paid-amt"></td>
+                                    <td class="td-tick">✓</td>
+
+                                {% elif cell.type == 'tick_out' %}
+                                    <td class="td-paid-amt">{% if cell.paid %}{{ cell.paid|floatformat:0|intcomma }}{% endif %}</td>
+                                    <td class="td-tick-out">✓</td>
+
+                                {% elif cell.type == 'partial' %}
+                                    <td class="td-paid-amt">{{ cell.paid|floatformat:0|intcomma }}</td>
+                                    <td class="td-out-val">{{ cell.out|floatformat:0|intcomma }}</td>
+
+                                {% elif cell.type == 'out_only' %}
+                                    <td class="td-out-empty"></td>
+                                    <td class="td-out-val">{{ cell.out|floatformat:0|intcomma }}</td>
+
+                                {% elif cell.type == 'paid_only' %}
+                                    <td class="td-paid-amt">{{ cell.paid|floatformat:0|intcomma }}</td>
+                                    <td class="td-out-empty"></td>
+
+                                {% elif cell.type == 'future_out' %}
+                                    <td class="td-out-empty"></td>
+                                    <td class="td-out-empty">{{ cell.out|floatformat:0|intcomma }}</td>
+
+                                {% elif cell.type == 'extra_paid' %}
+                                    <td class="td-paid-amt">{{ cell.paid|floatformat:0|intcomma }}</td>
+                                    <td class="td-out-empty"></td>
+
+                                {% else %}
+                                    <td></td><td></td>
+                                {% endif %}
+                            {% endfor %}
+
+                            <td class="td-num">{{ row.total_paid|floatformat:0|intcomma }}</td>
+                            <td class="td-num">{{ row.loaned_amount|floatformat:0|intcomma }}</td>
+                            <td class="td-num">{{ row.interest|floatformat:0|intcomma }}</td>
+                            <td class="td-num">{{ row.total_amount|floatformat:0|intcomma }}</td>
+
+                            {% if row.balance <= 0 %}
+                            <td class="td-double-tick">✓ ✓</td>
+                            {% else %}
+                            <td class="td-num">{{ row.balance|floatformat:0|intcomma }}</td>
+                            {% endif %}
+
+                            <td>{{ row.mobile }}</td>
+                        </tr>
+                        {% endfor %}
+
+                        <tr class="lot-grand">
+                            <td colspan="4"><strong>GRAND TOTAL</strong></td>
+                            {% for ct in hama.col_totals %}
+                            <td class="td-num"><strong>{% if ct.paid %}{{ ct.paid|floatformat:0|intcomma }}{% else %}0{% endif %}</strong></td>
+                            <td class="td-num"><strong>{% if ct.out %}{{ ct.out|floatformat:0|intcomma }}{% else %}0{% endif %}</strong></td>
+                            {% endfor %}
+                            <td class="td-num"><strong>{{ hama.total_paid|floatformat:0|intcomma }}</strong></td>
+                            <td class="td-num"><strong>{{ hama.total_loaned|floatformat:0|intcomma }}</strong></td>
+                            <td class="td-num"><strong>{{ hama.total_interest|floatformat:0|intcomma }}</strong></td>
+                            <td class="td-num"><strong>{{ hama.total_amount|floatformat:0|intcomma }}</strong></td>
+                            <td class="td-num"><strong>{{ hama.total_balance|floatformat:0|intcomma }}</strong></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div><!-- end .printable -->
+
+    <div class="action-row no-print" style="margin-top:16px;">
+        <a class="back-link" href="{% url 'loans_owed_summary' %}">← Back to Summary</a>
+        <button class="print-btn" onclick="window.print()">PRINT</button>
+    </div>
+
+</div>
+{% endblock %}

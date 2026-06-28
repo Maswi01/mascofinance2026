@@ -1,0 +1,316 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .transaction-container {
+        max-width: 960px;
+        margin: 0 auto;
+        margin-top: 120px;
+        padding: 0 20px 60px;
+    }
+
+    /* ── Card ── */
+    .transaction-card {
+        background: #ffffff;
+        border-radius: 4px;
+        padding: 32px 48px 40px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    /* ── Title ── */
+    .card-title {
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 16px;
+        font-weight: 700;
+        color: #1a1a1a;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #cccccc;
+        margin-bottom: 36px;
+    }
+
+    /* ── Form rows ── */
+    .form-row {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 28px;
+    }
+
+    .form-row label {
+        width: 200px;
+        flex-shrink: 0;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 14px;
+        color: #3a3a3a;
+        padding-top: 10px;
+        text-align: left;
+    }
+
+    .form-control-wrap {
+        flex: 1;
+        max-width: 460px;
+    }
+
+    /* All inputs / selects / textarea / file */
+    .form-control-wrap input[type="text"],
+    .form-control-wrap input[type="number"],
+    .form-control-wrap input[type="date"],
+    .form-control-wrap input[type="file"],
+    .form-control-wrap select,
+    .form-control-wrap textarea {
+        width: 100%;
+        padding: 9px 14px;
+        border: 1px solid #c4c4c4;
+        border-radius: 3px;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 14px;
+        color: #2c2c2c;
+        background: #ffffff;
+        outline: none;
+        transition: border-color 0.15s;
+        box-sizing: border-box;
+    }
+
+    .form-control-wrap input:focus,
+    .form-control-wrap select:focus,
+    .form-control-wrap textarea:focus {
+        border-color: #2a9d8f;
+        box-shadow: 0 0 0 2px rgba(42,157,143,0.1);
+    }
+
+    /* Select arrow styling */
+    .form-control-wrap select {
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        padding-right: 36px;
+        cursor: pointer;
+    }
+
+    /* File input wrapper to look like image */
+    .file-input-wrap {
+        display: flex;
+        align-items: center;
+        border: 1px solid #c4c4c4;
+        border-radius: 3px;
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    .file-input-wrap input[type="file"] {
+        border: none;
+        padding: 0;
+        border-radius: 0;
+        box-shadow: none;
+        font-size: 13px;
+        flex: 1;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    /* Textarea */
+    .form-control-wrap textarea {
+        resize: vertical;
+        min-height: 100px;
+        line-height: 1.5;
+    }
+
+    /* Placeholder color */
+    .form-control-wrap input::placeholder,
+    .form-control-wrap textarea::placeholder {
+        color: #aaaaaa;
+    }
+
+    /* ── Divider before submit ── */
+    .form-divider {
+        border: none;
+        border-top: 1px solid #cccccc;
+        margin: 16px 0 28px;
+    }
+
+    /* ── Submit button ── */
+    .submit-row {
+        display: flex;
+        justify-content: center;
+    }
+
+    .submit-btn {
+        background: #2a9d8f;
+        color: #ffffff;
+        border: none;
+        border-radius: 4px;
+        padding: 12px 48px;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: background 0.18s;
+    }
+    .submit-btn:hover { background: #21867a; }
+    .submit-btn:active { background: #1a6b60; }
+
+    /* ── Messages ── */
+    .alert {
+        padding: 12px 18px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 13.5px;
+    }
+    .alert-success { background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46; }
+    .alert-error   { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+        .transaction-card { padding: 24px 20px 32px; }
+        .form-row { flex-direction: column; gap: 6px; }
+        .form-row label { width: 100%; padding-top: 0; }
+        .form-control-wrap { max-width: 100%; }
+    }
+</style>
+
+<div class="transaction-container">
+    <div class="transaction-card">
+
+        <div class="card-title">Branch Office Transaction</div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <form method="POST" enctype="multipart/form-data" action="{% url 'bank_charge_add' %}">
+            {% csrf_token %}
+
+            <!-- Transaction Type -->
+            <div class="form-row">
+                <label for="id_transaction_type">Transaction type</label>
+                <div class="form-control-wrap">
+                    <select id="id_transaction_type" name="transaction_type" onchange="handleTransactionType(this)">
+                        <option value="expenses" {% if form.transaction_type.value == 'expenses' %}selected{% endif %}>Bank Charges</option>
+                    </select>
+                </div>
+            </div>
+
+
+            <!-- Attachment File -->
+            <div class="form-row">
+                <label for="id_attachment">Attachment File</label>
+                <div class="form-control-wrap">
+                    <div class="file-input-wrap">
+                        <input type="file" id="id_attachment" name="attachment" accept="image/*,.pdf,.doc,.docx">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="form-row">
+                <label for="id_description">Description</label>
+                <div class="form-control-wrap">
+                    <textarea id="id_description" name="description" placeholder="">{{ form.description.value|default:'' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Amount -->
+            <div class="form-row">
+                <label for="id_amount">Amount</label>
+                <div class="form-control-wrap">
+                    <input type="text" id="id_amount" name="amount" placeholder="0"
+                        value="{{ form.amount.value|default:'' }}"
+                        inputmode="numeric">
+                </div>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="form-row">
+                <label for="id_payment_method">Payment Method</label>
+                <div class="form-control-wrap">
+                    <select id="id_payment_method" name="payment_method">
+                        <option value="">-- Select Method --</option>
+                        <option value="bank">Bank</option>
+                        <option value="cash">Cash</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Transaction Date -->
+            <div class="form-row">
+                <label for="id_transaction_date">Transaction Date</label>
+                <div class="form-control-wrap">
+                    <input type="date" id="id_transaction_date" name="transaction_date"
+                           value="{{ form.transaction_date.value|default:'' }}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label for="id_transaction_date">Office</label>
+                <div class="form-control-wrap">
+                <input type="text" name="office" class="form-control"
+                        value="{{ selected_office|default:'' }}"
+                        readonly>
+                </div>
+                </div>
+            </div>
+
+            <hr class="form-divider">
+
+            <div class="submit-row">
+                <button type="submit" class="submit-btn">Submit</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script>
+    function handleTransactionType(sel) {
+        const expensesRow = document.getElementById('expensesAccountRow');
+        if (expensesRow) expensesRow.style.display = sel.value === 'expenses' ? 'flex' : 'none';
+    }
+
+    handleTransactionType(document.getElementById('id_transaction_type'));
+
+    // Set today's date as default if empty
+    const dateInput = document.getElementById('id_transaction_date');
+    if (!dateInput.value) {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${y}-${m}-${d}`;
+    }
+
+    // ── Comma formatting ──────────────────────────────────────────────────
+    function toComma(value) {
+        const raw = String(value).replace(/,/g, '').replace(/[^\d]/g, ''); // integers only for now
+        if (!raw || raw === '0') return '';
+        return raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    const amountInput = document.getElementById('id_amount');
+
+    console.log('amountInput found:', amountInput); // check this in browser console
+
+    amountInput.addEventListener('keyup', function () {
+        console.log('keyup fired, value:', this.value); // check this fires
+        const digits = this.value.replace(/[^\d]/g, '');
+        console.log('digits:', digits);
+        const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        console.log('formatted:', formatted);
+        this.value = formatted;
+    });
+
+    document.querySelector('form').addEventListener('submit', function () {
+        amountInput.value = amountInput.value.replace(/,/g, '');
+    });
+</script>
+
+{% endblock %}

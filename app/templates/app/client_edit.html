@@ -1,0 +1,786 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --primary:   #1a4b8c;
+    --primary-d: #123570;
+    --accent:    #e8a020;
+    --accent-d:  #c8880e;
+    --surface:   #ffffff;
+    --bg:        #f0f4fa;
+    --border:    #d0dbe8;
+    --text:      #1e2d42;
+    --muted:     #6b7e96;
+    --error:     #d94040;
+    --ok:        #2a9d5c;
+    --radius:    8px;
+    --shadow:    0 2px 12px rgba(26,75,140,.10);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+
+  .page-wrapper {
+    max-width: 1400px;
+    margin: 30px auto 60px;
+    padding: 0 20px;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .page-header .icon-box {
+    width: 48px; height: 48px;
+    background: var(--primary);
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 20px;
+    flex-shrink: 0;
+  }
+  .page-header h1 {
+    font-size: 22px; font-weight: 700;
+    color: var(--primary);
+    line-height: 1.2;
+  }
+  .page-header p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .card {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    background: linear-gradient(90deg, var(--primary) 0%, #2060b0 100%);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+  }
+  .section-header i { font-size: 15px; opacity: .85; }
+
+  .form-body { padding: 24px 24px 28px; }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px 20px;
+  }
+  .form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .form-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .span-2 { grid-column: span 2; }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label {
+    font-size: 12.5px; font-weight: 600;
+    color: var(--muted); letter-spacing: .3px;
+    text-transform: uppercase;
+  }
+  .form-group label .req { color: var(--error); margin-left: 2px; }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    height: 40px;
+    padding: 0 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: #fafcff;
+    transition: border-color .2s, box-shadow .2s;
+    outline: none;
+  }
+  .form-group input::placeholder { color: #b0bdcc; }
+  .form-group input:focus,
+  .form-group select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26,75,140,.10);
+    background: #fff;
+  }
+
+  /* Read-only / auto-calculated field */
+  .form-group input[readonly] {
+    background: #edf2fb;
+    color: var(--primary);
+    font-weight: 600;
+    cursor: not-allowed;
+    border-style: dashed;
+  }
+  .auto-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-style: italic;
+  }
+
+  .form-group select { appearance: none; cursor: pointer; }
+  .select-wrap { position: relative; }
+  .select-wrap::after {
+    content: '\f078';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted); font-size: 11px;
+    pointer-events: none;
+  }
+  .select-wrap select { width: 100%; padding-right: 30px; }
+
+  .checkno-wrap { position: relative; }
+  .checkno-wrap input { padding-right: 36px; }
+  .checkno-spinner {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+  .checkno-spinner.active { display: block; }
+  @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+  .checkno-feedback { font-size: 12px; margin-top: 3px; display: none; }
+  .checkno-feedback.warning { color: var(--error); }
+  .checkno-feedback.ok      { color: var(--ok); }
+  .checkno-feedback.show    { display: block; }
+
+  .field-error { font-size: 12px; color: var(--error); margin-top: 3px; }
+  .form-group input.is-invalid,
+  .form-group select.is-invalid { border-color: var(--error); }
+
+  .form-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 24px;
+    background: #f5f8ff;
+    border-top: 1px solid var(--border);
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 42px; padding: 0 24px;
+    border-radius: var(--radius);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; border: none;
+    transition: background .2s, transform .1s, box-shadow .2s;
+    text-decoration: none;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-cancel { background: #e8eef6; color: var(--muted); }
+  .btn-cancel:hover { background: #d8e4f0; }
+  .btn-save {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-d) 100%);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(232,160,32,.30);
+  }
+  .btn-save:hover {
+    background: linear-gradient(135deg, var(--accent-d) 0%, #a87010 100%);
+    box-shadow: 0 4px 14px rgba(232,160,32,.40);
+  }
+
+  .breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12.5px; color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .breadcrumb a { color: var(--primary); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb i { font-size: 10px; }
+
+  .alert-error {
+    background: #fff0f0; border: 1px solid #f5c0c0;
+    border-left: 4px solid var(--error);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    color: var(--error);
+    font-size: 13.5px;
+  }
+  .alert-error ul { padding-left: 16px; margin-top: 4px; }
+
+  @media (max-width: 900px) {
+    .form-grid       { grid-template-columns: repeat(2, 1fr); }
+    .form-grid.cols-3{ grid-template-columns: repeat(2, 1fr); }
+    .span-2          { grid-column: span 1; }
+  }
+  @media (max-width: 560px) {
+    .form-grid,
+    .form-grid.cols-3,
+    .form-grid.cols-2 { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="page-wrapper">
+
+  <nav class="breadcrumb">
+    <a href="{% url 'dashboard' %}"><i class="fas fa-home"></i> Home</a>
+    <i class="fas fa-chevron-right"></i>
+    <a href="{% url 'clients' %}">Customers</a>
+    <i class="fas fa-chevron-right"></i>
+    <span>Edit Customer</span>
+  </nav>
+
+  <div class="page-header">
+    <div class="icon-box"><i class="fas fa-user-edit"></i></div>
+    <div>
+      <h1>Edit Customer</h1>
+      <p>Update the customer's details below. Fields marked (<span style="color:var(--error)">*</span>) are required.</p>
+    </div>
+  </div>
+
+  
+
+  <form method="POST" action="{% url 'client_edit' client.pk %}" id="editClientForm" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="client_id" value="{{ client.pk }}">
+
+    <!-- PART A — PERSONAL INFORMATION -->
+    <div class="card">
+      <div class="section-header">
+        <i class="fas fa-user"></i> Part A — Personal Information
+      </div>
+      <div class="form-body">
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label>First Name <span class="req">*</span></label>
+            <input type="text" name="firstname" placeholder="First name"
+                   value="{{ client.firstname|default:'' }}"
+                   class="" required>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Middle Name</label>
+            <input type="text" name="middlename" placeholder="Middle name"
+                   value="{{ client.middlename|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Last Name <span class="req">*</span></label>
+            <input type="text" name="lastname" placeholder="Last name"
+                   value="{{ client.lastname|default:'' }}"
+                   class="" required>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Gender</label>
+            <div class="select-wrap">
+              <select name="gender">
+                <option value="">— Select gender —</option>
+                <option value="male"   {% if client.gender == "male" %}selected{% endif %}>Male</option>
+                <option value="female" {% if client.gender == "female" %}selected{% endif %}>Female</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Mobile No. <span class="req">*</span></label>
+            <input type="text" name="phonenumber" placeholder="0712 345 678"
+                   value="{{ client.phonenumber|default:'' }}"
+                   class="" required>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Date of Birth</label>
+            <input type="date" name="date_of_birth" id="date_of_birth"
+                   value="{{ client.date_of_birth|date:'Y-m-d'|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Age</label>
+            <input type="number" name="age" id="age_field"
+                   placeholder="— auto-calculated —"
+                   value="{{ client.age|default:'' }}"
+                   readonly tabindex="-1">
+            <span class="auto-hint"><i class="fas fa-magic" style="font-size:10px;"></i> Calculated from Date of Birth</span>
+          </div>
+
+          <div class="form-group">
+            <label>Marital Status</label>
+            <div class="select-wrap">
+              <select name="marital_status">
+                <option value="">— Select —</option>
+                <option value="single"   {% if client.marital_status == "single" %}selected{% endif %}>Single</option>
+                <option value="married"  {% if client.marital_status == "married" %}selected{% endif %}>Married</option>
+                <option value="divorced" {% if client.marital_status == "divorced" %}selected{% endif %}>Divorced</option>
+                <option value="widowed"  {% if client.marital_status == "widowed" %}selected{% endif %}>Widowed</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Purpose</label>
+            <div class="select-wrap">
+              <select name="purpose">
+                <option value="">— Select purpose —</option>
+                <option value="loan"    {% if client.purpose == "loan" %}selected{% endif %}>Loan</option>
+                <option value="savings" {% if client.purpose == "savings" %}selected{% endif %}>Savings</option>
+                <option value="other"   {% if client.purpose == "other" %}selected{% endif %}>Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Wategemezi (Dependents)</label>
+            <input type="text" name="wategemezi_wako"
+                   placeholder="e.g. Wife, 2 children"
+                   value="{{ client.wategemezi_wako|default:'' }}">
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- PART B — EMPLOYMENT DETAILS -->
+    <div class="card">
+      <div class="section-header">
+        <i class="fas fa-briefcase"></i> Part B — Employment Details
+      </div>
+      <div class="form-body">
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label>Employer Name <span class="req">*</span></label>
+            <input type="text" name="employername"
+                   placeholder="Employer / Working Station"
+                   value="{{ client.employername|default:'' }}"
+                   class="" required>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Work Station</label>
+            <input type="text" name="region" placeholder="Region / Working Station"
+                   value="{{ client.region|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Idara (Department)</label>
+            <input type="text" name="idara" placeholder="Department"
+                   value="{{ client.idara|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Kaziyako (Job Title)</label>
+            <input type="text" name="kaziyako" placeholder="Job title"
+                   value="{{ client.kaziyako|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Check No. <span class="req">*</span></label>
+            <div class="checkno-wrap">
+              <input type="text" name="checkno" id="add_checkno"
+                     placeholder="Employment / Check No."
+                     value="{{ client.checkno|default:'' }}"
+                     class=""
+                     required autocomplete="off">
+              <span class="checkno-spinner" id="addChecknoSpinner"></span>
+            </div>
+            <div class="checkno-feedback warning" id="addChecknoWarning"></div>
+            <div class="checkno-feedback ok"      id="addChecknoOk">✓ Check number is available.</div>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Employment Card No.</label>
+            <input type="text" name="employmentcardno" placeholder="Card number"
+                   value="{{ client.employmentcardno|default:'' }}">
+          </div>
+
+          <!-- Date Employed — triggers auto-calculation -->
+          <div class="form-group">
+            <label>Date Employed</label>
+            <input type="date" name="tareheya_kuajiriwa" id="date_employed"
+                   value="{{ client.tareheya_kuajiriwa|date:'Y-m-d'|default:'' }}">
+          </div>
+
+          <!-- Years of Service — auto-calculated, read-only -->
+          <div class="form-group">
+            <label>Years of Service</label>
+            <input type="number" name="umri_kazini" id="umri_kazini"
+                   placeholder="— auto-calculated —"
+                   value="{{ client.umri_kazini|default:'' }}"
+                   readonly tabindex="-1">
+            <span class="auto-hint"><i class="fas fa-magic" style="font-size:10px;"></i> Calculated from Date Employed</span>
+          </div>
+
+          <!-- Retirement Date -->
+          <div class="form-group">
+            <label>Retirement Date</label>
+            <input type="date" name="tarehe_ya_kustaafu"
+                   value="{{ client.tarehe_ya_kustaafu|date:'Y-m-d'|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>District</label>
+            <input type="text" name="district" placeholder="District"
+                   value="{{ client.district|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Street</label>
+            <input type="text" name="street" placeholder="Street"
+                   value="{{ client.street|default:'' }}">
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- PART C — RESIDENTIAL ADDRESS -->
+    <div class="card">
+      <div class="section-header">
+        <i class="fas fa-home"></i> Part C — Residential Address
+      </div>
+      <div class="form-body">
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label>Mkoa (Region) <span class="req">*</span></label>
+            <input type="text" name="mkoa" placeholder="Region"
+                   value="{{ client.mkoa|default:'' }}"
+                   class="" required>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Wilaya (District) <span class="req">*</span></label>
+            <input type="text" name="wilaya" placeholder="District"
+                   value="{{ client.wilaya|default:'' }}"
+                   class="" required>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Tarafa (Division)</label>
+            <input type="text" name="tarafa" placeholder="Division"
+                   value="{{ client.tarafa|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Kata (Ward)</label>
+            <input type="text" name="kata" placeholder="Ward"
+                   value="{{ client.kata|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Home Address</label>
+            <input type="text" name="home_address" placeholder="Home address"
+                   value="{{ client.home_address|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Mtaa (Street)</label>
+            <input type="text" name="mtaa" placeholder="Street"
+                   value="{{ client.mtaa|default:'' }}">
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- PART D — BANK DETAILS -->
+    <div class="card">
+      <div class="section-header">
+        <i class="fas fa-university"></i> Part D — Bank Details
+      </div>
+      <div class="form-body">
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label>Bank Name <span class="req">*</span></label>
+            <div class="select-wrap">
+              <select name="bank_name"
+                      class="" required>
+                <option value="">— Select Bank —</option>
+                <option value="CRDB"               {% if client.bank_name == "CRDB" %}selected{% endif %}>CRDB</option>
+                <option value="NMB"                {% if client.bank_name == "NMB" %}selected{% endif %}>NMB</option>
+                <option value="NBC"                {% if client.bank_name == "NBC" %}selected{% endif %}>NBC</option>
+                <option value="Standard Chartered" {% if client.bank_name == "Standard Chartered" %}selected{% endif %}>Standard Chartered</option>
+                <option value="Exim Bank"          {% if client.bank_name == "Exim Bank" %}selected{% endif %}>Exim Bank</option>
+                <option value="DCB"                {% if client.bank_name == "DCB" %}selected{% endif %}>DCB</option>
+                <option value="Amana Bank"         {% if client.bank_name == "Amana Bank" %}selected{% endif %}>Amana Bank</option>
+                <option value="Other"              {% if client.bank_name == "Other" %}selected{% endif %}>Other</option>
+              </select>
+            </div>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Bank Branch</label>
+            <input type="text" name="bank_branch" placeholder="Branch name"
+                   value="{{ client.bank_branch|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Account Number <span class="req">*</span></label>
+            <input type="text" name="bank_account_number"
+                   placeholder="Account number"
+                   value="{{ client.bank_account_number|default:'' }}"
+                   class="" required>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Account Name <span class="req">*</span></label>
+            <input type="text" name="account_name"
+                   placeholder="As on bank account"
+                   value="{{ client.account_name|default:'' }}"
+                   class="" required>
+            
+          </div>
+
+          <div class="form-group">
+            <label>Account Type</label>
+            <div class="select-wrap">
+              <select name="account_type">
+                <option value="savings" {% if client.account_type == "savings" %}selected{% endif %}>Savings</option>
+                <option value="current" {% if client.account_type == "current" %}selected{% endif %}>Current</option>
+                <option value="fixed"   {% if client.account_type == "fixed" %}selected{% endif %}>Fixed Deposit</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+
+    <!-- ══════════════ TAARIFA ZA MDHAMINI ══════════════ -->
+    <div class="card">
+      <div class="section-header">
+        <i class="fas fa-user-shield"></i> Taarifa za Mdhamini (Guarantor)
+      </div>
+      <div class="form-body">
+        <div class="form-grid">
+
+          <div class="form-group span-2">
+            <label>Jina Kamili la Mdhamini</label>
+            <input type="text" name="mdhamini_jina_kamili" placeholder="Jina kamili"
+                   value="{{ client.mdhamini_jina_kamili|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Check Na. (Mdhamini)</label>
+            <input type="text" name="mdhamini_checkno" placeholder="Check number"
+                   value="{{ client.mdhamini_checkno|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Na. Kitambulisho cha Kazi</label>
+            <input type="text" name="mdhamini_kitambulisho_kazi" placeholder="Employment ID"
+                   value="{{ client.mdhamini_kitambulisho_kazi|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Kazi ya Mdhamini</label>
+            <input type="text" name="mdhamini_kazi" placeholder="Cheo / Kazi"
+                   value="{{ client.mdhamini_kazi|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Kituo cha Kazi</label>
+            <input type="text" name="mdhamini_kituo_kazi" placeholder="Mahali pa kazi"
+                   value="{{ client.mdhamini_kituo_kazi|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Na. ya Simu</label>
+            <input type="tel" name="mdhamini_simu" placeholder="0700000000"
+                   value="{{ client.mdhamini_simu|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Kata</label>
+            <input type="text" name="mdhamini_kata" placeholder="Kata"
+                   value="{{ client.mdhamini_kata|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Tarafa</label>
+            <input type="text" name="mdhamini_tarafa" placeholder="Tarafa"
+                   value="{{ client.mdhamini_tarafa|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Wilaya</label>
+            <input type="text" name="mdhamini_wilaya" placeholder="Wilaya"
+                   value="{{ client.mdhamini_wilaya|default:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label>Mkoa</label>
+            <input type="text" name="mdhamini_mkoa" placeholder="Mkoa"
+                   value="{{ client.mdhamini_mkoa|default:'' }}">
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+      <div class="form-footer">
+        <a href="{% url 'clients' %}" class="btn btn-cancel">
+          <i class="fas fa-times"></i> Cancel
+        </a>
+        <button type="submit" class="btn btn-save" id="editSaveBtn">
+          <i class="fas fa-save"></i> Save Changes
+        </button>
+      </div>
+    </div>
+
+  </form>
+</div>
+
+<script>
+/* ── Auto-calculate Age from Date of Birth ── */
+(function () {
+  const dobInput  = document.getElementById('date_of_birth');
+  const ageInput  = document.getElementById('age_field');
+
+  function calcAge() {
+    const val = dobInput.value;
+    if (!val) { ageInput.value = ''; return; }
+    const dob   = new Date(val);
+    const today = new Date();
+    if (dob > today) { ageInput.value = ''; return; }
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+    ageInput.value = age >= 0 ? age : '';
+  }
+
+  if (dobInput) {
+    dobInput.addEventListener('change', calcAge);
+    if (dobInput.value) calcAge();
+  }
+})();
+
+/* ── Auto-calculate Years of Service from Date Employed ── */
+(function () {
+  const dateInput = document.getElementById('date_employed');
+  const yearsInput = document.getElementById('umri_kazini');
+
+  function calcYears() {
+    const val = dateInput.value;
+    if (!val) {
+      yearsInput.value = '';
+      return;
+    }
+    const start = new Date(val);
+    const today = new Date();
+    if (start > today) {
+      yearsInput.value = 0;
+      return;
+    }
+    let years = today.getFullYear() - start.getFullYear();
+    const monthDiff = today.getMonth() - start.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < start.getDate())) {
+      years--;
+    }
+    yearsInput.value = years >= 0 ? years : 0;
+  }
+
+  if (dateInput) {
+    dateInput.addEventListener('change', calcYears);
+    // Run on load in case form was submitted with a value already
+    if (dateInput.value) calcYears();
+  }
+})();
+
+/* ── Check-number live availability ── */
+(function () {
+  const input   = document.getElementById('add_checkno');
+  const spinner = document.getElementById('addChecknoSpinner');
+  const warning = document.getElementById('addChecknoWarning');
+  const ok      = document.getElementById('addChecknoOk');
+  const saveBtn = document.getElementById('editSaveBtn');
+  let   timer;
+  let   isDuplicate = false;
+
+  if (!input) return;
+
+  input.addEventListener('input', function () {
+    clearTimeout(timer);
+    const val = this.value.trim();
+
+    // Reset state on every keystroke
+    spinner.classList.remove('active');
+    warning.classList.remove('show');
+    ok.classList.remove('show');
+    isDuplicate = false;
+    saveBtn.disabled = false;
+
+    if (!val) return;
+
+    spinner.classList.add('active');
+
+    timer = setTimeout(function () {
+      fetch(`{% url 'check_checkno' %}?checkno=${encodeURIComponent(val)}&exclude_id={{ client.pk }}`)
+        .then(r => r.json())
+        .then(data => {
+          spinner.classList.remove('active');
+          if (data.exists) {
+            isDuplicate = true;
+            saveBtn.disabled = true;
+            warning.textContent = `⚠ ${data.client || 'A client'} is already registered at ${data.office || 'Unknown Office'} with this check number.`;
+            warning.classList.add('show');
+          } else {
+            isDuplicate = false;
+            saveBtn.disabled = false;
+            ok.classList.add('show');
+          }
+        })
+        .catch(() => {
+          // Network error — allow submit, server will validate
+          spinner.classList.remove('active');
+          isDuplicate = false;
+          saveBtn.disabled = false;
+        });
+    }, 500);
+  });
+
+  /* Block submit if duplicate (safety net on top of server-side check) */
+  document.getElementById('editClientForm').addEventListener('submit', function (e) {
+    if (isDuplicate) {
+      e.preventDefault();
+      warning.classList.add('show');
+      input.focus();
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    // Not a duplicate — disable button to prevent double-submit
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+  });
+})();
+</script>
+{% endblock %}

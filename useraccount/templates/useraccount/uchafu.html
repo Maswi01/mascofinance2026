@@ -1,0 +1,176 @@
+{% load static %}
+{% load socialaccount %}
+
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <link rel="shortcut icon" type="x-icon" href="{% static 'app/images/logo.png' %}" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TIES CO LTD | Website Management</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://kit.fontawesome.com/90ee3bc580.js" crossorigin="anonymous"></script>
+  <!-- sweet alert -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- SweetAlert2 CDN for popup-->
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #9f893c, #2c2c2c);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .login-card {
+      border-radius: 1rem;
+      box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .login-header {
+      background: #9f893c;
+      color: white;
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+    .login-header img {
+      height: 70px;
+      margin-bottom: 0.5rem;
+    }
+    .form-control {
+      border-radius: 0.75rem;
+    }
+    .btn-gold {
+      background: #9f893c;
+      color: white;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+    .btn-gold:hover {
+      background: #856f2c;
+      color: #fff;
+    }
+    .links a {
+      color: #9f893c;
+      text-decoration: none;
+    }
+    .links a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Django Messages + SweetAlert -->
+{% if messages %}
+    <script>
+        {% for message in messages %}
+            Swal.fire({
+                title: "{% if message.tags == 'success' %}Success!{% elif message.tags == 'error' %}Error!{% elif message.tags == 'warning' %}Warning!{% else %}Notice{% endif %}",
+                text: "{{ message|escapejs }}",
+                icon: "{{ message.tags }}",
+                confirmButtonText: "OK"
+            });
+        {% endfor %}
+    </script>
+{% endif %}
+<!-- end -->
+
+  <section class="vh-100 d-flex align-items-center justify-content-center">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+          <div class="card login-card">
+            
+            <!-- Header -->
+            <div class="login-header">
+              <img src="{% static 'app/images/logo_final.png' %}" alt="TIES Logo">
+              <h3 class="fw-bold mb-0">TIES CO LTD</h3>
+              <p class="mb-0">Website Management</p>
+            </div>
+
+            <!-- Body -->
+            <div class="card-body p-4">
+
+              
+              
+              <!-- Signin Form -->
+              <form method="POST" action="">
+                {% csrf_token %}
+
+                <!-- Email -->
+                <div class="mb-3">
+                  <label class="form-label">Email address</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="fa fa-envelope"></i></span>
+                    <input type="email" class="form-control" name="username" placeholder="Enter your email" required>
+                  </div>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-3">
+                  <label class="form-label">Password</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="fa fa-lock"></i></span>
+                    <input type="password" class="form-control" name="password1" placeholder="Enter your password" required>
+                  </div>
+                </div>
+
+                <!-- Submit -->
+                <div class="d-grid mb-3">
+                  <button type="submit" class="btn btn-gold btn-lg">Sign In</button>
+                </div>
+
+              </form>
+
+              <!-- OR Divider -->
+              <div class="text-center my-3 text-muted">
+                <span>OR</span>
+              </div>
+
+              <!-- Social login icons row -->
+              <div class="d-flex justify-content-center gap-3 my-3">
+                  <!-- Google -->
+                  <a href="{% provider_login_url 'google' %}" class="btn btn-light border rounded-circle p-3 d-flex align-items-center justify-content-center">
+                      <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="height:20px;">
+                  </a>
+
+                  <!-- GitHub -->
+                  <a href="{% provider_login_url 'github' %}" class="btn btn-dark rounded-circle p-3 d-flex align-items-center justify-content-center">
+                      <i class="fab fa-github fa-lg text-white"></i>
+                  </a>
+
+                  <!-- Twitter (X) -->
+                  <a href="" class="btn btn-dark rounded-circle p-3 d-flex align-items-center justify-content-center">
+                      <i class="fab fa-x-twitter fa-lg text-white"></i>
+                  </a>
+
+                  <!-- Facebook -->
+                  <a href="" class="btn btn-primary rounded-circle p-3 d-flex align-items-center justify-content-center">
+                      <i class="fab fa-facebook-f fa-lg text-white"></i>
+                  </a>
+
+                  <!-- LinkedIn -->
+                  <a href="" class="btn btn-info rounded-circle p-3 d-flex align-items-center justify-content-center">
+                      <i class="fab fa-linkedin-in fa-lg text-white"></i>
+                  </a>
+              </div>
+
+              <!-- Links -->
+                <div class="text-center links">
+                  <p class="mb-1">Don’t have an account? <a href="{% url 'signup' %}">Register</a></p>
+                  <p><a href="{% url 'password_reset' %}">Forgot Password?</a></p>
+                </div>
+
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

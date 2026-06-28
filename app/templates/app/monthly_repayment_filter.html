@@ -1,0 +1,337 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .lp-wrapper {
+        max-width: 900px;
+        margin: 30px auto 60px;
+        padding: 0 20px;
+        font-family: Arial, sans-serif;
+        margin-top: 70px;
+    }
+    .lp-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 28px 50px 40px;
+    }
+    .part-title {
+        font-size: 16px; font-weight: 700; color: #1a1a1a;
+        letter-spacing: 0.5px; padding-bottom: 10px;
+        border-bottom: 1.5px solid #999; margin-bottom: 32px;
+        font-family: Arial, sans-serif; text-transform: uppercase;
+    }
+    .filter-row {
+        display: flex; align-items: center; gap: 60px;
+        flex-wrap: wrap; margin-bottom: 24px;
+    }
+    .filter-field { display: flex; align-items: center; gap: 14px; }
+    .filter-field label {
+        font-size: 14px; color: #333;
+        font-family: Arial, sans-serif; white-space: nowrap;
+    }
+
+    /* Custom month input — shows MM-YYYY */
+    .month-input-wrap { position: relative; display: inline-block; }
+    .month-display {
+        padding: 9px 12px; border: 2px solid #9b59b6; border-radius: 2px;
+        font-size: 13.5px; font-family: Arial, sans-serif; color: #333;
+        background: #fff; cursor: pointer; min-width: 130px;
+        user-select: none; outline: none;
+    }
+    .month-display:focus { border-color: #7d3c98; box-shadow: 0 0 0 2px rgba(155,89,182,0.15); }
+
+    /* Calendar popup */
+    .month-picker-popup {
+        display: none; position: absolute; top: 44px; left: 0; z-index: 9999;
+        background: #fff; border: 1px solid #ccc;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15); width: 260px;
+        font-family: Arial, sans-serif; font-size: 13px;
+    }
+    .month-picker-popup.open { display: block; }
+
+    .mpp-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 10px; background: #f3f3f3; border-bottom: 1px solid #e0e0e0;
+    }
+    .mpp-header select {
+        border: 1px solid #ccc; padding: 3px 6px; font-size: 12px;
+        border-radius: 2px; background: #fff; cursor: pointer;
+    }
+
+    .mpp-grid {
+        display: grid; grid-template-columns: repeat(7, 1fr);
+        padding: 6px 4px;
+    }
+    .mpp-day-label {
+        text-align: center; font-size: 11px; font-weight: 700;
+        color: #666; padding: 4px 0;
+    }
+    .mpp-day {
+        text-align: center; padding: 6px 2px; font-size: 12px;
+        cursor: pointer; border-radius: 2px; color: #333;
+    }
+    .mpp-day:hover  { background: #e8d5f5; }
+    .mpp-day.today  { background: #f0e6ff; font-weight: 700; color: #7d3c98; }
+    .mpp-day.empty  { cursor: default; }
+    .mpp-day.selected { background: #9b59b6 !important; color: #fff !important; font-weight: 700; border-radius: 2px; }
+
+    .mpp-footer {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 6px 10px; border-top: 1px solid #e0e0e0; background: #f9f9f9;
+    }
+    .mpp-btn {
+        padding: 4px 14px; font-size: 12px; border-radius: 2px; cursor: pointer;
+        border: 1px solid #ccc; background: #fff; color: #333;
+    }
+    .mpp-btn-done {
+        background: #9b59b6; color: #fff; border-color: #7d3c98; font-weight: 700;
+    }
+    .mpp-btn-done:hover { background: #7d3c98; }
+    .mpp-btn:hover { background: #f0f0f0; }
+
+    /* Hidden inputs holding actual values */
+    input[type="hidden"] {}
+
+    .filter-divider { border: none; border-top: 1px solid #e0e0e0; margin: 4px 0 24px; }
+    .filter-actions { text-align: center; }
+    .continue-btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 10px 28px; background: #9b59b6; color: #fff; border: none;
+        border-radius: 3px; font-size: 14px; font-family: Arial, sans-serif;
+        font-weight: 700; cursor: pointer; letter-spacing: 0.3px;
+        transition: background 0.15s;
+    }
+    .continue-btn:hover { background: #7d3c98; }
+    @media (max-width: 700px) {
+        .filter-row { flex-direction: column; gap: 20px; }
+        .lp-card { padding: 20px; }
+    }
+</style>
+
+<div class="lp-wrapper">
+    <div class="lp-card">
+        <div class="part-title">Monthly-Wise Repayment</div>
+
+        <form method="POST" action="{% url 'monthly_repayment_report' %}" id="mwrForm">
+            {% csrf_token %}
+            <!-- Hidden inputs that hold MM-YYYY values submitted to view -->
+            <input type="hidden" name="month_from" id="monthFromVal">
+            <input type="hidden" name="month_to"   id="monthToVal">
+
+            <div class="filter-row">
+
+                <!-- Month From -->
+                <div class="filter-field">
+                    <label>Month From</label>
+                    <div class="month-input-wrap">
+                        <div class="month-display" id="monthFromDisplay" tabindex="0"
+                             onclick="togglePicker('from')">
+                            <span id="monthFromText">MM-YYYY</span>
+                        </div>
+                        <div class="month-picker-popup" id="pickerFrom">
+                            <div class="mpp-header">
+                                <select id="fromMonthSel"></select>
+                                <select id="fromYearSel"></select>
+                            </div>
+                            <div class="mpp-grid" id="fromGrid"></div>
+                            <div class="mpp-footer">
+                                <button type="button" class="mpp-btn" onclick="setToday('from')">Today</button>
+                                <button type="button" class="mpp-btn mpp-btn-done" onclick="donePicker('from')">Done</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Month To -->
+                <div class="filter-field">
+                    <label>Month To</label>
+                    <div class="month-input-wrap">
+                        <div class="month-display" id="monthToDisplay" tabindex="0"
+                             onclick="togglePicker('to')">
+                            <span id="monthToText">MM-YYYY</span>
+                        </div>
+                        <div class="month-picker-popup" id="pickerTo">
+                            <div class="mpp-header">
+                                <select id="toMonthSel"></select>
+                                <select id="toYearSel"></select>
+                            </div>
+                            <div class="mpp-grid" id="toGrid"></div>
+                            <div class="mpp-footer">
+                                <button type="button" class="mpp-btn" onclick="setToday('to')">Today</button>
+                                <button type="button" class="mpp-btn mpp-btn-done" onclick="donePicker('to')">Done</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <hr class="filter-divider">
+            <div class="filter-actions">
+                <button type="submit" class="continue-btn" onclick="return validateForm()">
+                    ✔ CONTINUE&gt;&gt;
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/* State: selected year/month for each picker */
+const state = {
+    from: { year: null, month: null },  /* month: 1-12 */
+    to:   { year: null, month: null },
+};
+
+/* Open/close tracking */
+let openPicker = null;
+
+function togglePicker(which) {
+    if (openPicker && openPicker !== which) closePicker(openPicker);
+    const pop = document.getElementById('picker' + (which === 'from' ? 'From' : 'To'));
+    if (pop.classList.contains('open')) {
+        pop.classList.remove('open');
+        openPicker = null;
+    } else {
+        initPicker(which);
+        pop.classList.add('open');
+        openPicker = which;
+    }
+}
+
+function closePicker(which) {
+    const id = which === 'from' ? 'pickerFrom' : 'pickerTo';
+    document.getElementById(id).classList.remove('open');
+    if (openPicker === which) openPicker = null;
+}
+
+/* Close on outside click */
+document.addEventListener('click', function(e) {
+    ['from','to'].forEach(w => {
+        const pop  = document.getElementById(w === 'from' ? 'pickerFrom' : 'pickerTo');
+        const disp = document.getElementById(w === 'from' ? 'monthFromDisplay' : 'monthToDisplay');
+        if (!pop.contains(e.target) && !disp.contains(e.target)) {
+            pop.classList.remove('open');
+        }
+    });
+});
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function initPicker(which) {
+    const prefix  = which === 'from' ? 'from' : 'to';
+    const mSel    = document.getElementById(prefix + 'MonthSel');
+    const ySel    = document.getElementById(prefix + 'YearSel');
+    const today   = new Date();
+    const curYear = state[which].year  || today.getFullYear();
+    const curMon  = state[which].month || (today.getMonth() + 1);
+
+    /* Populate month select */
+    mSel.innerHTML = MONTHS.map((m, i) =>
+        `<option value="${i+1}" ${i+1 === curMon ? 'selected' : ''}>${m}</option>`
+    ).join('');
+
+    /* Populate year select (5 years back, 2 ahead) */
+    ySel.innerHTML = '';
+    for (let y = today.getFullYear() - 5; y <= today.getFullYear() + 2; y++) {
+        ySel.innerHTML += `<option value="${y}" ${y === curYear ? 'selected' : ''}>${y}</option>`;
+    }
+
+    mSel.onchange = () => renderGrid(which);
+    ySel.onchange = () => renderGrid(which);
+
+    renderGrid(which);
+}
+
+function renderGrid(which) {
+    const prefix = which === 'from' ? 'from' : 'to';
+    const mSel   = document.getElementById(prefix + 'MonthSel');
+    const ySel   = document.getElementById(prefix + 'YearSel');
+    const grid   = document.getElementById(prefix + 'Grid');
+    const month  = parseInt(mSel.value);   /* 1-12 */
+    const year   = parseInt(ySel.value);
+    const today  = new Date();
+
+    const firstDay  = new Date(year, month - 1, 1).getDay();  /* 0=Sun */
+    const daysInMon = new Date(year, month, 0).getDate();
+
+    const selM = state[which].month;
+    const selY = state[which].year;
+
+    let html = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(
+        d => `<div class="mpp-day-label">${d}</div>`
+    ).join('');
+
+    /* blank cells before first day */
+    for (let i = 0; i < firstDay; i++) html += `<div class="mpp-day empty"></div>`;
+
+    for (let d = 1; d <= daysInMon; d++) {
+        const isToday   = (d === today.getDate() && month === today.getMonth()+1 && year === today.getFullYear());
+        const isSelected= (selM === month && selY === year && /* day match not needed for month picker; highlight whole month if same m/y */ false);
+        /* For month picker highlight: if this month/year is the selected one */
+        const isSelMon  = (selM === month && selY === year);
+        html += `<div class="mpp-day${isToday ? ' today' : ''}${isSelMon ? ' selected' : ''}"
+                      onclick="selectDay('${which}',${year},${month},${d})">${d}</div>`;
+    }
+
+    grid.innerHTML = html;
+}
+
+function selectDay(which, year, month, day) {
+    state[which] = { year, month, day };
+    updateDisplay(which);
+    /* Don't close — user presses Done */
+    renderGrid(which);  /* re-render to show selection highlight */
+}
+
+function setToday(which) {
+    const t = new Date();
+    selectDay(which, t.getFullYear(), t.getMonth()+1, t.getDate());
+    /* sync selects */
+    const prefix = which === 'from' ? 'from' : 'to';
+    document.getElementById(prefix + 'MonthSel').value = t.getMonth()+1;
+    document.getElementById(prefix + 'YearSel').value  = t.getFullYear();
+    renderGrid(which);
+}
+
+function updateDisplay(which) {
+    const s    = state[which];
+    const text = document.getElementById(which === 'from' ? 'monthFromText' : 'monthToText');
+    const hiddn= document.getElementById(which === 'from' ? 'monthFromVal'  : 'monthToVal');
+    if (s.month && s.year) {
+        const label = `${pad2(s.month)}-${s.year}`;
+        text.textContent = label;
+        hiddn.value      = label;   /* MM-YYYY sent to view */
+    }
+}
+
+function donePicker(which) {
+    closePicker(which);
+}
+
+function validateForm() {
+    const f = document.getElementById('monthFromVal').value;
+    const t = document.getElementById('monthToVal').value;
+    if (!f || !t) { alert('Please select both Month From and Month To.'); return false; }
+    /* Validate from <= to */
+    const [fm, fy] = f.split('-').map(Number);
+    const [tm, ty] = t.split('-').map(Number);
+    if (fy > ty || (fy === ty && fm > tm)) {
+        alert('"Month From" cannot be after "Month To".'); return false;
+    }
+    return true;
+}
+
+/* Initialise defaults: previous month → current month */
+(function() {
+    const now  = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    selectDay('from', prev.getFullYear(), prev.getMonth()+1, 1);
+    selectDay('to',   now.getFullYear(),  now.getMonth()+1,  1);
+})();
+</script>
+{% endblock %}

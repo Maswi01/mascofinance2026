@@ -1,0 +1,368 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* White form card */
+    .form-card {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 30px 36px 36px;
+        width: 100%;
+        max-width: 900px;
+    }
+
+    /* Title - gold text with underline, matching screenshot */
+    .form-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #b8860b;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding-bottom: 12px;
+        border-bottom: 1.5px solid #e0e0e0;
+        margin-bottom: 32px;
+    }
+
+    /* Form row: label + input aligned */
+    .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .form-row label {
+        width: 210px;
+        min-width: 210px;
+        font-size: 13.5px;
+        color: #555;
+        font-weight: 400;
+        text-align: right;
+        padding-right: 24px;
+    }
+
+    .form-row .input-wrap {
+        flex: 1;
+        max-width: 340px;
+    }
+
+    /* Divider between sections */
+    .form-divider {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 24px 0;
+    }
+
+    /* Text inputs (read-only auto-filled) */
+    .form-control {
+        width: 100%;
+        padding: 8px 13px;
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .form-control:read-only {
+        background: #f4f6f8;
+        color: #555;
+        cursor: default;
+    }
+
+    .form-control:focus:not(:read-only) {
+        border-color: #1a73c7;
+        box-shadow: 0 0 0 3px rgba(26,115,199,0.1);
+    }
+
+    /* Select with arrow */
+    .select-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 340px;
+    }
+
+    .select-wrap select {
+        width: 100%;
+        padding: 8px 36px 8px 13px;
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        transition: border-color 0.2s;
+    }
+
+    .select-wrap select:focus { border-color: #1a73c7; }
+
+    .select-wrap::after {
+        content: '▼';
+        position: absolute;
+        right: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        color: #888;
+        pointer-events: none;
+    }
+
+    /* Submit row */
+    .submit-row {
+        display: flex;
+        justify-content: center;
+        margin-top: 28px;
+        padding-top: 18px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .btn-submit {
+        background: #2ecc9a;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 44px;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        transition: background 0.2s, transform 0.15s;
+        box-shadow: 0 2px 8px rgba(46,204,154,0.3);
+    }
+
+    .btn-submit:hover { background: #27ae88; transform: translateY(-1px); }
+    .btn-submit:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+
+    /* Toast */
+    .toast {
+        position: fixed;
+        top: 80px;
+        right: 24px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Poppins', sans-serif;
+        color: #fff;
+        z-index: 9999;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+        pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { background: #2ecc9a; }
+    .toast.error { background: #e53935; }
+
+    /* Django messages */
+    .messages-wrap {
+        width: 100%;
+        max-width: 900px;
+        margin-bottom: 16px;
+    }
+
+    .alert {
+        padding: 11px 16px;
+        border-radius: 5px;
+        font-size: 13px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .alert-success { background: #e8f5e9; color: #388e3c; border: 1px solid #c8e6c9; }
+    .alert-error   { background: #fce4e4; color: #c62828; border: 1px solid #ffcdd2; }
+    .alert-warning { background: #fff8e1; color: #f57f17; border: 1px solid #ffe082; }
+
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 16px; margin-top: 60px; }
+        .form-card { padding: 20px 16px; }
+        .form-row { flex-direction: column; align-items: flex-start; }
+        .form-row label { width: 100%; text-align: left; padding-right: 0; margin-bottom: 5px; }
+        .form-row .input-wrap,
+        .select-wrap { max-width: 100%; width: 100%; }
+    }
+</style>
+
+<div class="toast" id="toast"></div>
+
+<div class="page-wrapper">
+
+    {% if messages %}
+    <div class="messages-wrap">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="form-card">
+        <div class="form-title">Transfer Staff</div>
+
+        <form id="transferForm" method="post" action="{% url 'process_transfer_staff' %}">
+            {% csrf_token %}
+
+            <!-- Staff Name -->
+            <div class="form-row">
+                <label for="staff_id">Staff Name</label>
+                <div class="select-wrap">
+                    <select name="staff_id" id="staff_id" required onchange="onStaffChange(this)">
+                        <option value="">— Select Staff —</option>
+                        {% for staff in staff_members %}
+                        <option
+                            value="{{ staff.id }}"
+                            data-name="{{ staff.get_full_name|upper|default:staff.username|upper }}"
+                            data-role="{{ staff.role|default:'' }}"
+                            data-office="{{ staff.office_allocation.name|default:'Not Allocated' }}"
+                            data-office-id="{{ staff.office_allocation.id|default:'' }}"
+                        >
+                            {{ staff.get_full_name|upper|default:staff.username|upper }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Current Designation (auto-filled) -->
+            <div class="form-row">
+                <label>Current Designation</label>
+                <div class="input-wrap">
+                    <input type="text" id="currentDesignation" class="form-control" readonly placeholder="Auto-filled">
+                </div>
+            </div>
+
+            <!-- Current Branch (auto-filled) -->
+            <div class="form-row">
+                <label>Current Branch</label>
+                <div class="input-wrap">
+                    <input type="text" id="currentBranch" class="form-control" readonly placeholder="Auto-filled">
+                </div>
+            </div>
+
+            <hr class="form-divider">
+
+            <!-- New Designation / Office -->
+            <div class="form-row">
+                <label for="new_office">New Designation</label>
+                <div class="select-wrap">
+                    <select name="new_office" id="new_office" required>
+                        <option value="">Select New designation</option>
+                        {% for office in offices %}
+                        <option value="{{ office.id }}">{{ office.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Transfer Reason (optional, hidden by default – uncomment if needed) -->
+            <!--
+            <div class="form-row">
+                <label for="transfer_reason">Reason (Optional)</label>
+                <div class="input-wrap">
+                    <textarea name="transfer_reason" id="transfer_reason" class="form-control" rows="2" style="resize:vertical;" placeholder="e.g. Promotion, Reorganisation..."></textarea>
+                </div>
+            </div>
+            -->
+
+            <!-- Hidden fields -->
+            <input type="hidden" name="staff_id_confirm" id="staff_id_confirm">
+
+            <div class="submit-row">
+                <button type="submit" class="btn-submit" id="submitBtn" onclick="return validateForm()">
+                    SUBMIT
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ==================== Staff Data ====================
+    const staffData = [
+        {% for staff in staff_members %}
+        {
+            id: {{ staff.id }},
+            name: "{{ staff.get_full_name|upper|default:staff.username|upper|escapejs }}",
+            role: "{{ staff.role|default:''|escapejs }}",
+            office: "{{ staff.office_allocation.name|default:'Not Allocated'|escapejs }}",
+            officeId: "{{ staff.office_allocation.id|default:''|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // ==================== On Staff Select ====================
+    function onStaffChange(select) {
+        const option = select.options[select.selectedIndex];
+        if (!option || !option.value) {
+            document.getElementById('currentDesignation').value = '';
+            document.getElementById('currentBranch').value = '';
+            document.getElementById('staff_id_confirm').value = '';
+            return;
+        }
+
+        const role   = option.dataset.role   || '—';
+        const office = option.dataset.office  || 'Not Allocated';
+        const currentOfficeId = option.dataset.officeId || '';
+
+        document.getElementById('currentDesignation').value = role;
+        document.getElementById('currentBranch').value      = office;
+        document.getElementById('staff_id_confirm').value   = option.value;
+
+        // Exclude current office from new office options
+        const newOfficeSelect = document.getElementById('new_office');
+        Array.from(newOfficeSelect.options).forEach(opt => {
+            if (opt.value && opt.value === currentOfficeId) {
+                opt.disabled = true;
+                opt.textContent = opt.textContent.replace(' (current)', '') + ' (current)';
+            } else {
+                opt.disabled = false;
+                opt.textContent = opt.textContent.replace(' (current)', '');
+            }
+        });
+
+        // Reset new office selection
+        newOfficeSelect.value = '';
+    }
+
+    
+
+    // ==================== Toast ====================
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+        setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+</script>
+{% endblock %}

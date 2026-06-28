@@ -1,0 +1,242 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+  :root {
+    --primary:   #1a4b8c;
+    --primary-d: #123570;
+    --accent:    #e8a020;
+    --surface:   #ffffff;
+    --bg:        #f0f4fa;
+    --border:    #d0dbe8;
+    --text:      #1e2d42;
+    --muted:     #6b7e96;
+    --error:     #d94040;
+    --ok:        #2a9d5c;
+    --radius:    8px;
+    --shadow:    0 2px 12px rgba(26,75,140,.10);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+  .page-wrapper { max-width: 860px; margin: 30px auto 60px; padding: 0 20px; }
+
+  .page-header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+  .page-header .icon-box {
+    width: 48px; height: 48px; background: var(--primary);
+    border-radius: var(--radius); display: flex; align-items: center;
+    justify-content: center; color: #fff; font-size: 20px;
+  }
+  .page-header h1 { font-size: 22px; font-weight: 700; color: var(--primary); }
+  .page-header p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .card {
+    background: var(--surface); border-radius: 12px;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+    overflow: hidden; margin-bottom: 20px;
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 24px;
+    background: linear-gradient(90deg, var(--primary) 0%, #2060b0 100%);
+    color: #fff; font-size: 13.5px; font-weight: 600;
+    letter-spacing: .4px; text-transform: uppercase;
+  }
+  .form-body { padding: 28px 24px; }
+
+  .drop-zone {
+    border: 2.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--primary);
+    background: #f0f5ff;
+  }
+  .drop-zone i { font-size: 40px; color: var(--primary); margin-bottom: 12px; display: block; }
+  .drop-zone .dz-text { font-size: 15px; font-weight: 600; color: var(--text); }
+  .drop-zone .dz-sub { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .drop-zone .file-chosen { margin-top: 12px; font-size: 13px; color: var(--ok); font-weight: 600; display: none; }
+  #file-input { display: none; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 42px; padding: 0 24px;
+    border-radius: var(--radius); font-family: 'Outfit', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+    text-decoration: none; transition: background .2s;
+  }
+  .btn-primary { background: linear-gradient(135deg,var(--primary) 0%,var(--primary-d) 100%); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-accent { background: linear-gradient(135deg,var(--accent) 0%,#c8880e 100%); color: #fff; }
+  .btn-accent:hover { filter: brightness(1.1); }
+  .btn-light { background: #e8eef6; color: var(--muted); }
+  .btn-light:hover { background: #d8e4f0; }
+
+  .btn-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
+
+  .info-box {
+    background: #eef4ff; border: 1px solid #c5d8f8;
+    border-radius: 8px; padding: 16px 20px; margin-bottom: 20px;
+    font-size: 13px; color: #1a4b8c; line-height: 1.8;
+  }
+  .info-box strong { display: block; margin-bottom: 6px; font-size: 14px; }
+
+  .result-box { padding: 20px 24px; }
+  .stat-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat-card {
+    flex: 1; min-width: 120px; background: #f5f8ff;
+    border-radius: 8px; padding: 16px; text-align: center;
+    border: 1px solid var(--border);
+  }
+  .stat-card .num { font-size: 28px; font-weight: 700; }
+  .stat-card .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .stat-card.ok .num { color: var(--ok); }
+  .stat-card.warn .num { color: var(--accent); }
+  .stat-card.err .num { color: var(--error); }
+
+  .error-list { max-height: 260px; overflow-y: auto; }
+  .error-item {
+    padding: 8px 12px; border-radius: 6px; background: #fff4f4;
+    border: 1px solid #fdd; font-size: 12.5px; color: var(--error);
+    margin-bottom: 6px;
+  }
+
+  .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; font-weight: 500; }
+  .msg.success { background: #edfaf3; color: var(--ok); border: 1px solid #b6e8d0; }
+  .msg.warning { background: #fffbea; color: #a06c00; border: 1px solid #ffe08a; }
+</style>
+
+<div class="page-wrapper">
+  <div class="page-header">
+    <div class="icon-box"><i class="fas fa-file-excel"></i></div>
+    <div>
+      <h1>Ingiza Wateja kwa Excel</h1>
+      <p>Pakia faili la Excel ili wateja waingie moja kwa moja kwenye tawi lako la sasa</p>
+    </div>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="msg {% if message.tags == 'error' %}err{% elif message.tags == 'warning' %}warning{% else %}success{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if done %}
+    <!-- ── Results Panel ── -->
+    <div class="card">
+      <div class="section-header"><i class="fas fa-chart-bar"></i> Matokeo ya Kuingiza</div>
+      <div class="result-box">
+        <div class="stat-row">
+          <div class="stat-card ok">
+            <div class="num">{{ created }}</div>
+            <div class="lbl">Wameingizwa</div>
+          </div>
+          <div class="stat-card warn">
+            <div class="num">{{ skipped }}</div>
+            <div class="lbl">Wamepigwa kando</div>
+          </div>
+          <div class="stat-card err">
+            <div class="num">{{ errors|length }}</div>
+            <div class="lbl">Makosa</div>
+          </div>
+        </div>
+
+        {% if errors %}
+          <p style="font-weight:600; margin-bottom:10px; color:var(--error);">Makosa yaliyopatikana:</p>
+          <div class="error-list">
+            {% for e in errors %}
+              <div class="error-item"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="btn-row">
+          <a href="{% url 'clients' %}" class="btn btn-primary"><i class="fas fa-users"></i> Angalia Wateja</a>
+          <a href="{% url 'client_import_excel' %}" class="btn btn-light"><i class="fas fa-upload"></i> Pakia Tena</a>
+        </div>
+      </div>
+    </div>
+
+  {% else %}
+    <!-- ── Upload Form ── -->
+    <div class="info-box">
+      <strong><i class="fas fa-info-circle"></i> Maelekezo ya Kutumia:</strong>
+      1. Pakua faili la mfano (sample) kwa kubonyeza kitufe hapa chini.<br>
+      2. Jaza taarifa za wateja kwenye faili hilo – usibadilishe majina ya safu mlalo (headers).<br>
+      3. Tarehe ziwe katika muundo: <strong>YYYY-MM-DD</strong> (mfano: 1985-06-15).<br>
+      4. Wateja wenye checkno inayorudiwa watapigwa kando bila kufutwa wale waliopo.<br>
+      5. Wateja wote wataingizwa kwenye tawi lako la sasa: <strong>{{ selected_office.name|default:"(Hakuna tawi lililochaguliwa)" }}</strong>
+    </div>
+
+    <div class="card">
+      <div class="section-header"><i class="fas fa-upload"></i> Pakia Faili la Excel</div>
+      <div class="form-body">
+        <form method="post" enctype="multipart/form-data" id="importForm">
+          {% csrf_token %}
+
+          <div class="drop-zone" id="dropZone" onclick="document.getElementById('file-input').click()">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <div class="dz-text">Bonyeza hapa au buruta faili lako la Excel</div>
+            <div class="dz-sub">Inakubali .xlsx na .xls – ukubwa wa juu: 10 MB</div>
+            <div class="file-chosen" id="fileChosen"><i class="fas fa-check-circle"></i> <span id="fileName"></span></div>
+          </div>
+          <input type="file" name="excel_file" id="file-input" accept=".xlsx,.xls">
+
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+              <i class="fas fa-file-import"></i> Ingiza Wateja
+            </button>
+            <a href="{% url 'client_excel_sample' %}" class="btn btn-accent">
+              <i class="fas fa-download"></i> Pakua Sample Excel
+            </a>
+            <a href="{% url 'clients' %}" class="btn btn-light">
+              <i class="fas fa-arrow-left"></i> Rudi
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+const dropZone   = document.getElementById('dropZone');
+const fileInput  = document.getElementById('file-input');
+const fileChosen = document.getElementById('fileChosen');
+const fileName   = document.getElementById('fileName');
+const submitBtn  = document.getElementById('submitBtn');
+
+function handleFile(file) {
+  if (!file) return;
+  fileName.textContent = file.name;
+  fileChosen.style.display = 'block';
+  if (submitBtn) submitBtn.disabled = false;
+}
+
+if (fileInput) {
+  fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+}
+
+if (dropZone) {
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    handleFile(file);
+  });
+}
+</script>
+{% endblock %}
