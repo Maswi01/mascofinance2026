@@ -12667,14 +12667,19 @@ def balance_sheet_report(request):
 
 def trial_balance_report(request):
     """
-    Trial Balance with proper opening balances and balanced totals.
+    Trial Balance with correct opening balances, period movements,
+    and a properly balanced closing.
 
-    KEY FIX: Each account's opening balance is computed properly:
-        Cash, Bank      — running balance before start_date
-        Receivables     — outstanding loan balance before start_date
-        Equity          — Nyongeza accumulated before start_date
-        Retained Earn.  — balancing figure (Assets - Equity items)
-        Expenses        — always 0 opening (income statement accounts close yearly)
+    Accounts included:
+        1010 Cash                — Asset (debit normal)
+        1050 Bank                — Asset (debit normal)
+        1100 Receivables         — Asset (debit normal)
+        3000 Opening Balance Eq. — Equity (credit normal, from Nyongeza)
+        3900 Retained Earnings   — Equity (credit normal, balancing figure
+                                    that excludes current-period expenses
+                                    so those can appear as separate lines)
+        5000 Expenses            — Expense (debit normal, opens at 0 each period)
+        5100 Bank Charges        — Expense (debit normal, opens at 0 each period)
     """
     from django.utils import timezone
 
@@ -12752,14 +12757,12 @@ def trial_balance_report(request):
 
     accounts = []
 
-    # ── Period Q ──────────────────────────────────────────────────────
     period_q = Q(created_at__gte=start_dt, created_at__lte=end_dt)
     before_q = Q(created_at__lt=before_dt)
 
     # ╔═══════════════════════════════════════════════════════════════╗
-    # ║ 1. CASH (1010) — Asset (debit balance normal)                ║
+    # ║ 1. CASH (1010) — Asset                                       ║
     # ╚═══════════════════════════════════════════════════════════════╝
-    # OPENING
     open_cash_in = (
         (rep_qs(before_q).filter(transaction_method__iexact='cash').aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')) +
         (nyo_qs(before_q).filter(deposit_method__iexact='cash').aggregate(t=Sum('amount'))['t'] or Decimal('0')) +
@@ -12773,7 +12776,6 @@ def trial_balance_report(request):
     )
     opening_cash = open_cash_in - open_cash_out
 
-    # PERIOD
     cash_debit = (
         (rep_qs(period_q).filter(transaction_method__iexact='cash').aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')) +
         (nyo_qs(period_q).filter(deposit_method__iexact='cash').aggregate(t=Sum('amount'))['t'] or Decimal('0')) +
@@ -12839,17 +12841,16 @@ def trial_balance_report(request):
     # ╔═══════════════════════════════════════════════════════════════╗
     # ║ 3. RECEIVABLES (1100) — Asset                                ║
     # ╚═══════════════════════════════════════════════════════════════╝
-    # Opening = outstanding balance from loans issued before start_date
     open_recv_qs = LoanApplication.objects.filter(created_at__lt=before_dt)
     if filter_office:
         open_recv_qs = open_recv_qs.filter(office__iexact=filter_office.name)
 
     open_loans_total = open_recv_qs.aggregate(t=Sum('total_repayment_amount'))['t'] or Decimal('0')
-    open_rep_total = rep_qs(before_q).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
-    opening_recv = open_loans_total - open_rep_total
+    open_rep_total   = rep_qs(before_q).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
+    opening_recv     = open_loans_total - open_rep_total
 
-    recv_debit = loan_qs(period_q).aggregate(t=Sum('total_repayment_amount'))['t'] or Decimal('0')
-    recv_credit = rep_qs(period_q).aggregate(t=Sum('repayment_amount'))['t'] or Decimal('0')
+    recv_debit  = loan_qs(period_q).aggregate(t=Sum('total_repayment_amount'))['t'] or Decimal('0')
+    recv_credit = rep_qs(period_q).aggregate(t=Sum('repayment_amount'))['t']         or Decimal('0')
     closing_recv = opening_recv + recv_debit - recv_credit
 
     accounts.append({
@@ -12861,11 +12862,11 @@ def trial_balance_report(request):
     })
 
     # ╔═══════════════════════════════════════════════════════════════╗
-    # ║ 4. OPENING BALANCE EQUITY (3000) — Equity (credit normal)    ║
+    # ║ 4. OPENING BALANCE EQUITY (3000) — Equity (from Nyongeza)    ║
     # ╚═══════════════════════════════════════════════════════════════╝
-    open_equity = nyo_qs(before_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    equity_credit = nyo_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    equity_debit = Decimal('0')
+    open_equity    = nyo_qs(before_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    equity_credit  = nyo_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    equity_debit   = Decimal('0')
     closing_equity = open_equity + equity_credit - equity_debit
 
     accounts.append({
@@ -12877,42 +12878,37 @@ def trial_balance_report(request):
     })
 
     # ╔═══════════════════════════════════════════════════════════════╗
-    # ║ 5. RETAINED EARNINGS (3900) — Equity                         ║
-    # ║ Plugged so the trial balance always balances.                ║
+    # ║ 5. RETAINED EARNINGS (3900) — Equity (balancing figure)      ║
     # ╚═══════════════════════════════════════════════════════════════╝
     # Opening Retained Earnings = Opening Assets - Opening Equity
+    # (Expenses always open at 0 because P&L closes at year-end.)
     opening_retained = (
         (opening_cash + opening_bank + opening_recv)
         - open_equity
     )
 
-    # Period activity for retained earnings:
-    #   Income (credit): interest earned on repayments (we approximate by net repayments
-    #     beyond principal recovery — but easier: use balancing figure)
-    #
-    # For trial balance, retained earnings posts:
-    #   - Period Expenses (debit) decrease it
-    #   - Period Income (credit) increases it
-    # We compute the NET as: (closing equity needed to balance) - opening retained
-    # That equals: -(net of all P&L accounts in period)
-    #
-    # P&L accounts here are: Expenses (5000), Bank Charges (5100)
-    # Income would be interest, but we don't track it separately, so we treat
-    # the trial balance closing as a balancing entry.
+    # Current-period expenses appear as SEPARATE debit lines in this trial
+    # balance. If we let them also reduce Retained Earnings here, they get
+    # counted twice on the debit side. We add them back so Retained Earnings
+    # holds only historical accumulated profit up through end_date PLUS
+    # current period expenses which will be offset by the separate lines.
+    current_period_expenses = (
+        (exp_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')) +
+        (bank_charge_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+    )
 
-    # We'll compute retained earnings movement using the balance equation:
-    # Closing Retained = Closing Assets - Closing Equity (excluding RE itself)
     closing_retained = (
         (closing_cash + closing_bank + closing_recv)
         - closing_equity
+        + current_period_expenses
     )
 
     re_movement = closing_retained - opening_retained
     if re_movement >= 0:
-        re_debit = Decimal('0')
+        re_debit  = Decimal('0')
         re_credit = re_movement
     else:
-        re_debit = abs(re_movement)
+        re_debit  = abs(re_movement)
         re_credit = Decimal('0')
 
     accounts.append({
@@ -12924,12 +12920,11 @@ def trial_balance_report(request):
     })
 
     # ╔═══════════════════════════════════════════════════════════════╗
-    # ║ 6. EXPENSES (5000) — Expense (debit normal)                  ║
+    # ║ 6. EXPENSES (5000) — Expense (always opens at 0)             ║
     # ╚═══════════════════════════════════════════════════════════════╝
-    # P&L accounts close to retained earnings, so opening is always 0
-    exp_debit = exp_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    exp_debit  = exp_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')
     exp_credit = Decimal('0')
-    closing_exp = exp_debit  # opening is 0
+    closing_exp = exp_debit
 
     accounts.append({
         'code': '5000', 'name': 'Expenses', 'type': 'Expense',
@@ -12942,7 +12937,7 @@ def trial_balance_report(request):
     # ╔═══════════════════════════════════════════════════════════════╗
     # ║ 7. BANK CHARGES (5100) — Expense                             ║
     # ╚═══════════════════════════════════════════════════════════════╝
-    bc_debit = bank_charge_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    bc_debit  = bank_charge_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')
     bc_credit = Decimal('0')
     closing_bc = bc_debit
 
@@ -12960,38 +12955,37 @@ def trial_balance_report(request):
     total_debit  = sum(a['debit']  for a in accounts)
     total_credit = sum(a['credit'] for a in accounts)
 
-    # Closing balance totals (split debit vs credit per normal balance)
-    total_debit_closing = Decimal('0')
+    # Split closing balances by normal side
+    total_debit_closing  = Decimal('0')
     total_credit_closing = Decimal('0')
-
     for a in accounts:
         closing = a['closing']
         if a['normal_balance'] == 'debit':
             if closing >= 0:
-                total_debit_closing += closing
+                total_debit_closing  += closing
             else:
                 total_credit_closing += abs(closing)
         else:  # credit normal
             if closing >= 0:
                 total_credit_closing += closing
             else:
-                total_debit_closing += abs(closing)
+                total_debit_closing  += abs(closing)
 
-    # Opening balance totals
-    total_opening_debit = Decimal('0')
+    # Split opening balances by normal side
+    total_opening_debit  = Decimal('0')
     total_opening_credit = Decimal('0')
     for a in accounts:
         opening = a['opening']
         if a['normal_balance'] == 'debit':
             if opening >= 0:
-                total_opening_debit += opening
+                total_opening_debit  += opening
             else:
                 total_opening_credit += abs(opening)
         else:
             if opening >= 0:
                 total_opening_credit += opening
             else:
-                total_opening_debit += abs(opening)
+                total_opening_debit  += abs(opening)
 
     is_balanced = abs(total_debit_closing - total_credit_closing) < Decimal('0.01')
 
@@ -13013,8 +13007,7 @@ def trial_balance_report(request):
         'is_balanced':            is_balanced,
     }
 
-    return render(request, 'app/trial_balance_report.html', context)
-    
+    return render(request, 'app/trial_balance_report.html', context)   
     
     
 # ============================================================================

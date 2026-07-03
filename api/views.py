@@ -1179,8 +1179,26 @@ def api_trial_balance_report(request):
             'is_credit_balance': True, 'normal_balance': 'credit'})
 
         # ── 5. RETAINED EARNINGS (3900) — balancing plug ────────────────
+        # Opening Retained Earnings = Opening Assets - Opening Equity
+        # (Expenses always open at 0 because P&L closes at year-end)
         opening_retained = (opening_cash + opening_bank + opening_recv) - open_equity
-        closing_retained = (closing_cash + closing_bank + closing_recv) - closing_equity
+
+        # KEY FIX (mirrors new web view): current-period expenses appear as
+        # SEPARATE debit lines (5000, 5100). If we let them also reduce
+        # Retained Earnings here they get counted twice on the debit side.
+        # Add them back so Retained Earnings holds only historical accumulated
+        # profit + current period income, with expenses offset by the separate lines.
+        current_period_expenses = (
+            (exp_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0')) +
+            (bank_charge_qs(period_q).aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+        )
+
+        closing_retained = (
+            (closing_cash + closing_bank + closing_recv)
+            - closing_equity
+            + current_period_expenses
+        )
+
         re_movement = closing_retained - opening_retained
         if re_movement >= 0:
             re_debit = Decimal('0'); re_credit = re_movement
