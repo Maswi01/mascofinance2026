@@ -222,6 +222,67 @@
 
         .divider-thin { height: 1px; background: #e2e8f0; }
 
+
+        /* ===== Office/Branch dropdown — grid layout ===== */
+        #branchMenu.hdr-dropdown-menu {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: #e2e8f0; /* creates thin grid lines between cells */
+            min-width: 560px;
+            max-width: min(680px, calc(100vw - 40px));
+            max-height: 60vh;
+            overflow-y: auto;
+            right: 0;
+        }
+
+        #branchMenu .hdr-menu-item {
+            background: var(--white);
+            border-bottom: none;
+            align-items: center;
+            padding: 11px 14px;
+            position: relative;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* stop the left-shift hover trick, it looks odd in a grid cell */
+        #branchMenu .hdr-menu-item:hover {
+            padding-left: 14px;
+            background: #eef3f8;
+        }
+
+        /* reposition the checkmark since it's no longer flex-end of a full-width row */
+        #branchMenu .hdr-menu-item.active::after {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            margin-left: 0;
+        }
+
+        #branchMenu .hdr-menu-item small {
+            display: block;
+            font-size: 0.7em;
+        }
+
+        @media (max-width: 900px) {
+            #branchMenu.hdr-dropdown-menu {
+                grid-template-columns: repeat(2, 1fr);
+                min-width: 400px;
+            }
+        }
+
+        @media (max-width: 767px) {
+            #branchMenu.hdr-dropdown-menu {
+                grid-template-columns: 1fr;
+                min-width: 220px;
+                max-width: 92vw;
+                right: -60px; /* nudge back under the hamburger area if needed */
+            }
+        }
+
         /* ===========================
            MAIN NAV BAR
         =========================== */

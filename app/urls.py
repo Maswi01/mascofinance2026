@@ -238,9 +238,9 @@ urlpatterns = [
     path('salary/slip/pay-all/',views.salary_slip_pay_all,name='salary_slip_pay_all'),
     
     path('manage-admin-branches/',              views.manage_admin_branches,             name='manage_admin_branches'),
-    path('manage-admin-branches/add/',          views.manage_admin_branches_add,         name='manage_admin_branches_add'),
-    path('manage-admin-branches/set-current/',  views.manage_admin_branches_set_current, name='manage_admin_branches_set_current'),
-    path('manage-admin-branches/remove/',       views.manage_admin_branches_remove,      name='manage_admin_branches_remove'),
+    path('manage-admin-branches/add/',          views.manage_admin_branches_add,         name='manage_admin_branches_add_2'),
+    path('manage-admin-branches/set-current/',  views.manage_admin_branches_set_current, name='manage_admin_branches_set_current_2'),
+    path('manage-admin-branches/remove/',       views.manage_admin_branches_remove,      name='manage_admin_branches_remove_2'),
     
     
     path('payroll/',views.payroll_filter,name='payroll_filter'),

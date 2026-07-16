@@ -7337,23 +7337,11 @@ def monthly_outstanding_report(request):
     except ValueError:
         return redirect('monthly_outstanding_filter')
 
-    sel_year  = selected_date.year
-    sel_month = selected_date.month
-
-    last_day    = calendar.monthrange(sel_year, sel_month)[1]
-    month_start = datetime.date(sel_year, sel_month, 1)
-    month_end   = datetime.date(sel_year, sel_month, last_day)
-    month_label = _month_label(selected_date).upper()
-
     today = datetime.date.today()
 
-    # Cutoff ya ripoti — haiwezi kuzidi 'today'.
-    due_cutoff = min(month_end, today)
+    due_cutoff = min(selected_date, today)
+    month_label = f"AS OF {due_cutoff.strftime('%d/%m/%Y')}"
 
-    # ── Deadline BASE ya installment ya KWANZA, kutoka application_date ────
-    # Sheria:
-    #   siku 1–18  ya mwezi wa maombi  → deadline = tarehe 18 MWEZI HUOHUO
-    #   siku 19–31 ya mwezi wa maombi  → deadline = tarehe 18 MWEZI UNAOFUATA
     def _deadline_base(application_date):
         if application_date.day <= 18:
             return application_date.replace(day=18)
@@ -7361,6 +7349,8 @@ def monthly_outstanding_report(request):
 
     loans = LoanApplication.objects.filter(
         repayment_amount_remaining__gt=0,
+    ).exclude(
+        loan_type__iexact='Hazina'
     ).select_related('client').prefetch_related('repayments').order_by(
         'client__lastname', 'client__firstname', 'id'
     )
@@ -7377,23 +7367,13 @@ def monthly_outstanding_report(request):
         periods      = loan.payment_period_months
         monthly_inst = loan.monthly_installment
 
-        # ── Ratiba ya DEADLINE (tarehe 18 kila mwezi, kuanzia deadline_base) ──
-        deadline_base = _deadline_base(loan.application_date)
-        schedule_deadlines = [
-            deadline_base + relativedelta(months=i)
-            for i in range(periods)
-        ]
-        # Overdue huanza siku INAYOFUATA ya deadline (19)
-        overdue_starts = [d + datetime.timedelta(days=1) for d in schedule_deadlines]
-        last_deadline  = schedule_deadlines[-1]
+        deadline_base      = _deadline_base(loan.application_date)
+        schedule_deadlines = [deadline_base + relativedelta(months=i) for i in range(periods)]
+        overdue_starts     = [d + datetime.timedelta(days=1) for d in schedule_deadlines]
 
-        # Kama hata installment ya kwanza bado haijafika 'overdue' — mkopo
-        # huu haujaanza ku-due kwa ripoti hii kabisa.
-        if not schedule_deadlines or overdue_starts[0] > due_cutoff:
+        if overdue_starts[0] > due_cutoff:
             continue
 
-        # ── Malipo yote — kwa ajili ya FIFO/arrears tumia payment_month
-        # kwanza (ndio mwezi HALISI unaolipiwa), la sivyo repayment_date. ────
         def _ref_date(r):
             return r.payment_month or r.repayment_date
 
@@ -7402,10 +7382,21 @@ def monthly_outstanding_report(request):
             key=lambda r: _ref_date(r)
         )
 
-        # ── FIFO allocation: shilingi ya kwanza inafunika installment ya
-        # ZAMANI zaidi kabla ya kuendelea na inayofuata ──────────────────
+        total_paid_ever = sum((r.repayment_amount or Decimal('0.00')) for r in all_repayments)
+
+        # ── OUTSTANDING (Total) — hesabiwa moja kwa moja kutoka malipo
+        # halisi, siyo kutoka field iliyohifadhiwa (isiyoaminika). ────────
+        total_repayable  = loan.total_repayment_amount or Decimal('0.00')
+        outstanding_real = max(total_repayable - total_paid_ever, Decimal('0.00'))
+
+        # ── Kama mkopo huu tayari umelipwa KIKAMILIFU (outstanding = 0),
+        # HAAONEKANI kwenye ripoti hii kabisa — hata kama kwa sababu
+        # nyingine ingeonekana kama ana slot isiyolipwa. ──────────────────
+        if outstanding_real <= Decimal('0.00'):
+            continue
+
         slot_remaining = [monthly_inst for _ in schedule_deadlines]
-        pool = sum((r.repayment_amount or Decimal('0.00')) for r in all_repayments)
+        pool = total_paid_ever
 
         for i in range(periods):
             if pool <= Decimal('0.00'):
@@ -7414,63 +7405,33 @@ def monthly_outstanding_report(request):
             slot_remaining[i] -= take
             pool -= take
 
-        # ── Installment zilizopita 'overdue_start' (<= due_cutoff) na
-        # bado hazijalipwa kikamilifu ──────────────────────────────────
         unpaid_slots = [
-            (schedule_deadlines[i], slot_remaining[i])
+            slot_remaining[i]
             for i in range(periods)
             if overdue_starts[i] <= due_cutoff and slot_remaining[i] > Decimal('0.00')
         ]
 
-        # ────────────────────────────────────────────────────────────────
-        # KIGEZO PEKEE cha kuonyesha: kuna installment(s) zilizopita
-        # deadline (19+) na bado hazijalipwa kikamilifu?
-        #   - Hakuna → HAAONEKANI (hata alilipa baadaye ya deadline,
-        #     ilimradi kabla ya leo).
-        #   - Zipo → ANAONEKANA, ataendelea kuonekana MPAKA azimalize.
-        # ────────────────────────────────────────────────────────────────
         if not unpaid_slots:
-            continue
+            continue  # amelipa vyote alivyokuwa anadaiwa kufikia tarehe hii
 
-        not_paid = sum(r for (_, r) in unpaid_slots)
+        due_count         = len(unpaid_slots)
+        amount_to_be_paid = monthly_inst * due_count
+        not_paid          = sum(unpaid_slots)
+        paid_this_month   = amount_to_be_paid - not_paid
 
-        # ── "Amount to be paid" = JUMLA ya installment ZOTE zilizopita
-        # deadline na bado hazijalipwa (ikiwa ni miezi 2+ zote zinajumlishwa)
-        amount_to_be_paid = not_paid
-
-        # ── Lebo ya miezi ipi hasa haijalipwa (uwazi kamili) ───────────────
-        unpaid_periods_label = ', '.join(
-            d.strftime('%b-%Y') for (d, _) in unpaid_slots
-        )
-
-        # Mkopo umeshapita muda wake wote wa mkataba (HAMA sugu)
-        is_overdue_loan = last_deadline < month_start
-
-        # ── Alicholipa KIHALISIA (cash iliyoingia) ndani ya mwezi wa
-        # kalenda uliochaguliwa — kwa kutumia repayment_date (siyo
-        # payment_month), kwa sababu hii ni "cash received this month"
-        # siyo "deni la mwezi gani hasa linalipwa". ─────────────────────
-        paid_this_month = sum(
-            r.repayment_amount or Decimal('0.00')
-            for r in loan.repayments.all()
-            if r.repayment_date and month_start <= r.repayment_date <= month_end
-        )
-
-        outstanding = loan.repayment_amount_remaining or Decimal('0.00')
-        client      = loan.client
+        client = loan.client
 
         rows.append({
             'name':                  f"{client.firstname} {client.middlename or ''} {client.lastname}".strip(),
             'check_no':              client.checkno or client.employmentcardno or '—',
             'employer':              client.employername or '—',
             'contact':               client.phonenumber or '—',
+            'loan_type':             loan.loan_type or 'N/A',
+            'loan_id':               loan.id,
             'amount_to_be_paid':     amount_to_be_paid,
             'paid_this_month':       paid_this_month,
             'not_paid':              not_paid,
-            'outstanding_total':     outstanding,
-            'is_overdue_loan':       is_overdue_loan,
-            'unpaid_periods_label':  unpaid_periods_label,
-            'unpaid_periods_count':  len(unpaid_slots),
+            'outstanding_total':     outstanding_real,
         })
 
     rows.sort(key=lambda r: r['name'].lower())
@@ -7486,7 +7447,7 @@ def monthly_outstanding_report(request):
         'total_not_paid':        sum(r['not_paid']          for r in rows),
         'total_outstanding':     sum(r['outstanding_total'] for r in rows),
     })
-    
+
 
 def expenses_filter(request):
     return render(request, 'app/expenses_filter.html', {

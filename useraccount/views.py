@@ -63,11 +63,14 @@ class CustomPasswordResetCompleteView(PasswordResetCompleteView):
 
 
 # ==========================================================================
+
+    
 def staff_profile(request, staff_id):
     """Page 2: Staff Profile - Shows editable details for one staff member"""
     staff = get_object_or_404(CustomUser, id=staff_id)
     roles = Role.objects.all()
     context = {
+        **get_base_context(request),
         'staff': staff,
         'roles':roles
     }

@@ -231,7 +231,7 @@
                 <span class="assign-hint">Already-assigned branches are hidden</span>
             </div>
 
-            <form method="POST" action="{% url 'manage_admin_branches_add' %}">
+            <form method="POST" action="{% url 'manage_admin_branches_add_2' %}">
                 {% csrf_token %}
                 <input type="hidden" name="user_id" value="{{ selected_user.id }}">
 
@@ -282,7 +282,7 @@
                             {% if assignment.office == selected_user.office_allocation %}
                                 <span class="badge-current">CURRENT</span>
                             {% else %}
-                                <form method="POST" action="{% url 'manage_admin_branches_set_current' %}"
+                                <form method="POST" action="{% url 'manage_admin_branches_set_current_2' %}"
                                       style="display:inline;">
                                     {% csrf_token %}
                                     <input type="hidden" name="user_id"   value="{{ selected_user.id }}">
@@ -293,7 +293,7 @@
                         </td>
                         <td>
                             {% if assignment.office != selected_user.office_allocation %}
-                            <form method="POST" action="{% url 'manage_admin_branches_remove' %}"
+                            <form method="POST" action="{% url 'manage_admin_branches_remove_2' %}"
                                   style="display:inline;"
                                   onsubmit="return confirm('Remove {{ assignment.office.name }} from this staff?')">
                                 {% csrf_token %}

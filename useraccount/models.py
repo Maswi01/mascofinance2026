@@ -184,7 +184,7 @@ class CustomUser(AbstractUser):
                     last_id = 0
             else:
                 last_id = 0
-            self.employee_id = f"MASC0-{last_id + 1:03d}"
+            self.employee_id = f"MASC0-{last_id + 1:04d}"
         super().save(*args, **kwargs)
 
     def __str__(self):
