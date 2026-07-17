@@ -93,7 +93,8 @@ def signup(request):
         join_date = request.POST.get('join_date', None)
 
         # Default password
-        password = 'Masco@1234'
+        password = request.POST.get('password').strip()
+        confirm_password = request.POST.get('confirm_password').strip()
 
         # Validation
         if not all([firstname, lastname, email, phone, role, office_allocation, username]):
@@ -108,6 +109,11 @@ def signup(request):
         # Check if username already exists
         if CustomUser.objects.filter(username=username).exists():
             messages.error(request, 'This username is already taken.')
+            return redirect('staff_list')
+            
+        # compare passwords
+        if password != confirm_password:
+            messages.error(request, 'Passwords do not match.')
             return redirect('staff_list')
 
         try:
@@ -432,6 +438,35 @@ def change_password(request):
 def password_change_done(request):
     return render(request,'useraccount/password_change_done.html')
 
+
+# change any user password by superuser, the page will list users and when clicked popup a modal to change password for that user
+@login_required
+def change_user_password(request):
+    if not request.user.is_superuser:
+        messages.error(request, "You do not have permission to change other users' passwords.")
+        return redirect('index')
+
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if new_password != confirm_password:
+            messages.error(request, "Passwords do not match.")
+            return redirect('change_user_password')
+
+        user = get_object_or_404(CustomUser, id=user_id)
+        user.set_password(new_password)
+        user.save()
+        messages.success(request, f"Password for {user.username} has been changed successfully.")
+        return redirect('change_user_password')
+
+    users = CustomUser.objects.all()
+    context = {
+        **get_base_context(request),
+        'users': users,
+    }
+    return render(request, 'useraccount/change_user_password.html', context)
 # ===================================================================================
 
 

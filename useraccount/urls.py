@@ -51,6 +51,7 @@ urlpatterns = [
     # Change password
     path('change-password/',    views.change_password,     name='change_password'),
     path('password_change_done/', views.password_change_done, name='password_change_done'),
+    path('change-user-password/', views.change_user_password, name='change_user_password'),
 
     # Staff
     path('staff/profile/<int:staff_id>/', views.staff_profile, name='staff_profile'),

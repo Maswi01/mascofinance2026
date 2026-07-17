@@ -168,24 +168,24 @@ class CustomUser(AbstractUser):
     otp_secret_key = models.CharField(max_length=255, blank=True, null=True)
     otp_valid_date = models.DateTimeField(blank=True, null=True)
 
-    def save(self, *args, **kwargs):
-        if not self.employee_id:
-            last_user = (
-                CustomUser.objects
-                .exclude(employee_id__isnull=True)
-                .exclude(employee_id__exact="")
-                .order_by('id')
-                .last()
-            )
-            if last_user and last_user.employee_id:
-                try:
-                    last_id = int(last_user.employee_id.split('-')[-1])
-                except ValueError:
-                    last_id = 0
-            else:
-                last_id = 0
-            self.employee_id = f"MASC0-{last_id + 1:04d}"
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     if not self.employee_id:
+    #         last_user = (
+    #             CustomUser.objects
+    #             .exclude(employee_id__isnull=True)
+    #             .exclude(employee_id__exact="")
+    #             .order_by('id')
+    #             .last()
+    #         )
+    #         if last_user and last_user.employee_id:
+    #             try:
+    #                 last_id = int(last_user.employee_id.split('-')[-1])
+    #             except ValueError:
+    #                 last_id = 0
+    #         else:
+    #             last_id = 0
+    #         self.employee_id = f"MASC0-{last_id + 1:04d}"
+    #     super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.username} ({self.email})"
