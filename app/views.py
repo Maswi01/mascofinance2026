@@ -7338,22 +7338,34 @@ def monthly_outstanding_report(request):
         return redirect('monthly_outstanding_filter')
 
     today = datetime.date.today()
-
-    due_cutoff = min(selected_date, today)
+    due_cutoff  = min(selected_date, today)
     month_label = f"AS OF {due_cutoff.strftime('%d/%m/%Y')}"
 
-    def _deadline_base(application_date):
-        if application_date.day <= 18:
-            return application_date.replace(day=18)
-        return (application_date + relativedelta(months=1)).replace(day=18)
+    # ── Slot amounts SAWA KABISA na loan_repayment_schedule (ROUND_CEILING) ──
+    def _schedule_slots(loan):
+        periods = loan.payment_period_months or 1
+        loan_amount  = loan.loan_amount or Decimal('0.00')
+        total_int    = loan.total_interest_amount or Decimal('0.00')
+        total_return = loan_amount + total_int
+
+        def ceil_1000(val):
+            return (val / Decimal('1000')).to_integral_value(rounding=ROUND_CEILING) * Decimal('1000')
+
+        std_monthly   = ceil_1000(total_return / periods)
+        std_principal = ceil_1000(loan_amount / periods)
+        std_interest  = std_monthly - std_principal
+
+        last_principal = loan_amount - (std_principal * (periods - 1))
+        last_interest  = total_int   - (std_interest  * (periods - 1))
+        last_monthly   = last_principal + last_interest
+
+        return [std_monthly] * (periods - 1) + [last_monthly]
 
     loans = LoanApplication.objects.filter(
         repayment_amount_remaining__gt=0,
     ).exclude(
         loan_type__iexact='Hazina'
-    ).select_related('client').prefetch_related('repayments').order_by(
-        'client__lastname', 'client__firstname', 'id'
-    )
+    ).select_related('client').prefetch_related('repayments')
 
     if filter_office:
         loans = loans.filter(office=filter_office.name)
@@ -7361,77 +7373,87 @@ def monthly_outstanding_report(request):
     rows = []
 
     for loan in loans:
-        if not loan.application_date or not loan.payment_period_months or not loan.monthly_installment:
+        frd    = loan.first_repayment_date
+        period = loan.payment_period_months or 0
+        if not frd or period <= 0:
             continue
 
-        periods      = loan.payment_period_months
-        monthly_inst = loan.monthly_installment
+        slot_amounts = _schedule_slots(loan)
 
-        deadline_base      = _deadline_base(loan.application_date)
-        schedule_deadlines = [deadline_base + relativedelta(months=i) for i in range(periods)]
-        overdue_starts     = [d + datetime.timedelta(days=1) for d in schedule_deadlines]
+        schedule_months = [
+            (frd.year + (frd.month - 1 + i) // 12, (frd.month - 1 + i) % 12 + 1)
+            for i in range(period)
+        ]
+        deadlines = [datetime.date(y, m, 18) for (y, m) in schedule_months]
 
-        if overdue_starts[0] > due_cutoff:
-            continue
+        if deadlines[0] > due_cutoff:
+            continue  # loan bado haujaanza ku-due kabisa kufikia tarehe hii
 
-        def _ref_date(r):
-            return r.payment_month or r.repayment_date
+        all_repayments = list(loan.repayments.all())
 
-        all_repayments = sorted(
-            [r for r in loan.repayments.all() if _ref_date(r) and _ref_date(r) <= today],
-            key=lambda r: _ref_date(r)
+        # ── Malipo YALIYOFANYIKA KWELI hadi due_cutoff pekee (kwa
+        # repayment_date halisi) — SIYO malipo ya baadaye, hata kama
+        # yanahusiana na mwezi uliopo ndani ya due_indexes. ─────────────────
+        paid_by_cutoff = sum(
+            (r.repayment_amount or Decimal('0.00'))
+            for r in all_repayments
+            if r.repayment_date and r.repayment_date <= due_cutoff
         )
 
-        total_paid_ever = sum((r.repayment_amount or Decimal('0.00')) for r in all_repayments)
-
-        # ── OUTSTANDING (Total) — hesabiwa moja kwa moja kutoka malipo
-        # halisi, siyo kutoka field iliyohifadhiwa (isiyoaminika). ────────
-        total_repayable  = loan.total_repayment_amount or Decimal('0.00')
-        outstanding_real = max(total_repayable - total_paid_ever, Decimal('0.00'))
-
-        # ── Kama mkopo huu tayari umelipwa KIKAMILIFU (outstanding = 0),
-        # HAAONEKANI kwenye ripoti hii kabisa — hata kama kwa sababu
-        # nyingine ingeonekana kama ana slot isiyolipwa. ──────────────────
-        if outstanding_real <= Decimal('0.00'):
-            continue
-
-        slot_remaining = [monthly_inst for _ in schedule_deadlines]
-        pool = total_paid_ever
-
-        for i in range(periods):
+        # ── FIFO kwa kutumia TU malipo yaliyofika kabla/sawa na due_cutoff ──
+        slot_remaining = list(slot_amounts)
+        pool = paid_by_cutoff
+        for i in range(period):
             if pool <= Decimal('0.00'):
                 break
             take = min(pool, slot_remaining[i])
             slot_remaining[i] -= take
             pool -= take
 
-        unpaid_slots = [
-            slot_remaining[i]
-            for i in range(periods)
-            if overdue_starts[i] <= due_cutoff and slot_remaining[i] > Decimal('0.00')
+        due_indexes  = [i for i in range(period) if deadlines[i] <= due_cutoff]
+        unpaid_pairs = [
+            (i, slot_amounts[i], slot_remaining[i])
+            for i in due_indexes
+            if slot_remaining[i] > Decimal('0.00')
         ]
 
-        if not unpaid_slots:
+        if not unpaid_pairs:
             continue  # amelipa vyote alivyokuwa anadaiwa kufikia tarehe hii
 
-        due_count         = len(unpaid_slots)
-        amount_to_be_paid = monthly_inst * due_count
-        not_paid          = sum(unpaid_slots)
-        paid_this_month   = amount_to_be_paid - not_paid
+        amount_to_be_paid = sum(due for (_, due, _) in unpaid_pairs)
+        not_paid          = sum(rem for (_, _, rem) in unpaid_pairs)
+
+        # ── "Paid this month" — kiasi kilicholipwa kwa slot ya MWISHO
+        # iliyodaiwa (due_indexes[-1]), kwa kutumia due-remaining ya slot
+        # hiyo mahususi (siyo pesa zote za jumla). ───────────────────────
+        last_idx           = due_indexes[-1]
+        last_due_amt        = slot_amounts[last_idx]
+        last_remaining      = slot_remaining[last_idx]
+        paid_this_month      = max(last_due_amt - last_remaining, Decimal('0.00'))
+
+        # ── OUTSTANDING (Total) — deni HALISI la SASA (leo), kwa kutumia
+        # malipo YOTE (hata ya baadaye ya due_cutoff) — hii ndiyo "live
+        # balance" halisi ya mkopo, sawa na 'Out' TOTAL ya schedule kamili. ──
+        total_paid_ever  = sum((r.repayment_amount or Decimal('0.00')) for r in all_repayments)
+        total_repayable  = loan.total_repayment_amount or sum(slot_amounts)
+        outstanding_real = max(total_repayable - total_paid_ever, Decimal('0.00'))
+
+        if outstanding_real <= Decimal('0.00'):
+            continue
 
         client = loan.client
 
         rows.append({
-            'name':                  f"{client.firstname} {client.middlename or ''} {client.lastname}".strip(),
-            'check_no':              client.checkno or client.employmentcardno or '—',
-            'employer':              client.employername or '—',
-            'contact':               client.phonenumber or '—',
-            'loan_type':             loan.loan_type or 'N/A',
-            'loan_id':               loan.id,
-            'amount_to_be_paid':     amount_to_be_paid,
-            'paid_this_month':       paid_this_month,
-            'not_paid':              not_paid,
-            'outstanding_total':     outstanding_real,
+            'name':              f"{client.firstname} {client.middlename or ''} {client.lastname}".strip(),
+            'check_no':          client.checkno or client.employmentcardno or '—',
+            'employer':          client.employername or '—',
+            'contact':           client.phonenumber or '—',
+            'loan_type':         loan.loan_type or 'N/A',
+            'loan_id':           loan.id,
+            'amount_to_be_paid': amount_to_be_paid,
+            'paid_this_month':   paid_this_month,
+            'not_paid':          not_paid,
+            'outstanding_total': outstanding_real,
         })
 
     rows.sort(key=lambda r: r['name'].lower())
@@ -7447,7 +7469,6 @@ def monthly_outstanding_report(request):
         'total_not_paid':        sum(r['not_paid']          for r in rows),
         'total_outstanding':     sum(r['outstanding_total'] for r in rows),
     })
-
 
 def expenses_filter(request):
     return render(request, 'app/expenses_filter.html', {
