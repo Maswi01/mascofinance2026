@@ -5006,7 +5006,8 @@ def loan_repayment_receipt(request, pk):
     )
     
     # keep payment_month as is, add this line below it
-    payment_date = month_source.strftime("%d/%m/%Y")
+    # payment_date = month_source.strftime("%d/%m/%Y")
+    payment_date = timezone.now().strftime("%d/%m/%Y")
 
     officer_user = repayment.processed_by
     officer_name = (
