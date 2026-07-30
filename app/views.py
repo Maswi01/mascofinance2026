@@ -7323,6 +7323,26 @@ def monthly_outstanding_filter(request):
     })
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  MONTHLY OUTSTANDING REPORT — inatumia LOGIC ILE ILE ya loans_owed_report
+#  ─────────────────────────────────────────────────────────────────────────
+#  • Slot amounts        → _get_installment_amounts(loan)  (sawa na loans_owed)
+#  • Payments (rep_map)  → payment_month authoritative, fallback repayment_date
+#  • Topup lump          → inaongezwa kama payment event (sawa na all_payment_events)
+#  • FIFO                → malipo hadi cutoff yanafunika slots kuanzia mwanzo;
+#                          slot iliyofunikwa kikamilifu = deni limejifuta.
+#  • Due slots           → deadline = tarehe 18 ya kila schedule month.
+#                          Rejesho ambalo deadline yake > cutoff HALIONEKANI.
+#  • HAMA (frd <= today - 6 months) → zinaingia KWENYE TABLE ILE ILE MOJA,
+#                          slots ZOTE zime-due bila kujali cutoff → daima
+#                          zinaonekana kama bado zinadaiwa.
+#  • Amelipa vyote due (not_paid = 0)  → HAONEKANI.
+#  • Outstanding halisi (live) = 0     → HAONEKANI.
+#
+#  TEMPLATE: hakuna kubadilisha chochote — rows zile zile, columns zile zile.
+#  (Optional: kila row ina 'is_hama' flag ukitaka ku-highlight kwa rangi.)
+# ═══════════════════════════════════════════════════════════════════════════
+
 def monthly_outstanding_report(request):
     if request.method != 'POST':
         return redirect('monthly_outstanding_filter')
@@ -7338,48 +7358,63 @@ def monthly_outstanding_report(request):
     except ValueError:
         return redirect('monthly_outstanding_filter')
 
-    today = datetime.date.today()
+    today       = datetime.date.today()
     due_cutoff  = min(selected_date, today)
+    cutoff_ym   = (due_cutoff.year, due_cutoff.month)
     month_label = f"AS OF {due_cutoff.strftime('%d/%m/%Y')}"
 
-    # ── Slot amounts SAWA KABISA na loan_repayment_schedule (ROUND_CEILING) ──
-    def _schedule_slots(loan):
-        periods = loan.payment_period_months or 1
-        loan_amount  = loan.loan_amount or Decimal('0.00')
-        total_int    = loan.total_interest_amount or Decimal('0.00')
-        total_return = loan_amount + total_int
+    # HAMA definition — SAWA KABISA na loans_owed_report
+    hama_cutoff = today - relativedelta(months=6)
 
-        def ceil_1000(val):
-            return (val / Decimal('1000')).to_integral_value(rounding=ROUND_CEILING) * Decimal('1000')
-
-        std_monthly   = ceil_1000(total_return / periods)
-        std_principal = ceil_1000(loan_amount / periods)
-        std_interest  = std_monthly - std_principal
-
-        last_principal = loan_amount - (std_principal * (periods - 1))
-        last_interest  = total_int   - (std_interest  * (periods - 1))
-        last_monthly   = last_principal + last_interest
-
-        return [std_monthly] * (periods - 1) + [last_monthly]
-
-    loans = LoanApplication.objects.filter(
-        repayment_amount_remaining__gt=0,
+    # ── LOANS: filter ile ile ya loans_owed (is_approved=False), minus Hazina ──
+    loans_qs = LoanApplication.objects.filter(
+        is_approved=False,
     ).exclude(
         loan_type__iexact='Hazina'
-    ).select_related('client').prefetch_related('repayments')
+    ).select_related('client').prefetch_related('topups')
 
     if filter_office:
-        loans = loans.filter(office=filter_office.name)
+        loans_qs = loans_qs.filter(office=filter_office.name)
+
+    loans_list = list(loans_qs)
+
+    # ── REP_MAP — payment_month authoritative (sawa na loans_owed_report) ──
+    rep_map = {l.id: {} for l in loans_list}
+
+    repayments = LoanRepayment.objects.filter(
+        loan_application__in=loans_list
+    ).values(
+        'loan_application_id',
+        'repayment_date',
+        'repayment_amount',
+        'payment_month',
+    )
+    for r in repayments:
+        ref = r['payment_month'] or r['repayment_date']
+        if ref is None:
+            continue
+        key = (ref.year, ref.month)
+        lid = r['loan_application_id']
+        rep_map[lid][key] = (
+            rep_map[lid].get(key, Decimal('0')) + (r['repayment_amount'] or Decimal('0'))
+        )
 
     rows = []
 
-    for loan in loans:
+    for loan in loans_list:
         frd    = loan.first_repayment_date
         period = loan.payment_period_months or 0
         if not frd or period <= 0:
             continue
 
-        slot_amounts = _schedule_slots(loan)
+        # ── 1. SLOT AMOUNTS — chanzo kimoja na loans_owed ────────────────
+        try:
+            slot_amounts = [Decimal(x) for x in _get_installment_amounts(loan)]
+        except Exception:
+            inst = loan.monthly_installment or Decimal('0')
+            slot_amounts = [inst] * period
+        if not slot_amounts:
+            continue
 
         schedule_months = [
             (frd.year + (frd.month - 1 + i) // 12, (frd.month - 1 + i) % 12 + 1)
@@ -7387,63 +7422,73 @@ def monthly_outstanding_report(request):
         ]
         deadlines = [datetime.date(y, m, 18) for (y, m) in schedule_months]
 
-        if deadlines[0] > due_cutoff:
-            continue  # loan bado haujaanza ku-due kabisa kufikia tarehe hii
+        is_hama = frd <= hama_cutoff
 
-        all_repayments = list(loan.repayments.all())
+        # Mkopo wa kawaida ambao bado haujaanza ku-due kufikia cutoff → ruka.
+        # HAMA hairuki hapa — daima imesha-due, inaonekana muda wote.
+        if not is_hama and deadlines[0] > due_cutoff:
+            continue
 
-        # ── Malipo YALIYOFANYIKA KWELI hadi due_cutoff pekee (kwa
-        # repayment_date halisi) — SIYO malipo ya baadaye, hata kama
-        # yanahusiana na mwezi uliopo ndani ya due_indexes. ─────────────────
-        paid_by_cutoff = sum(
-            (r.repayment_amount or Decimal('0.00'))
-            for r in all_repayments
-            if r.repayment_date and r.repayment_date <= due_cutoff
-        )
+        # ── 2. PAYMENT EVENTS = rmap + topup lump (sawa na all_payment_events)
+        rmap   = rep_map.get(loan.id, {})
+        events = dict(rmap)
 
-        # ── FIFO kwa kutumia TU malipo yaliyofika kabla/sawa na due_cutoff ──
+        try:
+            topup_info = _get_topup_lump(loan)
+        except Exception:
+            topup_info = None
+        if topup_info:
+            t_amt, t_y, t_m = topup_info
+            tk = (int(t_y), int(t_m))
+            events[tk] = events.get(tk, Decimal('0')) + Decimal(t_amt)
+
+        # Malipo hadi cutoff — kwa MWEZI wa payment_month (rejesho la wakati
+        # huo linafuta deni la wakati huo, sawa na loans_owed).
+        paid_by_cutoff  = sum((v for k, v in events.items() if k <= cutoff_ym), Decimal('0'))
+        total_paid_ever = sum(events.values(), Decimal('0'))
+
+        # ── 3. FIFO — funika slots kuanzia mwanzo ────────────────────────
         slot_remaining = list(slot_amounts)
         pool = paid_by_cutoff
         for i in range(period):
-            if pool <= Decimal('0.00'):
+            if pool <= Decimal('0'):
                 break
             take = min(pool, slot_remaining[i])
             slot_remaining[i] -= take
             pool -= take
 
-        due_indexes  = [i for i in range(period) if deadlines[i] <= due_cutoff]
-        unpaid_pairs = [
-            (i, slot_amounts[i], slot_remaining[i])
-            for i in due_indexes
-            if slot_remaining[i] > Decimal('0.00')
-        ]
+        # ── 4. DUE SLOTS ─────────────────────────────────────────────────
+        if is_hama:
+            # HAMA → slots ZOTE zime-due, bila kujali cutoff uliochagua
+            due_indexes = list(range(period))
+        else:
+            due_indexes = [i for i in range(period) if deadlines[i] <= due_cutoff]
 
-        if not unpaid_pairs:
-            continue  # amelipa vyote alivyokuwa anadaiwa kufikia tarehe hii
+        if not due_indexes:
+            continue
 
-        amount_to_be_paid = sum(due for (_, due, _) in unpaid_pairs)
-        not_paid          = sum(rem for (_, _, rem) in unpaid_pairs)
+        amount_to_be_paid = sum((slot_amounts[i]   for i in due_indexes), Decimal('0'))
+        not_paid          = sum((slot_remaining[i] for i in due_indexes), Decimal('0'))
 
-        # ── "Paid this month" — kiasi kilicholipwa kwa slot ya MWISHO
-        # iliyodaiwa (due_indexes[-1]), kwa kutumia due-remaining ya slot
-        # hiyo mahususi (siyo pesa zote za jumla). ───────────────────────
-        last_idx           = due_indexes[-1]
-        last_due_amt        = slot_amounts[last_idx]
-        last_remaining      = slot_remaining[last_idx]
-        paid_this_month      = max(last_due_amt - last_remaining, Decimal('0.00'))
+        # Amelipa VYOTE alivyodaiwa hadi cutoff → asionekane
+        if not_paid <= Decimal('0'):
+            continue
 
-        # ── OUTSTANDING (Total) — deni HALISI la SASA (leo), kwa kutumia
-        # malipo YOTE (hata ya baadaye ya due_cutoff) — hii ndiyo "live
-        # balance" halisi ya mkopo, sawa na 'Out' TOTAL ya schedule kamili. ──
-        total_paid_ever  = sum((r.repayment_amount or Decimal('0.00')) for r in all_repayments)
-        total_repayable  = loan.total_repayment_amount or sum(slot_amounts)
-        outstanding_real = max(total_repayable - total_paid_ever, Decimal('0.00'))
+        # ── 5. PAID THIS MONTH — malipo ya mwezi wa cutoff ───────────────
+        paid_this_month = events.get(cutoff_ym, Decimal('0'))
 
-        if outstanding_real <= Decimal('0.00'):
+        # ── 6. OUTSTANDING (Total) — SAWA na column ya 'Balance' ya
+        # loans_owed: tumia loan.repayment_amount_remaining moja kwa moja.
+        # Fallback: hesabu live balance kama field haipo/ni None. ─────────
+        if loan.repayment_amount_remaining is not None:
+            outstanding_real = max(Decimal(loan.repayment_amount_remaining), Decimal('0'))
+        else:
+            total_repayable  = loan.total_repayment_amount or sum(slot_amounts, Decimal('0'))
+            outstanding_real = max(Decimal(total_repayable) - total_paid_ever, Decimal('0'))
+        if outstanding_real <= Decimal('0'):
             continue
 
         client = loan.client
-
         rows.append({
             'name':              f"{client.firstname} {client.middlename or ''} {client.lastname}".strip(),
             'check_no':          client.checkno or client.employmentcardno or '—',
@@ -7455,6 +7500,8 @@ def monthly_outstanding_report(request):
             'paid_this_month':   paid_this_month,
             'not_paid':          not_paid,
             'outstanding_total': outstanding_real,
+            'is_hama':           is_hama,
+            'hama_label':        f"HAMA-{frd.year}" if is_hama else '',
         })
 
     rows.sort(key=lambda r: r['name'].lower())
@@ -7470,6 +7517,7 @@ def monthly_outstanding_report(request):
         'total_not_paid':        sum(r['not_paid']          for r in rows),
         'total_outstanding':     sum(r['outstanding_total'] for r in rows),
     })
+    
 
 def expenses_filter(request):
     return render(request, 'app/expenses_filter.html', {

@@ -15,6 +15,11 @@ urlpatterns = [
 
     # ── DASHBOARD ─────────────────────────────────────────────────────────────
     path('dashboard/', views.api_dashboard, name='api_dashboard'),
+    path('loan-payment/clients/', views.api_loan_payment_clients, name='api_loan_payment_clients'),
+    path('loan-receipt/clients/',   views.api_loan_receipt_clients,   name='api_loan_receipt_clients'),
+    path('loan-receipt/list/',      views.api_loan_receipt_list,      name='api_loan_receipt_list'),
+    path('loan-repayment/<int:pk>/receipt/', views.api_loan_repayment_receipt, name='api_loan_repayment_receipt'),
+    path('loan-repayment/<int:pk>/delete/',  views.api_delete_repayment,       name='api_delete_repayment'),
     path('reports/balance-sheet/', views.api_balance_sheet_report, name='api_balance_sheet_report'),
     path('reports/trial-balance/', views.api_trial_balance_report, name='api_trial_balance_report'),
 
@@ -39,6 +44,8 @@ urlpatterns = [
     path('loans/completed-approval/',           views.api_completed_loans_approval,       name='api_completed_loans_approval'),
     path('loans/completed-approval/approve/',   views.api_completed_loans_approve,        name='api_completed_loans_approve'),
     path('loans/<int:loan_id>/toggle-approve/',  views.api_toggle_loan_approve,             name='api_toggle_loan_approve'),
+    path('loans/<int:loan_id>/delete/',          views.api_delete_loan,                     name='api_delete_loan'),
+    path('loans/<int:loan_id>/edit/',            views.api_loan_edit,                       name='api_loan_edit'),
 
     # ── EXPENSES ──────────────────────────────────────────────────────────────
     path('expenses/',                    views.ExpenseListAPI.as_view(),         name='api_expense_list'),

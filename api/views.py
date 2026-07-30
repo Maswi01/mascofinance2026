@@ -778,9 +778,12 @@ def api_loan_collection_report(request):
 @permission_classes([IsAuthenticated])
 def api_hq_bank_transfer_report(request):
     # GET /api/hq/bank-transfer/?date_from=&date_to=&office=
-    # Mirrors bank_transfer_expenses2() web view exactly.
-    # Screenshot stat cards: Total Records, Payment Method (always "Bank
-    # Transfer"), Grand Total, Office (branch filter), Period (date range).
+    # Reads from OfficeTransaction (branch-to-branch bank transfers) —
+    # same table the dashboard's Transactions summary card counts, so tapping
+    # a row on the dashboard opens a detail report backed by the same data.
+    #
+    # transaction_date is a plain DateField, matches the web index() view;
+    # no timezone-aware datetime range needed for filtering by day.
     from django.utils import timezone as tz
 
     date_from_str = request.GET.get('date_from') or request.GET.get('start_date') or ''
@@ -788,36 +791,43 @@ def api_hq_bank_transfer_report(request):
     office_filter = request.GET.get('office', '')
 
     transactions = (
-        HQTransaction.objects
-        .select_related('from_branch', 'to_branch', 'processed_by')
-        .order_by('-created_at', '-id')
+        OfficeTransaction.objects
+        .select_related('office_from', 'office_to', 'processed_by')
+        .order_by('-transaction_date', '-id')
     )
 
     if date_from_str:
         try:
             d = datetime.datetime.strptime(date_from_str, '%Y-%m-%d').date()
-            start_dt = tz.make_aware(datetime.datetime.combine(d, datetime.time.min))
-            transactions = transactions.filter(created_at__gte=start_dt)
+            transactions = transactions.filter(transaction_date__gte=d)
         except (ValueError, TypeError):
             date_from_str = ''
     if date_to_str:
         try:
             d = datetime.datetime.strptime(date_to_str, '%Y-%m-%d').date()
-            end_dt = tz.make_aware(datetime.datetime.combine(d, datetime.time.max))
-            transactions = transactions.filter(created_at__lte=end_dt)
+            transactions = transactions.filter(transaction_date__lte=d)
         except (ValueError, TypeError):
             date_to_str = ''
 
     if office_filter:
         transactions = transactions.filter(
-            Q(from_branch__name__iexact=office_filter) | Q(to_branch__name__iexact=office_filter)
+            Q(office_from__name__iexact=office_filter) | Q(office_to__name__iexact=office_filter)
         )
 
-    # Offices dropdown — only offices that have ever appeared in a transfer
+    # Offices dropdown — only offices that have ever appeared in a transfer.
+    # Uses distinct IDs from OfficeTransaction directly rather than reverse
+    # relations, so it works regardless of what related_name is used on the
+    # model FKs.
+    office_ids = set(
+        OfficeTransaction.objects.exclude(office_from__isnull=True)
+        .values_list('office_from_id', flat=True).distinct()
+    ) | set(
+        OfficeTransaction.objects.exclude(office_to__isnull=True)
+        .values_list('office_to_id', flat=True).distinct()
+    )
     offices = list(
-        Office.objects.filter(
-            Q(hq_transactions_from__isnull=False) | Q(hq_transactions_to__isnull=False)
-        ).values_list('name', flat=True).distinct().order_by('name')
+        Office.objects.filter(pk__in=office_ids)
+        .values_list('name', flat=True).order_by('name')
     )
 
     grand_total = transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0')
@@ -832,12 +842,12 @@ def api_hq_bank_transfer_report(request):
 
         rows.append({
             'sn':            idx,
-            'date':          str(t.created_at.date()) if t.created_at else '',
+            'date':          str(t.transaction_date) if t.transaction_date else '',
             'receipt_no':    str(t.id).zfill(6),
             'receipt_number':str(t.id).zfill(6),
-            'description':   t.description or f"Branch transfer (Bank) from {t.from_branch.name if t.from_branch else '?'} to {t.to_branch.name if t.to_branch else '?'}",
-            'from_branch':   t.from_branch.name if t.from_branch else 'N/A',
-            'to_branch':     t.to_branch.name   if t.to_branch   else 'N/A',
+            'description':   t.description or f"Branch transfer (Bank) from {t.office_from.name if t.office_from else '?'} to {t.office_to.name if t.office_to else '?'}",
+            'from_branch':   t.office_from.name if t.office_from else 'N/A',
+            'to_branch':     t.office_to.name   if t.office_to   else 'N/A',
             'amount':        _d(t.amount),
             'processed_by':  processed_by_name,
         })
@@ -1270,6 +1280,369 @@ def api_trial_balance_report(request):
         import traceback
         return Response({'detail': f'Server error: {str(_e)}', 'trace': traceback.format_exc()}, status=500)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_loan_payment_clients(request):
+    # GET /api/loan-payment/clients/?search=
+    # Mirrors loan_payment_page() web view:
+    #   - status='Approved' AND repayment_amount_remaining > 0
+    #   - excludes status='Paid'
+    #   - grouped by client, sorted by first/last name
+    #
+    # KEY ROBUSTNESS FIX: some loans in the DB have a stale
+    # repayment_amount_remaining that never gets decremented after a
+    # payment, so they slip past the DB filter and appear as "active" even
+    # though the client has actually paid the loan off. We recompute the
+    # real outstanding from the sum of repayments and exclude loans whose
+    # actual outstanding is <= 0. This means a fully-paid loan can never
+    # show up here, even if its stored balance field is out of date.
+    try:
+        from collections import OrderedDict
+
+        filter_office = get_filter_office(request)
+
+        active_loans = (
+            LoanApplication.objects
+            .select_related('client')
+            .prefetch_related('repayments')
+            .filter(repayment_amount_remaining__gt=0, status='Approved')
+            .exclude(status='Paid')
+            .order_by('client__firstname', 'client__lastname')
+        )
+        if filter_office:
+            active_loans = active_loans.filter(office=filter_office.name)
+
+        # Optional server-side name/phone/check-no search
+        search = (request.GET.get('search') or '').strip()
+        if search:
+            active_loans = active_loans.filter(
+                Q(client__firstname__icontains=search) |
+                Q(client__middlename__icontains=search) |
+                Q(client__lastname__icontains=search) |
+                Q(client__phonenumber__icontains=search) |
+                Q(client__checkno__icontains=search) |
+                Q(client__employmentcardno__icontains=search)
+            )
+
+        # Group by client, computing real outstanding from repayments so a
+        # fully-paid loan never leaks through even if its stored balance
+        # field is stale.
+        TOL = Decimal('0.01')  # ignore sub-cent residues from rounding
+        clients_map = OrderedDict()
+        for loan in active_loans:
+            total_due = loan.total_repayment_amount or loan.loan_amount or Decimal('0')
+            paid = sum(
+                (r.repayment_amount or Decimal('0'))
+                for r in loan.repayments.all()
+            )
+            real_outstanding = total_due - paid
+
+            # Real gate: has the client actually still got a balance?
+            if real_outstanding <= TOL:
+                continue
+
+            # Attach for the response payload — use the real outstanding, not
+            # the potentially-stale stored field, so the mobile shows what
+            # the client actually owes.
+            loan._real_outstanding = real_outstanding
+            loan._paid_so_far      = paid
+
+            cid = loan.client.id
+            if cid not in clients_map:
+                clients_map[cid] = {'client': loan.client, 'loans': []}
+            clients_map[cid]['loans'].append(loan)
+
+        results = []
+        for cid, data in clients_map.items():
+            c = data['client']
+            middle = (c.middlename or '').strip()
+            full_name = f"{c.firstname} {middle} {c.lastname}".strip().replace('  ', ' ')
+            check_no = c.checkno or getattr(c, 'employmentcardno', '') or ''
+            results.append({
+                'client_id':       c.id,
+                'client_name':     full_name,
+                'firstname':       c.firstname,
+                'middlename':      middle,
+                'lastname':        c.lastname,
+                'phone':           c.phonenumber or '',
+                'check_no':        check_no,
+                'display_label':   f"{full_name} -[{check_no}]" if check_no else full_name,
+                'primary_loan_id': data['loans'][0].id,
+                'has_multiple':    len(data['loans']) > 1,
+                'loans': [
+                    {
+                        'id':                        l.id,
+                        'loan_type':                 l.loan_type,
+                        'monthly_installment':       _d(l.monthly_installment),
+                        # Return the REAL outstanding, not the stale stored field
+                        'repayment_amount_remaining':_d(l._real_outstanding),
+                        'loan_amount':               _d(l.loan_amount),
+                        'paid_so_far':               _d(l._paid_so_far),
+                        'total_repayment_amount':    _d(l.total_repayment_amount or l.loan_amount or 0),
+                        'first_repayment_date':      str(l.first_repayment_date) if l.first_repayment_date else None,
+                    }
+                    for l in data['loans']
+                ],
+            })
+
+        return Response({
+            'count':   len(results),
+            'results': results,
+        })
+    except Exception as _e:
+        import traceback
+        return Response({'detail': f'Server error: {str(_e)}', 'trace': traceback.format_exc()}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_loan_receipt_clients(request):
+    # GET /api/loan-receipt/clients/?search=
+    # Mirrors loan_receipt_list()'s all_clients query:
+    #   - Clients who have any repayments made (loan_applications__repayments__isnull=False)
+    #   - Scoped to filter_office if a branch is selected
+    #   - Alphabetical by firstname, lastname
+    try:
+        filter_office = get_filter_office(request)
+
+        clients = (
+            Client.objects
+            .filter(loan_applications__repayments__isnull=False)
+            .distinct()
+            .order_by('firstname', 'lastname')
+        )
+        if filter_office:
+            clients = clients.filter(loan_applications__office=filter_office.name).distinct()
+
+        search = (request.GET.get('search') or '').strip()
+        if search:
+            clients = clients.filter(
+                Q(firstname__icontains=search) |
+                Q(middlename__icontains=search) |
+                Q(lastname__icontains=search) |
+                Q(phonenumber__icontains=search) |
+                Q(checkno__icontains=search) |
+                Q(employmentcardno__icontains=search)
+            )
+
+        results = []
+        for c in clients:
+            middle    = (c.middlename or '').strip()
+            full_name = f"{c.firstname} {middle} {c.lastname}".strip().replace('  ', ' ')
+            check_no  = c.checkno or getattr(c, 'employmentcardno', '') or ''
+            results.append({
+                'client_id':     c.id,
+                'client_name':   full_name,
+                'phone':         c.phonenumber or '',
+                'check_no':      check_no,
+                'display_label': f"{full_name} -[{check_no}]" if check_no else full_name,
+            })
+
+        return Response({'count': len(results), 'results': results})
+    except Exception as _e:
+        import traceback
+        return Response({'detail': f'Server error: {str(_e)}', 'trace': traceback.format_exc()}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_loan_receipt_list(request):
+    # GET /api/loan-receipt/list/?client_id=<id>
+    # Mirrors loan_receipt_list() for a selected client — returns all their
+    # repayments with receipt_number (zero-padded to 6 digits), date, amount,
+    # description, and topup-clearance detection.
+    try:
+        client_id = request.GET.get('client_id') or ''
+        if not client_id:
+            return Response({'error': 'client_id is required'}, status=400)
+
+        try:
+            client = Client.objects.get(pk=int(client_id))
+        except (Client.DoesNotExist, ValueError, TypeError):
+            return Response({'error': 'Client not found'}, status=404)
+
+        filter_office = get_filter_office(request)
+
+        repayments_qs = (
+            LoanRepayment.objects
+            .filter(loan_application__client=client)
+            .select_related('loan_application', 'processed_by')
+            .order_by('created_at', 'id')
+        )
+        if filter_office:
+            repayments_qs = repayments_qs.filter(loan_application__office=filter_office.name)
+
+        rows = []
+        for i, r in enumerate(repayments_qs, 1):
+            # topup-clearance detection: mirror the web view's logic but stay
+            # defensive against a missing `topups` reverse relation
+            row_type = 'repayment'
+            try:
+                topups = getattr(r.loan_application, 'topups', None)
+                if r.payment_month and topups is not None:
+                    cleared = topups.filter(old_balance_cleared__gt=0).first()
+                    if cleared and cleared.old_balance_cleared and \
+                       Decimal(str(r.repayment_amount or 0)) == Decimal(str(cleared.old_balance_cleared)):
+                        row_type = 'topup_clearance'
+            except Exception:
+                pass
+
+            rows.append({
+                'sn':             i,
+                'id':             r.id,
+                'receipt_number': str(r.id).zfill(6),
+                'date':           str(r.repayment_date) if r.repayment_date else '',
+                'description':    'Loan payment' if row_type == 'repayment' else 'Loan payment (topup clearance)',
+                'amount':         _d(r.repayment_amount),
+                'row_type':       row_type,
+                'loan_id':        r.loan_application_id,
+                'loan_type':      r.loan_application.loan_type or '',
+                'payment_method': getattr(r, 'transaction_method', '') or '',
+            })
+
+        # Branch label — from client's latest loan (matches web)
+        branch_name = '—'
+        latest_loan = client.loan_applications.order_by('-created_at').first()
+        if latest_loan and latest_loan.office:
+            branch_name = latest_loan.office.upper()
+
+        middle       = (client.middlename or '').strip()
+        full_name    = f"{client.firstname} {middle} {client.lastname}".strip().replace('  ', ' ')
+        check_no     = client.checkno or getattr(client, 'employmentcardno', '') or ''
+
+        return Response({
+            'client_id':      client.id,
+            'client_name':    full_name,
+            'check_no':       check_no,
+            'phone':          client.phonenumber or '',
+            'branch_name':    branch_name,
+            'rows':           rows,
+            'count':          len(rows),
+            'total_amount':   _d(sum((r['amount'] for r in rows), 0)),
+        })
+    except Exception as _e:
+        import traceback
+        return Response({'detail': f'Server error: {str(_e)}', 'trace': traceback.format_exc()}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_loan_repayment_receipt(request, pk):
+    # GET /api/loan-repayment/<pk>/receipt/
+    # Mirrors loan_repayment_receipt() web view for the printable receipt.
+    # NOTE: the receipt's "Tarehe" field intentionally uses TODAY'S date
+    # (when the receipt was viewed/printed), not the repayment_date.
+    try:
+        try:
+            repayment = LoanRepayment.objects.select_related(
+                'loan_application__client', 'processed_by'
+            ).get(pk=pk)
+        except LoanRepayment.DoesNotExist:
+            return Response({'error': 'Repayment not found'}, status=404)
+
+        loan   = repayment.loan_application
+        client = loan.client
+
+        receipt_number = str(repayment.id).zfill(6)
+
+        client_fullname = ' '.join(filter(None, [
+            client.firstname or '',
+            (client.middlename or '').strip(),
+            client.lastname or '',
+        ])).upper()
+
+        swahili_months = {
+            1: 'JAN', 2: 'FEB', 3: 'MAR', 4: 'APR', 5: 'MEI', 6: 'JUN',
+            7: 'JUL', 8: 'AUG', 9: 'SEP', 10: 'OKT', 11: 'NOV', 12: 'DEC',
+        }
+
+        month_source = repayment.payment_month or repayment.repayment_date
+        if month_source:
+            payment_month = f"{swahili_months.get(month_source.month, month_source.month)}/{month_source.year}"
+        else:
+            payment_month = ''
+
+        paid_up_to_this = LoanRepayment.objects.filter(
+            loan_application=loan,
+            id__lte=repayment.id,
+        ).aggregate(total=Sum('repayment_amount'))['total'] or Decimal('0.00')
+
+        balance_after = max(
+            (loan.total_repayment_amount or Decimal('0.00')) - paid_up_to_this,
+            Decimal('0.00'),
+        )
+
+        # Officer name
+        officer_user = repayment.processed_by
+        try:
+            officer_name = ((officer_user.get_full_name().strip() or officer_user.username) if officer_user else '').upper()
+        except Exception:
+            officer_name = ''
+
+        # "Tarehe" is TODAY, not the repayment date — user explicitly requested
+        printed_date = date.today().strftime('%d/%m/%Y')
+
+        # Branch — from the loan
+        branch_name = (loan.office or '').upper() or '—'
+
+        return Response({
+            'receipt_number':   receipt_number,
+            'client_id':        client.id,
+            'client_fullname':  client_fullname,
+            'check_no':         client.checkno or getattr(client, 'employmentcardno', '') or '',
+            'branch_name':      branch_name,
+            'amount':           _d(repayment.repayment_amount),
+            'payment_month':    payment_month,     # e.g. "DEC/2023"
+            'balance_after':    _d(balance_after),
+            'officer_name':     officer_name,
+            'printed_date':     printed_date,      # today, DD/MM/YYYY
+            'loan_id':          loan.id,
+        })
+    except Exception as _e:
+        import traceback
+        return Response({'detail': f'Server error: {str(_e)}', 'trace': traceback.format_exc()}, status=500)
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def api_delete_repayment(request, pk):
+    # POST/DELETE /api/loan-repayment/<pk>/delete/
+    # Deletes a single repayment record; recomputes and stores the loan's
+    # repayment_amount_remaining so the balance stays correct after removal.
+    try:
+        try:
+            repayment = LoanRepayment.objects.select_related('loan_application').get(pk=pk)
+        except LoanRepayment.DoesNotExist:
+            return Response({'success': False, 'error': 'Repayment not found.'}, status=404)
+
+        loan = repayment.loan_application
+        client_id = loan.client_id if loan else None
+
+        from django.db import transaction as db_transaction
+        with db_transaction.atomic():
+            repayment.delete()
+
+            # Recompute the loan's remaining balance from the SUM of remaining repayments
+            total_paid = LoanRepayment.objects.filter(
+                loan_application=loan
+            ).aggregate(s=Sum('repayment_amount'))['s'] or Decimal('0.00')
+
+            new_remaining = max(
+                (loan.total_repayment_amount or Decimal('0.00')) - total_paid,
+                Decimal('0.00'),
+            )
+            loan.repayment_amount_remaining = new_remaining
+            loan.save(update_fields=['repayment_amount_remaining'])
+
+        return Response({
+            'success': True,
+            'client_id': client_id,
+            'loan_id': loan.id if loan else None,
+            'new_remaining': _d(new_remaining),
+        })
+    except Exception as e:
+        import traceback
+        return Response({'success': False, 'error': str(e), 'trace': traceback.format_exc()}, status=500)
 
 
 @api_view(['GET'])
@@ -1424,26 +1797,23 @@ def api_dashboard(request):
                 .annotate(total=Sum('amount'), cnt=Count('id'))
         }
 
-        # Transactions: combine office_from + office_to per office (matches web view)
-        # FIXED: dashboard was reading OfficeTransaction (branch-to-branch
-        # internal transfers) but the detail screen reads HQTransaction
-        # (the actual bank-transfer-expenses report model). Switched to
-        # HQTransaction with created_at range so dashboard totals and the
-        # tapped detail report always agree on the same underlying rows.
+        # Transactions: mirrors web index() view exactly — OfficeTransaction
+        # with transaction_date=target_date (plain DateField equality).
+        # `HQTransaction` is a different table used elsewhere for HQ-level
+        # bank transfer reports; using it for the dashboard summary caused
+        # zero/missing counts because the two tables track different things.
         tx_to_map = {
-            row['to_branch__name']: {'amount': _d(row['total']), 'count': row['cnt']}
-            for row in HQTransaction.objects
-                .filter(to_branch__name__in=target_names, created_at__range=(start_dt, end_dt))
-                .exclude(from_branch=F('to_branch'))
-                .values('to_branch__name')
+            row['office_to__name']: {'amount': _d(row['total']), 'count': row['cnt']}
+            for row in OfficeTransaction.objects
+                .filter(office_to__name__in=target_names, transaction_date=target_date)
+                .values('office_to__name')
                 .annotate(total=Sum('amount'), cnt=Count('id'))
         }
         tx_from_map = {
-            row['from_branch__name']: {'amount': _d(row['total']), 'count': row['cnt']}
-            for row in HQTransaction.objects
-                .filter(from_branch__name__in=target_names, created_at__range=(start_dt, end_dt))
-                .exclude(from_branch=F('to_branch'))
-                .values('from_branch__name')
+            row['office_from__name']: {'amount': _d(row['total']), 'count': row['cnt']}
+            for row in OfficeTransaction.objects
+                .filter(office_from__name__in=target_names, transaction_date=target_date)
+                .values('office_from__name')
                 .annotate(total=Sum('amount'), cnt=Count('id'))
         }
 
@@ -4513,143 +4883,173 @@ def api_edit_repayment(request, repayment_type, repayment_id):
 @permission_classes([IsAuthenticated])
 def api_monthly_outstanding_v2(request):
     # GET /api/monthly-outstanding/?month=YYYY-MM-DD
-    # Mirrors monthly_outstanding_report() web view exactly:
-    #   - Cumulative arrears logic (not just current-month installment)
-    #   - due_cutoff = min(month_end, today)   -> installments due up to selected month
-    #   - paid_cutoff = today                   -> all payments counted, including late ones
-    #   - Shows loan if cumulative not_paid > 0, regardless of whether an
-    #     installment falls in the selected month (covers HAMA/overdue loans)
-    #   - amount_to_be_paid: this month's installment if due this month,
-    #     else the full arrears balance (not_paid) for overdue-only loans
-    #   - Sorted alphabetically by client name (not by not_paid desc)
+    # Line-for-line mirror of the CURRENT monthly_outstanding_report() web view:
+    #   * due_cutoff = min(selected_date, today) — the SELECTED DATE matters,
+    #     not just its month (was previously min(month_end, today))
+    #   * Slot amounts computed via ROUND_CEILING to nearest 1000 TZS
+    #   * Deadlines = 18th of every month (was first_repayment_date + i months)
+    #   * FIFO allocation of payments across slots
+    #   * Excludes loan_type='Hazina'
+    #   * outstanding_total = REAL LIVE balance from ALL payments to date
+    #     (not truncated to cutoff) so it reflects the schedule's Out total
+    #   * `is_overdue_loan` is no longer returned (web view removed it)
+    from decimal import ROUND_CEILING as RC
     from dateutil.relativedelta import relativedelta
     import datetime as _dt3
 
-    filter_office = get_filter_office(request)
-    selected      = get_selected_office_api(request)
+    base_filter_office = get_filter_office(request)
+    selected_office    = get_selected_office_api(request)
+
+    # Match web branch_name logic exactly
+    branch_name = selected_office.name.upper() if selected_office else 'All Branches'
 
     month_str = request.GET.get('month', '')
     try:
         selected_date = _dt3.datetime.strptime(month_str, '%Y-%m-%d').date()
-    except Exception:
+    except (ValueError, TypeError):
         selected_date = date.today()
 
-    sel_year  = selected_date.year
-    sel_month = selected_date.month
-    last_day  = cal_module.monthrange(sel_year, sel_month)[1]
-    month_start = _dt3.date(sel_year, sel_month, 1)
-    month_end   = _dt3.date(sel_year, sel_month, last_day)
+    today      = date.today()
+    due_cutoff = min(selected_date, today)   # SELECTED DAY OR TODAY, whichever is earlier
+    month_label = f"AS OF {due_cutoff.strftime('%d/%m/%Y')}"
 
-    today       = date.today()
-    due_cutoff  = min(month_end, today)   # installments due up to end of selected month
-    paid_cutoff = today                    # all payments counted, including late ones
+    # ── Slot amounts identical to the schedule view (ROUND_CEILING to 1000) ──
+    def _schedule_slots(loan):
+        periods = loan.payment_period_months or 1
+        loan_amount  = loan.loan_amount or Decimal('0.00')
+        total_int    = loan.total_interest_amount or Decimal('0.00')
+        total_return = loan_amount + total_int
+
+        def ceil_1000(val):
+            return (val / Decimal('1000')).to_integral_value(rounding=RC) * Decimal('1000')
+
+        std_monthly   = ceil_1000(total_return / periods)
+        std_principal = ceil_1000(loan_amount / periods)
+        std_interest  = std_monthly - std_principal
+
+        last_principal = loan_amount - (std_principal * (periods - 1))
+        last_interest  = total_int   - (std_interest  * (periods - 1))
+        last_monthly   = last_principal + last_interest
+
+        return [std_monthly] * (periods - 1) + [last_monthly]
 
     loans = LoanApplication.objects.filter(
         repayment_amount_remaining__gt=0,
-    ).select_related('client').prefetch_related('repayments').order_by(
-        'client__lastname', 'client__firstname', 'id'
-    )
-    if filter_office:
-        loans = loans.filter(office=filter_office.name)
+    ).exclude(
+        loan_type__iexact='Hazina'
+    ).select_related('client').prefetch_related('repayments')
+
+    if base_filter_office:
+        loans = loans.filter(office=base_filter_office.name)
 
     rows = []
     for loan in loans:
-        if not loan.first_repayment_date or not loan.payment_period_months or not loan.monthly_installment:
+        frd    = loan.first_repayment_date
+        period = loan.payment_period_months or 0
+        if not frd or period <= 0:
             continue
 
-        periods          = loan.payment_period_months
-        first_repay_date = loan.first_repayment_date
-        monthly_inst     = loan.monthly_installment
-        all_repayments   = list(loan.repayments.all())
+        slot_amounts = _schedule_slots(loan)
 
-        # ── Full repayment schedule ────────────────────────────────────────
-        schedule = [
-            first_repay_date + relativedelta(months=i)
-            for i in range(periods)
+        # Deadlines = 18th of the (frd + i months) for i in range(period)
+        schedule_months = [
+            (frd.year + (frd.month - 1 + i) // 12, (frd.month - 1 + i) % 12 + 1)
+            for i in range(period)
         ]
-        last_due_date = schedule[-1]
+        deadlines = [_dt3.date(y, m, 18) for (y, m) in schedule_months]
 
-        # ── Installments due up to the selected month's cutoff ─────────────
-        slots_due_to_date = [d for d in schedule if d <= due_cutoff]
-        if not slots_due_to_date:
-            continue  # loan hasn't started due dates yet for this month
-
-        # ── Cumulative due vs cumulative paid ──────────────────────────────
-        total_due_to_date  = monthly_inst * len(slots_due_to_date)
-        total_paid_to_date = sum(
-            (r.repayment_amount or Decimal('0'))
-            for r in all_repayments
-            if r.repayment_date and r.repayment_date <= paid_cutoff
-        )
-        not_paid = max(total_due_to_date - total_paid_to_date, Decimal('0'))
-
-        # Only visibility criterion: is there any outstanding arrears at all?
-        if not_paid <= Decimal('0'):
+        # Loan not yet started as of the cutoff → skip
+        if deadlines[0] > due_cutoff:
             continue
 
-        # ── Display-only metadata (doesn't affect visibility) ──────────────
-        slots_this_month_due = [
-            d for d in slots_due_to_date
-            if d.year == sel_year and d.month == sel_month
-        ]
-        is_overdue_loan = last_due_date < month_start
+        all_repayments = list(loan.repayments.all())
 
-        # "Amount to be paid": this month's installment if due, else full arrears
-        if slots_this_month_due:
-            amount_to_be_paid = monthly_inst * len(slots_this_month_due)
-        else:
-            amount_to_be_paid = not_paid
-
-        paid_this_month = sum(
-            (r.repayment_amount or Decimal('0'))
+        # Payments actually made BY the cutoff (not after)
+        paid_by_cutoff = sum(
+            (r.repayment_amount or Decimal('0.00'))
             for r in all_repayments
-            if r.repayment_date and month_start <= r.repayment_date <= month_end
+            if r.repayment_date and r.repayment_date <= due_cutoff
         )
 
-        outstanding = loan.repayment_amount_remaining or Decimal('0')
-        client      = loan.client
+        # FIFO allocation across slots using only pre-cutoff payments
+        slot_remaining = list(slot_amounts)
+        pool = paid_by_cutoff
+        for i in range(period):
+            if pool <= Decimal('0.00'):
+                break
+            take = min(pool, slot_remaining[i])
+            slot_remaining[i] -= take
+            pool -= take
 
+        # Which slots are due by the cutoff?
+        due_indexes = [i for i in range(period) if deadlines[i] <= due_cutoff]
+
+        # Due slots that still have a remaining balance
+        unpaid_pairs = [
+            (i, slot_amounts[i], slot_remaining[i])
+            for i in due_indexes
+            if slot_remaining[i] > Decimal('0.00')
+        ]
+
+        # Fully caught up by cutoff → skip
+        if not unpaid_pairs:
+            continue
+
+        amount_to_be_paid = sum(due for (_, due, _) in unpaid_pairs)
+        not_paid          = sum(rem for (_, _, rem) in unpaid_pairs)
+
+        # Paid this month = how much of the LAST due slot has been covered
+        # by the FIFO allocation (slot-specific, not total pool)
+        last_idx        = due_indexes[-1]
+        last_due_amt    = slot_amounts[last_idx]
+        last_remaining  = slot_remaining[last_idx]
+        paid_this_month = max(last_due_amt - last_remaining, Decimal('0.00'))
+
+        # Outstanding total = REAL live balance across ALL payments ever,
+        # not truncated to cutoff → matches the schedule view's Out total
+        total_paid_ever  = sum((r.repayment_amount or Decimal('0.00')) for r in all_repayments)
+        total_repayable  = loan.total_repayment_amount or sum(slot_amounts)
+        outstanding_real = max(total_repayable - total_paid_ever, Decimal('0.00'))
+
+        if outstanding_real <= Decimal('0.00'):
+            continue
+
+        client = loan.client
         rows.append({
-            'name':              f"{client.firstname} {getattr(client,'middlename','') or ''} {client.lastname}".strip(),
-            'check_no':          client.checkno or getattr(client,'employmentcardno','') or '—',
-            'employer':          getattr(client,'employername','') or '—',
+            'name':              f"{client.firstname} {client.middlename or ''} {client.lastname}".strip(),
+            'check_no':          client.checkno or client.employmentcardno or '—',
+            'employer':          client.employername or '—',
             'contact':           client.phonenumber or '—',
-            'amount_to_be_paid': _d(amount_to_be_paid),
-            'paid_this_month':   _d(paid_this_month),
-            'not_paid':          _d(not_paid),
-            'outstanding_total': _d(outstanding),
-            'is_overdue_loan':   is_overdue_loan,
+            'loan_type':         loan.loan_type or 'N/A',
+            'loan_id':           loan.id,
+            'amount_to_be_paid': amount_to_be_paid,
+            'paid_this_month':   paid_this_month,
+            'not_paid':          not_paid,
+            'outstanding_total': outstanding_real,
         })
 
-    # Sort alphabetically by name (matches web view exactly)
     rows.sort(key=lambda r: r['name'].lower())
 
-    # Add S/N after sort
+    # S/N assigned AFTER sort (mobile-only addition)
     for i, r in enumerate(rows, 1):
         r['sn'] = i
 
-    branch_name = (filter_office.name.upper() if filter_office
-                   else selected.name.upper() if selected else 'ALL BRANCHES')
-
-    MN2 = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',
-           7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'}
-    month_label = f"{MN2[sel_month]}/{sel_year}".upper()
-
-    total_amount_to_pay   = _d(sum(Decimal(str(r['amount_to_be_paid'])) for r in rows))
-    total_paid_this_month = _d(sum(Decimal(str(r['paid_this_month']))   for r in rows))
-    total_not_paid         = _d(sum(Decimal(str(r['not_paid']))          for r in rows))
-    total_outstanding     = _d(sum(Decimal(str(r['outstanding_total'])) for r in rows))
+    total_amount_to_pay   = sum((r['amount_to_be_paid'] for r in rows), Decimal('0.00'))
+    total_paid_this_month = sum((r['paid_this_month']   for r in rows), Decimal('0.00'))
+    total_not_paid        = sum((r['not_paid']          for r in rows), Decimal('0.00'))
+    total_outstanding     = sum((r['outstanding_total'] for r in rows), Decimal('0.00'))
 
     return Response({
         'branch_name':           branch_name,
         'month_label':           month_label,
         'arrears_cutoff':        str(due_cutoff),
+        'due_cutoff':            str(due_cutoff),
         'total_amount_to_pay':   total_amount_to_pay,
         'total_paid_this_month': total_paid_this_month,
         'total_not_paid':        total_not_paid,
         'total_outstanding':     total_outstanding,
-        'month': _str(selected_date),
-        'rows': rows,
+        'month':                 str(selected_date),
+        'rows':                  rows,
         'totals': {
             'amount_to_be_paid': total_amount_to_pay,
             'paid_this_month':   total_paid_this_month,
@@ -5574,6 +5974,7 @@ def api_customer_report(request):
     loans = (
         LoanApplication.objects
         .select_related('client')
+        .prefetch_related('repayments')
         .order_by('-application_date')
     )
 
@@ -5603,20 +6004,32 @@ def api_customer_report(request):
     for l in page_qs:
         c = l.client
         full_name = ' '.join(filter(None, [c.firstname, c.middlename or '', c.lastname]))
+        # Pull repayments off the prefetched list (no extra query per loan)
+        reps = list(l.repayments.all())
+        paid_amount = sum((r.repayment_amount or Decimal('0')) for r in reps)
         rows.append({
-            'loan_id':     l.id,
-            'client_id':   c.id,
-            'name':        full_name,
-            'firstname':   c.firstname or '',
-            'middlename':  c.middlename or '',
-            'lastname':    c.lastname  or '',
-            'phone':       c.phonenumber or '',
-            'office':      l.office or '',
-            'loan_type':   l.loan_type or '',
-            'loan_amount': _d(l.loan_amount),
-            'outstanding': _d(l.repayment_amount_remaining),
-            'status':      'active' if (l.repayment_amount_remaining or 0) > 0 else 'completed',
-            'date':        _str(l.application_date),
+            'loan_id':          l.id,
+            'client_id':        c.id,
+            'name':             full_name,
+            'firstname':        c.firstname or '',
+            'middlename':       c.middlename or '',
+            'lastname':         c.lastname  or '',
+            'phone':            c.phonenumber or '',
+            'check_no':         c.checkno or getattr(c, 'employmentcardno', '') or '',
+            'office':           l.office or '',
+            'loan_type':        l.loan_type or '',
+            'loan_id_label':    f"{(l.office or 'loan').lower()}-{l.id}",
+            'loan_amount':      _d(l.loan_amount),
+            'interest_amount':  _d(l.total_interest_amount or 0),
+            'penalty_amount':   0,
+            'total_amount':     _d(l.total_repayment_amount or l.loan_amount or 0),
+            'paid_amount':      _d(paid_amount),
+            'outstanding':      _d(l.repayment_amount_remaining),
+            # Fields needed for the outstanding-report status column
+            'repayment_count':  len(reps),
+            'is_approved':      bool(getattr(l, 'is_approved', False)),
+            'status':           'active' if (l.repayment_amount_remaining or 0) > 0 else 'completed',
+            'date':             _str(l.application_date),
         })
 
     # Branch list for filter dropdown (distinct offices with loans)
@@ -5868,6 +6281,214 @@ def manage_admin_branches_remove(request):
         return Response({'detail': 'Cannot remove current branch. Set another branch as current first.'}, status=400)
     UserOfficeAssignment.objects.filter(user=user, office=office).delete()
     return Response({'message': office.name + ' removed from ' + user.get_full_name() + '.'})
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def api_delete_loan(request, loan_id):
+    # POST/DELETE /api/loans/<loan_id>/delete/
+    # Mirrors delete_loan() web view exactly:
+    #   - Refuses to delete if the loan has any repayments
+    #   - Restores the branch balance (creates a new BranchBalance row that
+    #     adds the loan amount back to office/bank depending on the loan's
+    #     transaction_method)
+    #   - Deletes the loan itself
+    # Wrapped in atomic() so the balance restoration and delete succeed or
+    # fail together.
+    try:
+        loan = LoanApplication.objects.get(pk=loan_id)
+    except LoanApplication.DoesNotExist:
+        return Response({'success': False, 'error': 'Loan not found.'}, status=404)
+
+    # Safety: refuse to delete if any repayment exists
+    if loan.repayments.exists():
+        return Response(
+            {'success': False, 'error': 'Cannot delete a loan that has repayments.'},
+            status=400
+        )
+
+    client_id = loan.client_id
+
+    try:
+        from django.db import transaction as db_transaction
+        with db_transaction.atomic():
+            # Find the office by name (matches how it was stored on loan creation)
+            branch_office = Office.objects.filter(name=loan.office).first()
+
+            if branch_office:
+                branch_balance = BranchBalance.objects.filter(branch=branch_office).last()
+
+                if branch_balance:
+                    loan_amount = loan.loan_amount or Decimal('0')
+                    transaction_method = loan.transaction_method
+
+                    if transaction_method == 'cash':
+                        BranchBalance.objects.create(
+                            branch=branch_office,
+                            office_balance=branch_balance.office_balance + loan_amount,
+                            bank_balance=branch_balance.bank_balance,
+                            updated_by=request.user,
+                        )
+                    else:
+                        BranchBalance.objects.create(
+                            branch=branch_office,
+                            office_balance=branch_balance.office_balance,
+                            bank_balance=branch_balance.bank_balance + loan_amount,
+                            updated_by=request.user,
+                        )
+
+            loan.delete()
+
+        return Response({'success': True, 'client_id': client_id})
+    except Exception as e:
+        return Response({'success': False, 'error': str(e)}, status=500)
+
+
+@api_view(['POST', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def api_loan_edit(request, loan_id):
+    # POST/PATCH /api/loans/<loan_id>/edit/
+    # Mirrors loan_edit() web view exactly.
+    #
+    # Accepts partial or full form data. Missing fields fall back to the
+    # loan's current values (so mobile can PATCH just the fields it changed).
+    # Recomputes ALL derived fields the same way the model's save() does:
+    #   total_interest  = (I/100) × P
+    #   total_repayment = P + total_interest
+    #   monthly         = total_repayment / N
+    #   first_repayment = 28th of application_month (or +1 if day > 18)
+    #   repayment_amount_remaining = max(total_repayment - already_paid, 0)
+    #
+    # Wrapped in transaction.atomic() so a failure part-way through leaves
+    # the loan in its original state.
+    from django.db import transaction as db_transaction, models
+    from decimal import ROUND_HALF_UP
+    from dateutil.relativedelta import relativedelta
+
+    try:
+        loan = LoanApplication.objects.get(pk=loan_id)
+    except LoanApplication.DoesNotExist:
+        return Response({'success': False, 'error': 'Loan not found.'}, status=404)
+
+    try:
+        with db_transaction.atomic():
+            # ── Parse submitted values (each falls back to current loan value) ─
+            def _get_str(key, default):
+                v = request.data.get(key)
+                return default if v is None or v == '' else str(v).strip()
+
+            def _get_dec(key, default):
+                raw = request.data.get(key)
+                if raw is None or raw == '':
+                    return default
+                # Strip commas the mobile may send with the auto-formatted input
+                return Decimal(str(raw).replace(',', '').strip())
+
+            def _get_int(key, default):
+                raw = request.data.get(key)
+                if raw is None or raw == '':
+                    return default
+                return int(raw)
+
+            loan_amount        = _get_dec('loan_amount',           loan.loan_amount or Decimal('0'))
+            interest_rate      = _get_dec('interest_rate',         loan.interest_rate or Decimal('0'))
+            payment_period     = _get_int('payment_period_months', loan.payment_period_months or 1)
+            loan_type          = _get_str('loan_type',             loan.loan_type or '')
+            loan_purpose       = _get_str('loan_purpose',          loan.loan_purpose or '')
+            transaction_method = _get_str('transaction_method',    loan.transaction_method or 'cash')
+
+            application_date_str = request.data.get('application_date')
+            if application_date_str:
+                try:
+                    application_date = datetime.datetime.strptime(
+                        str(application_date_str), '%Y-%m-%d'
+                    ).date()
+                except (ValueError, TypeError):
+                    return Response({'success': False, 'error': 'Invalid application_date (expected YYYY-MM-DD).'}, status=400)
+            else:
+                application_date = loan.application_date
+
+            if payment_period <= 0:
+                return Response({'success': False, 'error': 'payment_period_months must be greater than zero.'}, status=400)
+
+            # ── Recalculate derived fields (mirrors web view exactly) ─────────
+            P = loan_amount
+            I = interest_rate
+            N = Decimal(str(payment_period))
+
+            total_interest  = (I / Decimal('100')) * P
+            total_repayment = P + total_interest
+            monthly         = total_repayment / N
+
+            if application_date and application_date.day <= 18:
+                first_repayment_date = application_date.replace(day=28)
+            elif application_date:
+                first_repayment_date = (application_date + relativedelta(months=1)).replace(day=28)
+            else:
+                first_repayment_date = loan.first_repayment_date
+
+            # ── How much has already been paid — new remaining balance ────────
+            total_paid = loan.repayments.aggregate(
+                s=models.Sum('repayment_amount')
+            )['s'] or Decimal('0.00')
+
+            new_remaining = max(
+                total_repayment.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) - total_paid,
+                Decimal('0.00')
+            )
+
+            # ── Update loan fields ────────────────────────────────────────────
+            loan.loan_amount            = loan_amount
+            loan.interest_rate          = interest_rate
+            loan.payment_period_months  = payment_period
+            loan.loan_type              = loan_type
+            loan.loan_purpose           = loan_purpose
+            loan.transaction_method     = transaction_method
+            loan.application_date       = application_date
+            loan.first_repayment_date   = first_repayment_date
+            loan.total_interest_amount  = total_interest.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            loan.interest_amount        = loan.total_interest_amount
+            loan.total_repayment_amount = total_repayment.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            loan.monthly_installment    = monthly.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            loan.repayment_amount_remaining = new_remaining
+
+            loan.save(update_fields=[
+                'loan_amount', 'interest_rate', 'payment_period_months',
+                'loan_type', 'loan_purpose', 'transaction_method',
+                'application_date', 'first_repayment_date',
+                'total_interest_amount', 'interest_amount',
+                'total_repayment_amount', 'monthly_installment',
+                'repayment_amount_remaining',
+            ])
+
+            return Response({
+                'success': True,
+                'loan_id': loan.id,
+                'message': f"Loan #{loan.id} updated successfully.",
+                'loan': {
+                    'id':                        loan.id,
+                    'loan_amount':               _d(loan.loan_amount),
+                    'interest_rate':             float(loan.interest_rate) if loan.interest_rate is not None else None,
+                    'payment_period_months':     loan.payment_period_months,
+                    'loan_type':                 loan.loan_type,
+                    'loan_purpose':              loan.loan_purpose or '',
+                    'transaction_method':        loan.transaction_method,
+                    'application_date':          str(loan.application_date) if loan.application_date else None,
+                    'first_repayment_date':      str(loan.first_repayment_date) if loan.first_repayment_date else None,
+                    'total_interest_amount':     _d(loan.total_interest_amount),
+                    'total_repayment_amount':    _d(loan.total_repayment_amount),
+                    'monthly_installment':       _d(loan.monthly_installment),
+                    'repayment_amount_remaining':_d(loan.repayment_amount_remaining),
+                    'total_paid':                _d(total_paid),
+                },
+            })
+    except Exception as e:
+        import traceback
+        return Response({
+            'success': False,
+            'error': str(e),
+            'trace': traceback.format_exc(),
+        }, status=500)
 
 
 @api_view(['POST'])
