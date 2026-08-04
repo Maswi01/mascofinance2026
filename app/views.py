@@ -7424,9 +7424,9 @@ def monthly_outstanding_report(request):
 
         is_hama = frd <= hama_cutoff
 
-        # Mkopo wa kawaida ambao bado haujaanza ku-due kufikia cutoff → ruka.
-        # HAMA hairuki hapa — daima imesha-due, inaonekana muda wote.
-        if not is_hama and deadlines[0] > due_cutoff:
+        # Mkopo wa kawaida ambao MWEZI wake wa kwanza wa rejesho bado
+        # haujafika kufikia cutoff → ruka. HAMA hairuki — inaonekana muda wote.
+        if not is_hama and schedule_months[0] > cutoff_ym:
             continue
 
         # ── 2. PAYMENT EVENTS = rmap + topup lump (sawa na all_payment_events)
@@ -7457,18 +7457,46 @@ def monthly_outstanding_report(request):
             slot_remaining[i] -= take
             pool -= take
 
-        # ── 4. DUE SLOTS ─────────────────────────────────────────────────
-        if is_hama:
-            # HAMA → slots ZOTE zime-due, bila kujali cutoff uliochagua
-            due_indexes = list(range(period))
-        else:
-            due_indexes = [i for i in range(period) if deadlines[i] <= due_cutoff]
+        # ── DUE SLOTS — rejesho ambalo MWEZI wake umeshafika kufikia cutoff.
+        # Miezi ya mbele (isiyo-due bado) HAIHESABIKI, hata kwa HAMA.
+        # HAMA hutofautiana na kawaida kwa KUONEKANA muda wote (haifutwi
+        # kwenye report), siyo kwa kuhesabu rejesho za mbele. ─────────────
+        due_indexes = [i for i in range(period) if schedule_months[i] <= cutoff_ym]
 
         if not due_indexes:
             continue
 
-        amount_to_be_paid = sum((slot_amounts[i]   for i in due_indexes), Decimal('0'))
-        not_paid          = sum((slot_remaining[i] for i in due_indexes), Decimal('0'))
+        # Slot ya mwezi wa cutoff (rejesho la wakati huo)
+        current_idx = None
+        for i in range(period):
+            if schedule_months[i] == cutoff_ym:
+                current_idx = i
+                break
+
+        # ── AMOUNT TO BE PAID = rejesho la mwezi husika + arrears za nyuma
+        # zisizolipwa.
+        #  • Mwezi wa cutoff upo kwenye schedule (current_idx ipo):
+        #        slot ya mwezi huo (KAMILI) + remaining za slots kabla yake.
+        #        Mfano Jane Jul: 263k + 0 = 263,000.
+        #  • Mwezi wa cutoff nje ya schedule (period imeisha, current_idx None):
+        #        hakuna "rejesho la mwezi huu" — deni lote ni arrears za nyuma,
+        #        kwa hiyo = jumla ya remaining za slots due (= not_paid).
+        #        Mfano Aisha (cutoff Jul, schedule inaishia Apr): 400,000.
+        if current_idx is not None:
+            current_installment = slot_amounts[current_idx]
+            back_arrears = sum(
+                (slot_remaining[i] for i in due_indexes if i < current_idx),
+                Decimal('0')
+            )
+            amount_to_be_paid = current_installment + back_arrears
+        else:
+            amount_to_be_paid = sum(
+                (slot_remaining[i] for i in due_indexes), Decimal('0')
+            )
+
+        # ── NOT PAID = kilichobaki bila kulipwa ndani ya rejesho la mwezi
+        # huo + arrears zote za nyuma zisizolipwa. Mfano Jane: 150,100. ──
+        not_paid = sum((slot_remaining[i] for i in due_indexes), Decimal('0'))
 
         # Amelipa VYOTE alivyodaiwa hadi cutoff → asionekane
         if not_paid <= Decimal('0'):
@@ -7517,7 +7545,7 @@ def monthly_outstanding_report(request):
         'total_not_paid':        sum(r['not_paid']          for r in rows),
         'total_outstanding':     sum(r['outstanding_total'] for r in rows),
     })
-    
+
 
 def expenses_filter(request):
     return render(request, 'app/expenses_filter.html', {
@@ -7530,13 +7558,12 @@ def expenses_report(request):
         return redirect('expenses_filter')
 
     base_ctx        = get_base_context(request)
-    filter_office   = base_ctx['filter_office']
-    selected_office = base_ctx['selected_office']
-    branch_name     = selected_office.name.upper() if selected_office else 'All Branches'
+    filter_office    = base_ctx['filter_office']
+    selected_office  = base_ctx['selected_office']
+    branch_name      = selected_office.name.upper() if selected_office else 'All Branches'
 
     date_from_str = request.POST.get('date_from', '')
     date_to_str   = request.POST.get('date_to',   '')
-
     try:
         date_from = datetime.datetime.strptime(date_from_str, '%Y-%m-%d').date()
         date_to   = datetime.datetime.strptime(date_to_str,   '%Y-%m-%d').date()
@@ -7546,48 +7573,169 @@ def expenses_report(request):
     date_from_display = date_from.strftime('%d/%m/%Y')
     date_to_display   = date_to.strftime('%d/%m/%Y')
 
+    # --- Expenses (cash/bank) ---
     expenses = Expense.objects.filter(
         transaction_date__range=(date_from, date_to),
     ).select_related(
         'transaction_type',
         'recorded_by',
     ).order_by('transaction_date', 'id')
-
     if filter_office:
         expenses = expenses.filter(office=filter_office.name)
 
-    rows      = []
-    prev_date = None
+    # --- Bank charges ---
+    charges = BankCharge.objects.filter(
+        transaction_date__range=(date_from, date_to),
+    ).order_by('transaction_date', 'id')
+    if filter_office:
+        charges = charges.filter(office=filter_office.name)
+
+    # --- Build unified list of dicts before sorting/merging ---
+    combined = []
 
     for exp in expenses:
         category    = exp.transaction_type.name if exp.transaction_type else 'Expense'
         description = (exp.description or '').strip()
         is_bank     = (getattr(exp, 'payment_method', 'cash') or 'cash').lower() == 'bank'
-
-        rows.append({
+        combined.append({
             'date':        exp.transaction_date,
+            'id':          exp.id,
+            'source':      'expense',
             'receipt_no':  str(exp.id).zfill(6),
             'category':    category,
             'description': description,
             'amount':      exp.amount or Decimal('0.00'),
             'is_bank':     is_bank,
             'attachment':  exp.attachment.url if exp.attachment else None,
-            'hide_date':   (exp.transaction_date == prev_date),
         })
-        prev_date = exp.transaction_date
+
+    for charge in charges:
+        charge_date = charge.transaction_date or charge.expense_date
+        combined.append({
+            'date':        charge_date,
+            'id':          charge.id,
+            'source':      'bankcharge',
+            'receipt_no':  str(charge.id).zfill(6),
+            'category':    'Benki Charges',
+            'description': (charge.description or '').strip(),
+            'amount':      charge.amount or Decimal('0.00'),
+            'is_bank':     True,
+            'attachment':  charge.attachment.url if charge.attachment else None,
+        })
+
+    # --- Sort combined list together: date then id ---
+    combined.sort(key=lambda r: (r['date'], r['id']))
+
+    # --- Apply hide_date across the merged, sorted list ---
+    rows      = []
+    prev_date = None
+    for r in combined:
+        r['hide_date'] = (r['date'] == prev_date)
+        rows.append(r)
+        prev_date = r['date']
+
+    grand_total = sum(r['amount'] for r in rows)
 
     return render(request, 'app/expenses_report.html', {
         **base_ctx,
         'rows':              rows,
-        'grand_total':       sum(r['amount'] for r in rows),
+        'grand_total':       grand_total,
         'date_from_display': date_from_display,
         'date_to_display':   date_to_display,
+        'date_from':         date_from_str,
+        'date_to':           date_to_str,
         'branch_name':       branch_name,
-    })
+    })   
     
-    
-    
-    
+
+def expense_row_delete(request, source, pk):
+    if request.method != 'POST':
+        return redirect('expenses_filter')
+
+    if not request.user.has_perm('app.expenses-list'):
+        messages.error(request, "Huna ruhusa ya kufanya kitendo hiki.")
+        return redirect('expenses_filter')
+
+    date_from = request.POST.get('date_from', '')
+    date_to   = request.POST.get('date_to', '')
+
+    try:
+        with db_transaction.atomic():
+
+            if source == 'expense':
+                obj = get_object_or_404(Expense, pk=pk)
+
+                office_name   = obj.office
+                branch_office = Office.objects.filter(name=office_name).first()
+                if branch_office:
+                    latest = BranchBalance.objects.filter(
+                        branch=branch_office
+                    ).order_by('-last_updated').first()
+                    if latest:
+                        method = obj.payment_method or 'cash'
+                        if method == 'bank':
+                            BranchBalance.objects.create(
+                                branch=branch_office,
+                                office_balance=latest.office_balance,
+                                bank_balance=latest.bank_balance + obj.amount,
+                                updated_by=request.user,
+                            )
+                        else:
+                            BranchBalance.objects.create(
+                                branch=branch_office,
+                                office_balance=latest.office_balance + obj.amount,
+                                bank_balance=latest.bank_balance,
+                                updated_by=request.user,
+                            )
+
+                obj.delete()
+
+            elif source == 'bankcharge':
+                obj = get_object_or_404(BankCharge, pk=pk)
+
+                office_name   = obj.office
+                branch_office = Office.objects.filter(name=office_name).first()
+                if branch_office:
+                    latest = BranchBalance.objects.filter(
+                        branch=branch_office
+                    ).order_by('-last_updated').first()
+                    if latest:
+                        method = obj.payment_method or 'bank'
+                        if method == 'bank':
+                            BranchBalance.objects.create(
+                                branch=branch_office,
+                                office_balance=latest.office_balance,
+                                bank_balance=latest.bank_balance + obj.amount,
+                                updated_by=request.user,
+                            )
+                        else:
+                            BranchBalance.objects.create(
+                                branch=branch_office,
+                                office_balance=latest.office_balance + obj.amount,
+                                bank_balance=latest.bank_balance,
+                                updated_by=request.user,
+                            )
+
+                obj.delete()
+
+            else:
+                messages.error(request, "Aina ya rekodi haijulikani.")
+                return redirect('expenses_filter')
+
+        messages.success(request, "Rekodi imefutwa na salio limerejeshwa.")
+
+    except Exception as e:
+        messages.error(request, f"Hitilafu wakati wa kufuta: {str(e)}")
+        return redirect('expenses_filter')
+
+    if not date_from or not date_to:
+        return redirect('expenses_filter')
+
+    # Re-POST to the report view to redisplay the same date range
+    return render(request, 'app/_repost_expenses.html', {
+        'date_from': date_from,
+        'date_to':   date_to,
+    })  
     
     
 def financial_statement_filter(request):

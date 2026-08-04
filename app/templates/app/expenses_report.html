@@ -133,6 +133,39 @@
         border-radius: 2px; font-size: 13px; cursor: pointer; color: #333;
     }
     .print-btn:hover { background: #f0f0f0; }
+    
+    .del-btn {
+        background: none; border: none; color: #c0392b;
+        cursor: pointer; font-size: 15px; padding: 2px 6px;
+    }
+    .del-btn:hover { color: #922b21; }
+
+    /* Confirm modal */
+    .confirm-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45); z-index: 1000;
+        align-items: center; justify-content: center;
+    }
+    .confirm-overlay.active { display: flex; }
+    .confirm-box {
+        background: #fff; border-radius: 6px; padding: 24px 28px;
+        max-width: 340px; width: 90%; text-align: center;
+        font-family: Arial, sans-serif; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .confirm-box p { font-size: 14px; color: #1a1a1a; margin-bottom: 20px; }
+    .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+    .confirm-btn {
+        padding: 7px 20px; border-radius: 3px; font-size: 13px;
+        cursor: pointer; border: 1px solid #ccc;
+    }
+    .confirm-btn.yes { background: #c0392b; color: #fff; border-color: #c0392b; }
+    .confirm-btn.yes:hover { background: #922b21; }
+    .confirm-btn.no { background: #fff; color: #333; }
+    .confirm-btn.no:hover { background: #f0f0f0; }
+
+    @media print {
+        .del-btn, .confirm-overlay, th.actions-col, td.actions-col { display: none !important; }
+    }
 
     @media print {
         body * { visibility: hidden; }
@@ -176,47 +209,46 @@
                         <th style="width:120px;">Receipt No.</th>
                         <th>Particular</th>
                         <th class="num" style="width:130px;">Amount</th>
+                        <th class="actions-col" style="width:60px;"></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in rows %}
-                    <tr>
-                        <!-- Date: only shown on first row of each date group -->
-                        <td class="date-cell {% if row.hide_date %}date-hidden{% endif %}">
-                            {{ row.date|date:"d/m/Y" }}
-                        </td>
-
-                        <!-- Receipt No: blue + icon for bank-paid -->
-                        <td>
-                            <span class="receipt-cell">
-                                {% if row.attachment %}
-                                    <a href="{{ row.attachment }}" target="_blank" style="text-decoration: none;">
+                        <tr>
+                            <td class="date-cell {% if row.hide_date %}date-hidden{% endif %}">
+                                {{ row.date|date:"d/m/Y" }}
+                            </td>
+                            <td>
+                                <span class="receipt-cell">
+                                    {% if row.attachment %}
+                                        <a href="{{ row.attachment }}" target="_blank" style="text-decoration: none;">
+                                            {{ row.receipt_no }}
+                                            <span class="receipt-icon">&#128196;</span>
+                                        </a>
+                                    {% else %}
                                         {{ row.receipt_no }}
-                                        <span class="receipt-icon">&#128196;</span>
-                                    </a>
-                                {% else %}
-                                    {{ row.receipt_no }}
-                                {% endif %}
-                            </span>
-                        </td>
-
-                        <!-- Particular: bold category, normal description in brackets -->
-                        <td class="particular">
-                            <strong>{{ row.category }}</strong>
-                            {% if row.description %} [{{ row.description }}]{% endif %}
-                        </td>
-
-                        <td class="num">{{ row.amount|floatformat:0|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-
-                    <!-- Grand Total -->
-                    <tr class="grand-total-row">
-                        <td colspan="3"><strong>GRAND TOTAL</strong></td>
-                        <td class="grand-total-amount">
-                            <strong>{{ grand_total|floatformat:0|intcomma }}</strong>
-                        </td>
-                    </tr>
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td class="particular">
+                                <strong>{{ row.category }}</strong>
+                                {% if row.description %} [{{ row.description }}]{% endif %}
+                            </td>
+                            <td class="num">{{ row.amount|floatformat:0|intcomma }}</td>
+                            <td class="actions-col">
+                                <button type="button" class="del-btn"
+                                        onclick="confirmDelete('{{ row.source }}', '{{ row.id }}')"
+                                        title="Futa">&#128465;</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        
+                        <tr class="grand-total-row">
+                            <td colspan="4"><strong>GRAND TOTAL</strong></td>
+                            <td class="grand-total-amount">
+                                <strong>{{ grand_total|floatformat:0|intcomma }}</strong>
+                            </td>
+                        </tr>
                 </tbody>
             </table>
             {% endif %}
@@ -236,6 +268,46 @@
         </div>
 
     </div>
+    
+    
+    
+    
+    
+    <!-- Confirm Delete Modal -->
+<div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+        <p>Una uhakika unataka kufuta rekodi hii? Kitendo hiki hakiwezi kurudishwa.</p>
+        <div class="confirm-actions">
+            <button type="button" class="confirm-btn no" onclick="closeConfirm()">Ghairi</button>
+            <button type="button" class="confirm-btn yes" onclick="submitDelete()">Futa</button>
+        </div>
+    </div>
+</div>
+
+<form id="deleteForm" method="POST" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="date_from" value="{{ date_from }}">
+    <input type="hidden" name="date_to" value="{{ date_to }}">
+</form>
+
+<script>
+    
+    const deleteUrlTemplate = "{% url 'expense_row_delete' source='__SRC__' pk=999999 %}";
+
+    function confirmDelete(source, pk) {
+        const form = document.getElementById('deleteForm');
+        form.action = deleteUrlTemplate.replace('__SRC__', source).replace('999999', pk);
+        document.getElementById('confirmOverlay').classList.add('active');
+    }
+    function closeConfirm() {
+        document.getElementById('confirmOverlay').classList.remove('active');
+    }
+    function submitDelete() {
+        document.getElementById('deleteForm').submit();
+    }
+</script>
+
+
 </div>
 
 {% endblock %}

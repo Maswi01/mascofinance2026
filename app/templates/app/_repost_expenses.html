@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+<body onload="document.forms[0].submit()">
+    <form method="POST" action="{% url 'expenses_report' %}">
+        {% csrf_token %}
+        <input type="hidden" name="date_from" value="{{ date_from }}">
+        <input type="hidden" name="date_to" value="{{ date_to }}">
+    </form>
+</body>
+</html>

@@ -160,6 +160,11 @@ urlpatterns = [
     
     path('expenses-statement/',         views.expenses_filter, name='expenses_filter'),
     path('expenses-statement/report/',  views.expenses_report, name='expenses_report'),
+    path(
+        'expenses/delete/<str:source>/<int:pk>/',
+        views.expense_row_delete,
+        name='expense_row_delete',
+    ),
     
     path('financial-statement-office/',         views.financial_statement_filter, name='financial_statement_filter'),
     path('financial-statement/report/',  views.financial_statement_report, name='financial_statement_report'),
