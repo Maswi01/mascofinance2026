@@ -1,5 +1,6 @@
 {% extends 'app/base.html' %}
 {% load static %}
+{% load humanize %}
 {% block content %}
 
 <style>
@@ -175,11 +176,11 @@
             </div>
             <div class="badge-item">
                 <span class="badge-label">Original Amount</span>
-                <span class="badge-value">{{ loan.loan_amount|floatformat:0 }} /=</span>
+                <span class="badge-value">{{ loan.loan_amount|floatformat:0|intcomma }} /=</span>
             </div>
             <div class="badge-item">
                 <span class="badge-label">Total Repayable</span>
-                <span class="badge-value">{{ loan.total_repayment_amount|floatformat:0 }} /=</span>
+                <span class="badge-value">{{ loan.total_repayment_amount|floatformat:0|intcomma }} /=</span>
             </div>
             <div class="badge-item">
                 <span class="badge-label">Already Paid</span>
@@ -193,7 +194,7 @@
             </div>
             <div class="badge-item">
                 <span class="badge-label">Remaining</span>
-                <span class="badge-value remain">{{ loan.repayment_amount_remaining|floatformat:0 }} /=</span>
+                <span class="badge-value remain">{{ loan.repayment_amount_remaining|floatformat:0|intcomma }} /=</span>
             </div>
             <div class="badge-item">
                 <span class="badge-label">Status</span>
@@ -204,12 +205,11 @@
         <form method="POST" action="{% url 'loan_edit' loan.id %}" id="editForm">
             {% csrf_token %}
 
-            <!-- Loan Amount -->
             <div class="loan-form-row">
                 <label for="loan_amount">Amount <span style="color:red;">*</span></label>
                 <div style="position:relative; width:280px;">
                     <input type="text" id="loan_amount" name="loan_amount"
-                           value="{{ loan.loan_amount|floatformat:0 }}"
+                           value="{{ loan.loan_amount|floatformat:0|intcomma }}"
                            inputmode="numeric" autocomplete="off"
                            style="width:100%; padding-right:30px; box-sizing:border-box;"
                            oninput="onAmountInput(this)" required>
@@ -258,13 +258,11 @@
                 <input type="text" id="endPaymentDay" readonly placeholder="—">
             </div>
 
-            <!-- Disbursement Method -->
+            <!-- Disbursement Method (read-only) -->
             <div class="loan-form-row">
-                <label for="transaction_method">Disbursement via</label>
-                <select id="transaction_method" name="transaction_method" required>
-                    <option value="bank"  {% if loan.transaction_method == 'bank'  %}selected{% endif %}>Bank</option>
-                    <option value="cash"  {% if loan.transaction_method == 'cash'  %}selected{% endif %}>Cash</option>
-                </select>
+                <label>Disbursement via</label>
+                <input type="text" value="{{ loan.transaction_method|title }}" readonly>
+                <input type="hidden" name="transaction_method" value="{{ loan.transaction_method }}">
             </div>
 
             <!-- Loan Purpose -->

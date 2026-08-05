@@ -7447,9 +7447,17 @@ def monthly_outstanding_report(request):
         paid_by_cutoff  = sum((v for k, v in events.items() if k <= cutoff_ym), Decimal('0'))
         total_paid_ever = sum(events.values(), Decimal('0'))
 
-        # ── 3. FIFO — funika slots kuanzia mwanzo ────────────────────────
+        # ── 3. FIFO — funika slots kwa malipo ya miezi ya NYUMA tu (kabla
+        # ya mwezi wa cutoff). Malipo ya mwezi wa cutoff yenyewe
+        # (paid_this_month) tunayaonyesha kando ili uhusiano
+        # Amount = Paid_this_month + Not_paid ushike kila mara. ───────────
+        paid_before_cutoff = sum(
+            (v for k, v in events.items() if k < cutoff_ym), Decimal('0')
+        )
+        paid_this_month = events.get(cutoff_ym, Decimal('0'))
+
         slot_remaining = list(slot_amounts)
-        pool = paid_by_cutoff
+        pool = paid_before_cutoff
         for i in range(period):
             if pool <= Decimal('0'):
                 break
@@ -7474,14 +7482,11 @@ def monthly_outstanding_report(request):
                 break
 
         # ── AMOUNT TO BE PAID = rejesho la mwezi husika + arrears za nyuma
-        # zisizolipwa.
-        #  • Mwezi wa cutoff upo kwenye schedule (current_idx ipo):
-        #        slot ya mwezi huo (KAMILI) + remaining za slots kabla yake.
-        #        Mfano Jane Jul: 263k + 0 = 263,000.
-        #  • Mwezi wa cutoff nje ya schedule (period imeisha, current_idx None):
-        #        hakuna "rejesho la mwezi huu" — deni lote ni arrears za nyuma,
-        #        kwa hiyo = jumla ya remaining za slots due (= not_paid).
-        #        Mfano Aisha (cutoff Jul, schedule inaishia Apr): 400,000.
+        # zisizolipwa (baada ya malipo ya miezi ya nyuma kufunika).
+        #  • current_idx ipo:  slot KAMILI ya mwezi huo + remaining za slots
+        #                      kabla yake.
+        #  • current_idx None (period imeisha): deni lote ni arrears za
+        #                      nyuma = jumla ya remaining za slots due. ────
         if current_idx is not None:
             current_installment = slot_amounts[current_idx]
             back_arrears = sum(
@@ -7494,16 +7499,17 @@ def monthly_outstanding_report(request):
                 (slot_remaining[i] for i in due_indexes), Decimal('0')
             )
 
-        # ── NOT PAID = kilichobaki bila kulipwa ndani ya rejesho la mwezi
-        # huo + arrears zote za nyuma zisizolipwa. Mfano Jane: 150,100. ──
-        not_paid = sum((slot_remaining[i] for i in due_indexes), Decimal('0'))
+        # ── NOT PAID = Amount to be paid − Paid (This month).
+        # Uhusiano huu unashika DAIMA:  Amount = Paid_this_month + Not_paid.
+        # (paid_this_month imezuiwa isizidi amount ili isiende hasi.) ──────
+        paid_this_month = min(paid_this_month, amount_to_be_paid)
+        not_paid = amount_to_be_paid - paid_this_month
 
-        # Amelipa VYOTE alivyodaiwa hadi cutoff → asionekane
+        # Hana deni lolote lisilolipwa hadi cutoff → asionekane.
+        # (Aliyemaliza kulipa marejesho yake yote hadi sasa haonekani,
+        # hata kama alilipa mwezi huu.) ──────────────────────────────────
         if not_paid <= Decimal('0'):
             continue
-
-        # ── 5. PAID THIS MONTH — malipo ya mwezi wa cutoff ───────────────
-        paid_this_month = events.get(cutoff_ym, Decimal('0'))
 
         # ── 6. OUTSTANDING (Total) — SAWA na column ya 'Balance' ya
         # loans_owed: tumia loan.repayment_amount_remaining moja kwa moja.
@@ -7545,8 +7551,8 @@ def monthly_outstanding_report(request):
         'total_not_paid':        sum(r['not_paid']          for r in rows),
         'total_outstanding':     sum(r['outstanding_total'] for r in rows),
     })
-
-
+    
+    
 def expenses_filter(request):
     return render(request, 'app/expenses_filter.html', {
         **get_base_context(request),
