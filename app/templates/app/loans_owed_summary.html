@@ -106,22 +106,23 @@
             <div class="lo-big-number">{{ total_loans_owed }}</div>
             <div class="lo-big-label">Total Loans Owed</div>
 
-            <div class="lo-substats">
-                <!-- CASH — click to go to the report -->
-                <a class="lo-stat-item"
-                   href="{% url 'loans_owed_report' %}?type=cash">
-                    <span class="lo-stat-label">
-                        CASH ({{ cash_loans_count }})
-                    </span>
-                </a>
+<div class="lo-substats">
+    <!-- CASH — click to go to the report -->
+    <a class="lo-stat-item"
+       href="{% url 'loans_owed_report' %}?type=cash">
+        <span class="lo-stat-label">
+            CASH ({{ cash_loans_count }})
+        </span>
+    </a>
+    <!-- HAZINA -->
+    <a class="lo-stat-item"
+       href="{% url 'loans_owed_report_hazina' %}">
+        <span class="lo-stat-label">
+            HAZINA ({{ hazina_loans_count }})
+        </span>
+    </a>
+</div>
 
-                <!-- HAZINA — zero as requested -->
-                <div class="lo-stat-item" style="cursor:default;">
-                    <span class="lo-stat-label">
-                        HAZINA (0)
-                    </span>
-                </div>
-            </div>
         </div>
     </div>
 </div>

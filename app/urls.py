@@ -256,6 +256,7 @@ urlpatterns = [
     path('office-transactions/delete/<int:pk>/', views.office_transaction_delete, name='office_transaction_delete'),
 
     path('loans-owed/',          views.loans_owed_summary, name='loans_owed_summary'),
+    path('loans-owed-report/hazina/', views.loans_owed_report_hazina, name='loans_owed_report_hazina'),
     path('loans-owed/report/',   views.loans_owed_report,  name='loans_owed_report'),
     path('loans-owed/approve/',  views.loans_owed_approve, name='loans_owed_approve'),
     path('loans-owed/hama-approve/',  views.loans_owed_approve,  name='hama_loans_owed_approve'),

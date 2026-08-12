@@ -11004,12 +11004,14 @@ def loans_owed_summary(request):
     if filter_office:
         qs = qs.filter(office=filter_office.name)
 
-    cash_count = qs.count()
+    cash_count   = qs.exclude(loan_type__iexact='Hazina').count()
+    hazina_count = qs.filter(loan_type__iexact='Hazina').count()
 
     return render(request, 'app/loans_owed_summary.html', {
         **base_ctx,
-        'total_loans_owed': cash_count,
-        'cash_loans_count': cash_count,
+        'total_loans_owed':  cash_count + hazina_count,
+        'cash_loans_count':  cash_count,
+        'hazina_loans_count': hazina_count,
     })
 
 
@@ -11659,8 +11661,13 @@ def loans_owed_report(request):
     win_start    = today - relativedelta(months=6)
     win_y, win_m = win_start.year, win_start.month
 
+    # loans_qs = LoanApplication.objects.filter(
+    #     is_approved=False,
+    # ).select_related('client').prefetch_related('topups')
     loans_qs = LoanApplication.objects.filter(
         is_approved=False,
+    ).exclude(
+        loan_type__iexact='Hazina'
     ).select_related('client').prefetch_related('topups')
 
     if filter_office:
@@ -11866,6 +11873,225 @@ def loans_owed_report(request):
     })
 
 
+def loans_owed_report_hazina(request):
+    base_ctx        = get_base_context(request)
+    filter_office   = base_ctx['filter_office']
+    selected_office = base_ctx['selected_office']
+    branch_name     = selected_office.name.upper() if selected_office else 'All Branches'
+
+    today        = datetime.date.today()
+    cur_y, cur_m = today.year, today.month
+
+    win_start    = today - relativedelta(months=6)
+    win_y, win_m = win_start.year, win_start.month
+
+    loans_qs = LoanApplication.objects.filter(
+        is_approved=False,
+        loan_type__iexact='Hazina',
+    ).select_related('client').prefetch_related('topups')
+
+    if filter_office:
+        loans_qs = loans_qs.filter(office=filter_office.name)
+
+    loans_list = list(loans_qs)
+
+    # ── Build rep_map using payment_month as authoritative key ──
+    rep_map = {l.id: {} for l in loans_list}
+
+    repayments = LoanRepayment.objects.filter(
+        loan_application__in=loans_list
+    ).values(
+        'loan_application_id',
+        'repayment_date',
+        'repayment_amount',
+        'payment_month',
+    )
+    for r in repayments:
+        ref = r['payment_month'] or r['repayment_date']
+        key = (ref.year, ref.month)
+        lid = r['loan_application_id']
+        rep_map[lid][key] = rep_map[lid].get(key, Decimal('0')) + r['repayment_amount']
+
+    # ── SECTION A — active loans grouped by first_repayment_date ─
+    groups = {}
+    for loan in loans_list:
+        frd = loan.first_repayment_date
+        if not frd:
+            continue
+        sy, sm = frd.year, frd.month
+        if (sy, sm) < (win_y, win_m):
+            continue
+        groups.setdefault((sy, sm), []).append(loan)
+
+    month_sections = []
+
+    for (sy, sm) in sorted(groups.keys(), reverse=True):
+        loans_in_group = sorted(
+            groups[(sy, sm)],
+            key=lambda l: (l.client.firstname or '', l.client.lastname or '')
+        )
+
+        col_end    = datetime.date(sy, sm, 1) + relativedelta(months=11)
+        col_months = _months_range(sy, sm, col_end.year, col_end.month)
+        assert len(col_months) == 12
+
+        month_headers = [_label(y, m) for y, m in col_months]
+        col_totals    = [{'paid': Decimal('0'), 'out': Decimal('0')} for _ in col_months]
+
+        sec_paid = sec_loaned = sec_amount = sec_balance = Decimal('0')
+        rows = []
+
+        for loan in loans_in_group:
+            client = loan.client
+            name   = f"{client.firstname} {client.middlename or ''} {client.lastname}".strip()
+            inst   = loan.monthly_installment or Decimal('0')
+            rmap   = rep_map.get(loan.id, {})
+            period = loan.payment_period_months or 0
+
+            cells, contributions = _distribute_payments(
+                col_months, rmap, inst,
+                loan.first_repayment_date,
+                period, cur_y, cur_m,
+                loan=loan,
+            )
+
+            for idx, (p, o) in enumerate(contributions):
+                col_totals[idx]['paid'] += p
+                col_totals[idx]['out']  += o
+
+            total_paid = sum(c.get('paid', Decimal('0')) for c in cells)
+            loaned     = loan.loan_amount            or Decimal('0')
+            tot_amt    = loan.total_repayment_amount or Decimal('0')
+            balance    = loan.repayment_amount_remaining or Decimal('0')
+
+            rows.append({
+                'loan_id':       loan.id,
+                'name':          name,
+                'check_no':      client.checkno or client.employmentcardno or '—',
+                'loan_id_label': f"{(loan.office or '').lower()}-{loan.id}",
+                'cells':         cells,
+                'total_paid':    total_paid,
+                'loaned_amount': loaned,
+                'total_amount':  tot_amt,
+                'balance':       balance,
+                'is_fully_paid': balance <= Decimal('0'),
+                'mobile':        client.phonenumber or '—',
+            })
+
+            sec_paid    += total_paid
+            sec_loaned  += loaned
+            sec_amount  += tot_amt
+            sec_balance += balance
+
+        month_sections.append({
+            'key':           f"{sy}-{sm:02d}",
+            'label':         _label(sy, sm).upper(),
+            'month_headers': month_headers,
+            'col_totals':    col_totals,
+            'rows':          rows,
+            'total_paid':    sec_paid,
+            'total_loaned':  sec_loaned,
+            'total_amount':  sec_amount,
+            'total_balance': sec_balance,
+        })
+
+    # ── SECTION B — HAMA (overdue loans) ────────────────────────
+    hama_cutoff = today - relativedelta(months=6)
+
+    hama_loans = [
+        l for l in loans_list
+        if l.first_repayment_date
+        and l.first_repayment_date <= hama_cutoff
+    ]
+
+    bf_y, bf_m      = cur_y - 1, 12
+    hama_col_months = _months_range(cur_y - 1, 12, cur_y, 12)  # Dec → Dec, always 13
+    hama_month_hdrs = [_label(y, m) for y, m in hama_col_months]
+
+    hama_year_groups = {}
+    for loan in hama_loans:
+        yr = loan.first_repayment_date.year
+        hama_year_groups.setdefault(yr, []).append(loan)
+
+    hama_sections = []
+
+    for yr in sorted(hama_year_groups.keys(), reverse=True):
+        h_loans = sorted(
+            hama_year_groups[yr],
+            key=lambda l: (l.client.firstname or '', l.client.lastname or '')
+        )
+
+        h_col_totals = [
+            {'paid': Decimal('0'), 'out': Decimal('0')}
+            for _ in hama_col_months
+        ]
+        h_paid = h_loaned = h_interest = h_amount = h_balance = Decimal('0')
+        rows = []
+
+        for loan in h_loans:
+            client = loan.client
+            name   = f"{client.firstname} {client.middlename or ''} {client.lastname}".strip()
+            inst   = loan.monthly_installment or Decimal('0')
+            rmap   = rep_map.get(loan.id, {})
+            period = loan.payment_period_months or 0
+
+            cells, contributions = _distribute_payments_hama(
+                hama_col_months, rmap, inst,
+                loan.first_repayment_date,
+                period, cur_y, cur_m,
+                bf_y, bf_m,
+            )
+
+            for idx, (p, o) in enumerate(contributions):
+                h_col_totals[idx]['paid'] += p
+                h_col_totals[idx]['out']  += o
+
+            total_paid = sum(c.get('paid', Decimal('0')) for c in cells)
+            loaned     = loan.loan_amount            or Decimal('0')
+            interest   = loan.total_interest_amount  or Decimal('0')
+            tot_amt    = loan.total_repayment_amount or Decimal('0')
+            balance    = loan.repayment_amount_remaining or Decimal('0')
+
+            rows.append({
+                'loan_id':       loan.id,
+                'name':          name,
+                'check_no':      client.checkno or client.employmentcardno or '—',
+                'loan_id_label': f"{(loan.office or '').lower()}-{loan.id}",
+                'cells':         cells,
+                'total_paid':    total_paid,
+                'loaned_amount': loaned,
+                'interest':      interest,
+                'total_amount':  tot_amt,
+                'balance':       balance,
+                'mobile':        client.phonenumber or '—',
+            })
+
+            h_paid     += total_paid
+            h_loaned   += loaned
+            h_interest += interest
+            h_amount   += tot_amt
+            h_balance  += balance
+
+        hama_sections.append({
+            'label':          f"HAZINA-{yr}",
+            'month_headers':  hama_month_hdrs,
+            'col_totals':     h_col_totals,
+            'rows':           rows,
+            'total_paid':     h_paid,
+            'total_loaned':   h_loaned,
+            'total_interest': h_interest,
+            'total_amount':   h_amount,
+            'total_balance':  h_balance,
+        })
+
+    return render(request, 'app/loans_owed_report.html', {
+        **base_ctx,
+        'branch_name':    branch_name,
+        'month_sections': month_sections,
+        'hama_sections':  hama_sections,
+    })
+    
+    
 
 def loans_owed_approve(request):
     if request.method == 'POST':
