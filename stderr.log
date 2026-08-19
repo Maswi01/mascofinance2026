@@ -27997,3 +27997,75 @@ Not Found: /shop/wp-admin/install.php
   warnings.warn(
 /home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField HQTransaction.created_at received a naive datetime (2026-08-10 00:00:00) while time zone support is active.
   warnings.warn(
+Not Found: /robots.txt
+Not Found: /robots.txt
+Not Found: /robots.txt
+Not Found: /robots.txt
+Not Found: /robots.txt
+Not Found: /robots.txt
+Not Found: /robots.txt
+Bad Request: /api/bank-charges/add/
+Bad Request: /api/bank-charges/add/
+Bad Request: /api/bank-charges/add/
+Bad Request: /api/bank-charges/add/
+Bad Request: /api/bank-charges/add/
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField LoanRepayment.created_at received a naive datetime (2026-08-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField LoanRepayment.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField LoanTopup.created_at received a naive datetime (2026-08-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField LoanTopup.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField LoanApplication.created_at received a naive datetime (2026-08-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField LoanApplication.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField Expense.created_at received a naive datetime (2026-08-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField Expense.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField Salary.created_at received a naive datetime (2026-08-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField Salary.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField BankCharge.created_at received a naive datetime (2026-08-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField BankCharge.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField HQTransaction.created_at received a naive datetime (2026-08-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField HQTransaction.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField LoanRepayment.created_at received a naive datetime (2026-07-15 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField LoanRepayment.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField OfficeTransaction.created_at received a naive datetime (2026-07-31 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField OfficeTransaction.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField OfficeTransaction.created_at received a naive datetime (2026-05-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField OfficeTransaction.created_at received a naive datetime (2026-01-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField BankCashTransaction.created_at received a naive datetime (2026-07-31 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField BankCashTransaction.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField BankCashTransaction.created_at received a naive datetime (2026-05-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField BankCashTransaction.created_at received a naive datetime (2026-05-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField BankCashTransaction.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField OfficeTransaction.created_at received a naive datetime (2026-05-01 00:00:00) while time zone support is active.
+  warnings.warn(
+/home/mccolnc1/virtualenv/365microfinance/3.9/lib/python3.9/site-packages/django/db/models/fields/__init__.py:1595: RuntimeWarning: DateTimeField OfficeTransaction.created_at received a naive datetime (2026-08-15 23:59:59.999999) while time zone support is active.
+  warnings.warn(
+[UID:1947][3513059] Child process with pid: 3632912 was killed by signal: 15, core dumped: no
+Not Found: /robots.txt
+Not Found: /robots.txt
+Not Found: /robots.txt
+Not Found: /robots.txt
+Not Found: /robots.txt

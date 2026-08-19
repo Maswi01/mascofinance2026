@@ -1,0 +1,465 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    .page-wrapper {
+        padding: 40px;
+        margin-top: 70px;
+        font-family: 'Poppins', sans-serif;
+        background: #f0f2f5;
+        min-height: calc(100vh - 70px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* White form card */
+    .form-card {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 30px 36px 36px;
+        width: 100%;
+        max-width: 900px;
+    }
+
+    /* Title */
+    .form-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #b8860b;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding-bottom: 12px;
+        border-bottom: 1.5px solid #e0e0e0;
+        margin-bottom: 32px;
+    }
+
+    /* Form row: label + input aligned */
+    .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .form-row label {
+        width: 210px;
+        min-width: 210px;
+        font-size: 13.5px;
+        color: #555;
+        font-weight: 400;
+        text-align: right;
+        padding-right: 24px;
+    }
+
+    .form-row .input-wrap {
+        flex: 1;
+        max-width: 340px;
+    }
+
+    /* Divider between sections */
+    .form-divider {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 24px 0;
+    }
+
+    /* Text inputs (read-only auto-filled) */
+    .form-control {
+        width: 100%;
+        padding: 8px 13px;
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .form-control:read-only {
+        background: #f4f6f8;
+        color: #555;
+        cursor: default;
+    }
+
+    .form-control:focus:not(:read-only) {
+        border-color: #1a73c7;
+        box-shadow: 0 0 0 3px rgba(26,115,199,0.1);
+    }
+
+    /* Select with arrow */
+    .select-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 340px;
+    }
+
+    .select-wrap select {
+        width: 100%;
+        padding: 8px 36px 8px 13px;
+        border: 1px solid #cdd4da;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        color: #333;
+        background: #fff;
+        outline: none;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        transition: border-color 0.2s;
+    }
+
+    .select-wrap select:focus { border-color: #1a73c7; }
+
+    .select-wrap::after {
+        content: '▼';
+        position: absolute;
+        right: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        color: #888;
+        pointer-events: none;
+    }
+
+    /* Searchable combobox (Client select) */
+    .combobox-wrap {
+        position: relative;
+    }
+
+    .combobox-wrap input.form-control {
+        cursor: text;
+    }
+
+    .combobox-list {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        max-height: 220px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1px solid #cdd4da;
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        z-index: 50;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .combobox-list.show { display: block; }
+
+    .combobox-item {
+        padding: 8px 13px;
+        font-size: 13px;
+        cursor: pointer;
+        color: #333;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .combobox-item:last-child { border-bottom: none; }
+    .combobox-item:hover,
+    .combobox-item.active { background: #eaf4fb; }
+
+    .combobox-empty {
+        padding: 8px 13px;
+        font-size: 13px;
+        color: #999;
+        font-style: italic;
+    }
+
+    /* Submit row */
+    .submit-row {
+        display: flex;
+        justify-content: center;
+        margin-top: 28px;
+        padding-top: 18px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .btn-submit {
+        background: #2ecc9a;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 44px;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        transition: background 0.2s, transform 0.15s;
+        box-shadow: 0 2px 8px rgba(46,204,154,0.3);
+    }
+
+    .btn-submit:hover { background: #27ae88; transform: translateY(-1px); }
+    .btn-submit:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+
+    /* Toast */
+    .toast {
+        position: fixed;
+        top: 80px;
+        right: 24px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Poppins', sans-serif;
+        color: #fff;
+        z-index: 9999;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+        pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { background: #2ecc9a; }
+    .toast.error { background: #e53935; }
+
+    /* Django messages */
+    .messages-wrap {
+        width: 100%;
+        max-width: 900px;
+        margin-bottom: 16px;
+    }
+
+    .alert {
+        padding: 11px 16px;
+        border-radius: 5px;
+        font-size: 13px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .alert-success { background: #e8f5e9; color: #388e3c; border: 1px solid #c8e6c9; }
+    .alert-error   { background: #fce4e4; color: #c62828; border: 1px solid #ffcdd2; }
+    .alert-warning { background: #fff8e1; color: #f57f17; border: 1px solid #ffe082; }
+
+    @media (max-width: 768px) {
+        .page-wrapper { padding: 16px; margin-top: 60px; }
+        .form-card { padding: 20px 16px; }
+        .form-row { flex-direction: column; align-items: flex-start; }
+        .form-row .input-wrap,
+        .select-wrap { max-width: 100%; width: 100%; }
+        .form-row label { width: 100%; text-align: left; padding-right: 0; margin-bottom: 5px; }
+    }
+</style>
+
+<div class="toast" id="toast"></div>
+
+<div class="page-wrapper">
+
+    {% if messages %}
+    <div class="messages-wrap">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="form-card">
+        <div class="form-title">Transfer Client</div>
+
+        <form id="transferForm" method="post" action="{% url 'process_transfer_client' %}">
+            {% csrf_token %}
+
+            <!-- Client Name (searchable) -->
+            <div class="form-row">
+                <label for="client_search">Client Name</label>
+                <div class="select-wrap combobox-wrap">
+                    <input type="text"
+                           id="client_search"
+                           class="form-control"
+                           placeholder="Andika jina la client..."
+                           autocomplete="off"
+                           onkeyup="filterClients()"
+                           onfocus="showClientDropdown()">
+                    <div id="clientDropdown" class="combobox-list"></div>
+                    <input type="hidden" name="client_id" id="client_id" required>
+                </div>
+            </div>
+
+            <!-- Check No (auto-filled) -->
+            <div class="form-row">
+                <label>Check No</label>
+                <div class="input-wrap">
+                    <input type="text" id="checkNo" class="form-control" readonly placeholder="Auto-filled">
+                </div>
+            </div>
+
+            <!-- Current Branch (auto-filled) -->
+            <div class="form-row">
+                <label>Current Branch</label>
+                <div class="input-wrap">
+                    <input type="text" id="currentBranch" class="form-control" readonly placeholder="Auto-filled">
+                </div>
+            </div>
+
+            <hr class="form-divider">
+
+            <!-- New Branch -->
+            <div class="form-row">
+                <label for="new_office">New Branch</label>
+                <div class="select-wrap">
+                    <select name="new_office" id="new_office" required>
+                        <option value="">Select New Branch</option>
+                        {% for office in offices %}
+                        <option value="{{ office.id }}">{{ office.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Hidden fields -->
+            <input type="hidden" name="client_id_confirm" id="client_id_confirm">
+
+            <div class="submit-row">
+                <button type="submit" class="btn-submit" id="submitBtn" onclick="return validateForm()">
+                    SUBMIT
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ==================== Client Data ====================
+    const clientData = [
+        {% for client in clients %}
+        {
+            id: {{ client.id }},
+            name: "{{ client.firstname|upper }} {{ client.middlename|upper }} {{ client.lastname|upper }}".replace(/\s+/g, ' ').trim(),
+            checkNo: "{{ client.checkno|default:client.employmentcardno|default:'—'|escapejs }}",
+            office: "{{ client.registered_office.name|default:'Not Allocated'|escapejs }}",
+            officeId: "{{ client.registered_office.id|default:''|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const clientDropdown = document.getElementById('clientDropdown');
+    const clientSearch   = document.getElementById('client_search');
+
+    // ==================== Render dropdown list ====================
+    function renderClientList(list) {
+        clientDropdown.innerHTML = '';
+
+        if (list.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'combobox-empty';
+            empty.textContent = 'Hakuna client aliyepatikana';
+            clientDropdown.appendChild(empty);
+            clientDropdown.classList.add('show');
+            return;
+        }
+
+        list.forEach(client => {
+            const item = document.createElement('div');
+            item.className = 'combobox-item';
+            item.textContent = `${client.name} — ${client.checkNo}`;
+            item.onclick = () => selectClient(client);
+            clientDropdown.appendChild(item);
+        });
+
+        clientDropdown.classList.add('show');
+    }
+
+    // ==================== Filter as user types ====================
+    function filterClients() {
+        const query = clientSearch.value.trim().toLowerCase();
+
+        // Client akibadilisha search baada ya kuchagua awali, futa selection
+        document.getElementById('client_id').value = '';
+        document.getElementById('client_id_confirm').value = '';
+        document.getElementById('checkNo').value = '';
+        document.getElementById('currentBranch').value = '';
+
+        if (query === '') {
+            renderClientList(clientData);
+            return;
+        }
+
+        const filtered = clientData.filter(c =>
+            c.name.toLowerCase().includes(query) ||
+            c.checkNo.toLowerCase().includes(query)
+        );
+        renderClientList(filtered);
+    }
+
+    function showClientDropdown() {
+        renderClientList(clientData);
+    }
+
+    // ==================== On Client Select ====================
+    function selectClient(client) {
+        clientSearch.value = client.name;
+        document.getElementById('client_id').value = client.id;
+        document.getElementById('client_id_confirm').value = client.id;
+        document.getElementById('checkNo').value = client.checkNo;
+        document.getElementById('currentBranch').value = client.office;
+
+        clientDropdown.classList.remove('show');
+
+        // Exclude current office from new office options
+        const newOfficeSelect = document.getElementById('new_office');
+        Array.from(newOfficeSelect.options).forEach(opt => {
+            if (opt.value && opt.value === client.officeId) {
+                opt.disabled = true;
+                opt.textContent = opt.textContent.replace(' (current)', '') + ' (current)';
+            } else {
+                opt.disabled = false;
+                opt.textContent = opt.textContent.replace(' (current)', '');
+            }
+        });
+
+        // Reset new office selection
+        newOfficeSelect.value = '';
+    }
+
+    // Funga dropdown ukibonyeza nje yake
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.combobox-wrap')) {
+            clientDropdown.classList.remove('show');
+        }
+    });
+
+    // ==================== Validation ====================
+    function validateForm() {
+        const clientId = document.getElementById('client_id').value;
+        const newOffice = document.getElementById('new_office').value;
+
+        if (!clientId) {
+            showToast('Tafadhali chagua client kutoka kwenye orodha.', 'error');
+            return false;
+        }
+        if (!newOffice) {
+            showToast('Tafadhali chagua tawi jipya.', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    // ==================== Toast ====================
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+        setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+</script>
+{% endblock %}

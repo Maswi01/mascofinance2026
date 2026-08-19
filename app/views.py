@@ -3214,6 +3214,54 @@ def process_transfer_staff(request):
     return redirect('transfer_staff')
 
 
+def transfer_client(request):
+    clients = Client.objects.all().select_related('registered_office').order_by('firstname', 'lastname')
+    offices = Office.objects.all().order_by('name')
+    context = {
+        **get_base_context(request),
+        'clients': clients,
+        'offices': offices,
+    }
+    return render(request, 'app/transfer_client.html', context)
+    
+
+def process_transfer_client(request):
+    if request.method == 'POST':
+        client_id = request.POST.get('client_id')
+        new_office_id = request.POST.get('new_office')
+
+        try:
+            client = Client.objects.get(id=client_id)
+            new_office = Office.objects.get(id=new_office_id)
+
+            old_office_name = client.registered_office.name if client.registered_office else 'Not Allocated'
+
+            with transaction.atomic():
+                # 1. Hamisha client mwenyewe
+                client.registered_office = new_office
+                client.save()
+
+                # 2. Hamisha loans zote za client huyu (office ni CharField, si FK)
+                loans_updated = LoanApplication.objects.filter(client=client).update(
+                    office=new_office.name
+                )
+
+            messages.success(
+                request,
+                f'{client.firstname} {client.lastname} na loans zake ({loans_updated}) '
+                f'zimehamishwa kutoka {old_office_name} kwenda {new_office.name}.'
+            )
+
+        except Client.DoesNotExist:
+            messages.error(request, 'Client not found.')
+        except Office.DoesNotExist:
+            messages.error(request, 'Office not found.')
+        except Exception as e:
+            messages.error(request, f'Error transferring client: {str(e)}')
+
+    return redirect('transfer_client')
+    
+  
 
 def block_user(request):
     """View to display all users for blocking/unblocking"""
@@ -11658,7 +11706,7 @@ def loans_owed_report(request):
     today        = datetime.date.today()
     cur_y, cur_m = today.year, today.month
 
-    win_start    = today - relativedelta(months=6)
+    win_start    = today - relativedelta(months=8)
     win_y, win_m = win_start.year, win_start.month
 
     # loans_qs = LoanApplication.objects.filter(
@@ -11777,7 +11825,7 @@ def loans_owed_report(request):
         })
 
     # ── SECTION B — HAMA (overdue loans) ────────────────────────
-    hama_cutoff = today - relativedelta(months=6)
+    hama_cutoff = today - relativedelta(months=8)
 
     hama_loans = [
         l for l in loans_list
@@ -11882,7 +11930,7 @@ def loans_owed_report_hazina(request):
     today        = datetime.date.today()
     cur_y, cur_m = today.year, today.month
 
-    win_start    = today - relativedelta(months=6)
+    win_start    = today - relativedelta(months=8)
     win_y, win_m = win_start.year, win_start.month
 
     loans_qs = LoanApplication.objects.filter(
@@ -11996,7 +12044,7 @@ def loans_owed_report_hazina(request):
         })
 
     # ── SECTION B — HAMA (overdue loans) ────────────────────────
-    hama_cutoff = today - relativedelta(months=6)
+    hama_cutoff = today - relativedelta(months=8)
 
     hama_loans = [
         l for l in loans_list

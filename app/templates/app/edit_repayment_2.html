@@ -184,8 +184,9 @@
             <div class="er-field">
                 <label class="er-label">Amount</label>
                 <input class="er-input readonly" type="text"
-                       value="{{ amount|floatformat:0|intcomma }}"
-                       readonly>
+                    name="amount"
+                    value="{{ amount|floatformat:0|intcomma }}"
+                    readonly>
             </div>
 
             <!-- Date — editable -->

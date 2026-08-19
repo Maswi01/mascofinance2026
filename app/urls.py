@@ -54,6 +54,9 @@ urlpatterns = [
     path('transfer-staff/', views.transfer_staff, name='transfer_staff'),
     path('process-transfer-staff/', views.process_transfer_staff, name='process_transfer_staff'),
     
+    path('transfer-client/', views.transfer_client, name='transfer_client'),
+    path('process-transfer-client/', views.process_transfer_client, name='process_transfer_client'),
+    
     path('block-user/', views.block_user, name='block_user'),
     path('process-block-user/', views.process_block_user, name='process_block_user'),
     path('blocked-staff/', views.blocked_staff_list, name='blocked_staff_list'),
