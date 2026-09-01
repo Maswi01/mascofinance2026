@@ -15,6 +15,8 @@ urlpatterns = [
 
     # ── DASHBOARD ─────────────────────────────────────────────────────────────
     path('dashboard/', views.api_dashboard, name='api_dashboard'),
+    path('transfer-client/data/',    views.api_transfer_client_data,    name='api_transfer_client_data'),
+    path('transfer-client/process/', views.api_process_transfer_client, name='api_process_transfer_client'),
     path('loan-payment/clients/', views.api_loan_payment_clients, name='api_loan_payment_clients'),
     path('loan-receipt/clients/',   views.api_loan_receipt_clients,   name='api_loan_receipt_clients'),
     path('loan-receipt/list/',      views.api_loan_receipt_list,      name='api_loan_receipt_list'),

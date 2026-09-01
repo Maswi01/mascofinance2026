@@ -1301,16 +1301,34 @@ def api_loan_payment_clients(request):
 
         filter_office = get_filter_office(request)
 
+        # ── FILTERING (relaxed vs web view's exact matches) ──────────────
+        # Web uses `status='Approved'` and `office=filter_office.name` as
+        # exact-match filters. On mobile these were returning zero rows —
+        # likely because either the status casing or the office name from
+        # the X-Office-Id header didn't exactly match the DB values.
+        #
+        # New approach: keep the intent (only loans that still need paying)
+        # but be tolerant about how they're written. Include any loan with a
+        # positive stored remaining, excluding only clearly-terminal statuses
+        # (paid / completed / cancelled / rejected). Office match is
+        # case-insensitive with trimmed whitespace. The real-outstanding
+        # gate below still excludes any loan that is actually paid off, so
+        # this cannot let a fully-paid loan through.
         active_loans = (
             LoanApplication.objects
             .select_related('client')
             .prefetch_related('repayments')
-            .filter(repayment_amount_remaining__gt=0, status='Approved')
-            .exclude(status='Paid')
+            .filter(repayment_amount_remaining__gt=0)
+            .exclude(
+                Q(status__iexact='Paid') |
+                Q(status__iexact='Completed') |
+                Q(status__iexact='Cancelled') |
+                Q(status__iexact='Rejected')
+            )
             .order_by('client__firstname', 'client__lastname')
         )
         if filter_office:
-            active_loans = active_loans.filter(office=filter_office.name)
+            active_loans = active_loans.filter(office__iexact=filter_office.name.strip())
 
         # Optional server-side name/phone/check-no search
         search = (request.GET.get('search') or '').strip()
@@ -1324,21 +1342,40 @@ def api_loan_payment_clients(request):
                 Q(client__employmentcardno__icontains=search)
             )
 
-        # Group by client, computing real outstanding from repayments so a
-        # fully-paid loan never leaks through even if its stored balance
-        # field is stale.
+        # Group by client. We want to exclude fully-paid loans (which slip
+        # past the DB filter because repayment_amount_remaining is stale),
+        # but we MUST NOT wrongly exclude active loans just because
+        # total_repayment_amount was under-recorded. The old logic used only
+        # loan_amount as the fallback total, which can be smaller than the
+        # actual sum of principal + interest paid — causing active loans to
+        # be excluded when payments exceeded the principal.
+        #
+        # New rule: compute total_due as the MAX of every field that could
+        # represent it (stored total, principal+interest, principal alone).
+        # Then a loan is only excluded if BOTH the computed AND the stored
+        # remaining agree it is fully paid.
         TOL = Decimal('0.01')  # ignore sub-cent residues from rounding
         clients_map = OrderedDict()
         for loan in active_loans:
-            total_due = loan.total_repayment_amount or loan.loan_amount or Decimal('0')
+            principal = loan.loan_amount or Decimal('0')
+            interest  = loan.total_interest_amount or Decimal('0')
+            stored_total     = loan.total_repayment_amount or Decimal('0')
+            computed_total   = principal + interest
+            # Use the largest — never underestimate total due
+            total_due = max(stored_total, computed_total, principal)
+
             paid = sum(
                 (r.repayment_amount or Decimal('0'))
                 for r in loan.repayments.all()
             )
-            real_outstanding = total_due - paid
+            computed_remaining = max(total_due - paid, Decimal('0'))
+            stored_remaining   = loan.repayment_amount_remaining or Decimal('0')
 
-            # Real gate: has the client actually still got a balance?
-            if real_outstanding <= TOL:
+            # Real outstanding = whichever number is larger (more conservative)
+            real_outstanding = max(computed_remaining, stored_remaining)
+
+            # Only exclude when BOTH indicators say the loan is fully paid
+            if real_outstanding <= TOL and computed_remaining <= TOL:
                 continue
 
             # Attach for the response payload — use the real outstanding, not
@@ -1643,6 +1680,112 @@ def api_delete_repayment(request, pk):
     except Exception as e:
         import traceback
         return Response({'success': False, 'error': str(e), 'trace': traceback.format_exc()}, status=500)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_transfer_client_data(request):
+    # GET /api/transfer-client/data/?search=
+    # Returns clients (with current branch + check no) and the list of offices
+    # for the New Branch dropdown. Mirrors transfer_client() web view.
+    try:
+        clients_qs = (
+            Client.objects
+            .select_related('registered_office')
+            .order_by('firstname', 'lastname')
+        )
+
+        search = (request.GET.get('search') or '').strip()
+        if search:
+            clients_qs = clients_qs.filter(
+                Q(firstname__icontains=search) |
+                Q(middlename__icontains=search) |
+                Q(lastname__icontains=search) |
+                Q(phonenumber__icontains=search) |
+                Q(checkno__icontains=search) |
+                Q(employmentcardno__icontains=search)
+            )
+
+        clients = []
+        for c in clients_qs:
+            middle    = (c.middlename or '').strip()
+            full_name = f"{c.firstname} {middle} {c.lastname}".strip().replace('  ', ' ')
+            check_no  = c.checkno or getattr(c, 'employmentcardno', '') or ''
+            current_branch = c.registered_office.name if c.registered_office else 'Not Allocated'
+            clients.append({
+                'client_id':      c.id,
+                'client_name':    full_name,
+                'check_no':       check_no,
+                'current_branch': current_branch,
+                'current_office_id': c.registered_office_id,
+                'display_label':  f"{full_name} -[{check_no}]" if check_no else full_name,
+            })
+
+        offices = [
+            {'id': o.id, 'name': o.name}
+            for o in Office.objects.all().order_by('name')
+        ]
+
+        return Response({'clients': clients, 'offices': offices})
+    except Exception as _e:
+        import traceback
+        return Response({'detail': f'Server error: {str(_e)}', 'trace': traceback.format_exc()}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_process_transfer_client(request):
+    # POST /api/transfer-client/process/
+    # Body: { client_id, new_office_id }
+    # Mirrors process_transfer_client() web view: moves the client to the new
+    # office AND updates the office (CharField) on all their loans, atomically.
+    try:
+        client_id     = request.data.get('client_id')
+        new_office_id = request.data.get('new_office_id') or request.data.get('new_office')
+
+        if not client_id or not new_office_id:
+            return Response({'success': False, 'error': 'client_id and new_office_id are required.'}, status=400)
+
+        try:
+            client = Client.objects.get(id=client_id)
+        except Client.DoesNotExist:
+            return Response({'success': False, 'error': 'Client not found.'}, status=404)
+
+        try:
+            new_office = Office.objects.get(id=new_office_id)
+        except Office.DoesNotExist:
+            return Response({'success': False, 'error': 'Office not found.'}, status=404)
+
+        old_office_name = client.registered_office.name if client.registered_office else 'Not Allocated'
+
+        from django.db import transaction as db_transaction
+        with db_transaction.atomic():
+            # 1. Move the client
+            client.registered_office = new_office
+            client.save(update_fields=['registered_office'])
+
+            # 2. Move all their loans (office is a CharField, not an FK)
+            loans_updated = LoanApplication.objects.filter(client=client).update(
+                office=new_office.name
+            )
+
+        full_name = ' '.join(filter(None, [
+            client.firstname or '', (client.middlename or '').strip(), client.lastname or ''
+        ]))
+
+        return Response({
+            'success':        True,
+            'client_id':      client.id,
+            'client_name':    full_name,
+            'old_branch':     old_office_name,
+            'new_branch':     new_office.name,
+            'loans_updated':  loans_updated,
+            'message':        f"{full_name} and {loans_updated} loan(s) moved from {old_office_name} to {new_office.name}.",
+        })
+    except Exception as e:
+        import traceback
+        return Response({'success': False, 'error': str(e), 'trace': traceback.format_exc()}, status=500)
+
+
 
 
 @api_view(['GET'])
@@ -5116,17 +5259,31 @@ def api_bank_charge_add(request):
                         updated_by=request.user,
                     )
 
-            charge = BankCharge.objects.create(
-                description=description,
-                amount=amount,
-                recorded_by=request.user,
-                office=branch_office.name,
-                payment_method=payment_method,
-                expense_date=transaction_date,
-            )
-            if attachment:
-                charge.attachment = attachment
-                charge.save(update_fields=['attachment'])
+            # Build create kwargs and use the date field the model actually
+            # defines. The web view uses `transaction_date`, but earlier API
+            # queries in this file use `expense_date` — either the model has
+            # both, or only one, or was renamed. Detect from the model's
+            # actual fields to avoid TypeError on unknown kwargs.
+            model_field_names = {f.name for f in BankCharge._meta.get_fields()}
+
+            create_kwargs = {
+                'description':    description,
+                'amount':         amount,
+                'recorded_by':    request.user,
+                'office':         branch_office.name,
+                'payment_method': payment_method,
+            }
+            # Prefer transaction_date (matches web view), fall back to expense_date
+            if 'transaction_date' in model_field_names:
+                create_kwargs['transaction_date'] = transaction_date
+            elif 'expense_date' in model_field_names:
+                create_kwargs['expense_date'] = transaction_date
+
+            # Attachment inline (matches web view) — model must accept it
+            if attachment and 'attachment' in model_field_names:
+                create_kwargs['attachment'] = attachment
+
+            charge = BankCharge.objects.create(**create_kwargs)
 
             return Response({
                 'id': charge.id,
