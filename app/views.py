@@ -7522,30 +7522,16 @@ def monthly_outstanding_report(request):
         if not due_indexes:
             continue
 
-        # Slot ya mwezi wa cutoff (rejesho la wakati huo)
-        current_idx = None
-        for i in range(period):
-            if schedule_months[i] == cutoff_ym:
-                current_idx = i
-                break
-
-        # ── AMOUNT TO BE PAID = rejesho la mwezi husika + arrears za nyuma
-        # zisizolipwa (baada ya malipo ya miezi ya nyuma kufunika).
-        #  • current_idx ipo:  slot KAMILI ya mwezi huo + remaining za slots
-        #                      kabla yake.
-        #  • current_idx None (period imeisha): deni lote ni arrears za
-        #                      nyuma = jumla ya remaining za slots due. ────
-        if current_idx is not None:
-            current_installment = slot_amounts[current_idx]
-            back_arrears = sum(
-                (slot_remaining[i] for i in due_indexes if i < current_idx),
-                Decimal('0')
-            )
-            amount_to_be_paid = current_installment + back_arrears
-        else:
-            amount_to_be_paid = sum(
-                (slot_remaining[i] for i in due_indexes), Decimal('0')
-            )
+        # ── AMOUNT TO BE PAID = jumla ya remaining za slots zote due (mwezi
+        # husika + arrears za nyuma) baada ya malipo ya miezi ya nyuma
+        # kufunika kwa FIFO.
+        #  • Malipo ya ziada ya miezi ya nyuma (advance/prepayment) yanaenda
+        #    FIFO hadi kwenye slot ya mwezi huu na za mbele — sawa na
+        #    loan_repayment_schedule. Hivyo slot ya mwezi huu iliyokwisha
+        #    funikwa na malipo ya nyuma haidaiwi tena. ────────────────────
+        amount_to_be_paid = sum(
+            (slot_remaining[i] for i in due_indexes), Decimal('0')
+        )
 
         # ── NOT PAID = Amount to be paid − Paid (This month).
         # Uhusiano huu unashika DAIMA:  Amount = Paid_this_month + Not_paid.
